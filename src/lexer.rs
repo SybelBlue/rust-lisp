@@ -103,7 +103,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
                     return Ok(Ident(ident))
                 }
             }
-            return Ok(Form(Box::new(Ident(ident)), v))
+            return Ok(Form(ident, v))
         }
 
         match parse(chars) {

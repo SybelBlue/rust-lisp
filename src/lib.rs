@@ -71,8 +71,8 @@ mod tests {
             let s = String::from("\n\t(+    1  2 3  )  \n\t(apply f ())");
             let chars = &mut s.chars().peekable();
             assert_eq!(parse_all(chars), 
-                vec![ Ok(Form(Box::new(Ident(String::from("+"))), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
-                    , Ok(Form(Box::new(Ident(String::from("apply"))), vec![Ident(String::from("f")), Lit(Unit)]))
+                vec![ Ok(Form(String::from("+"), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
+                    , Ok(Form(String::from("apply"), vec![Ident(String::from("f")), Lit(Unit)]))
                 ]);
         }
     }
