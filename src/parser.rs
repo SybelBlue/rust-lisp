@@ -5,6 +5,7 @@ pub enum Expr {
     Lit(Value),
     Ident(String),
     Form(String, Vec<Expr>),
+    Def(String, Box<Expr>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -15,7 +16,7 @@ pub enum Value {
     Fn(VecDeque<String>, Box<Expr>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Context<'a> {
     data: HashMap<String, Value>,
     prev: Option<Box<&'a Context<'a>>>,
@@ -58,6 +59,7 @@ impl Expr {
                     v => Ok(v),
                 }
             },
+            Expr::Def(n, _) => Err(format!("Tried to define in an immutable scope {}", n)),
         }
     }
 }

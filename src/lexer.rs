@@ -103,6 +103,17 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
         }
     }
 
+    let is_defn = ident.as_bytes() == b"defn";
+    if is_defn || ident.as_bytes() == b"def" {
+        let name = parse_identifier(chars)?;
+        let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
+        return match chars.next() {
+            None => eof_err,
+            Some(')') => Ok(Def(name, Box::new(e))),
+            Some(c) => Err(format!("Expecting end of form after defn, got {} instead", c)),
+        }
+    }
+
     let mut v = Vec::new();
     while let Some(&c) = chars.peek() {
         if c == ')' {
