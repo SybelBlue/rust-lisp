@@ -98,7 +98,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
         let f = parse_fn_decl(chars)?;
         return match chars.next() {
             None => eof_err,
-            Some(')') => Ok(Lit(f)),
+            Some(')') => { skip_whitespace(chars); Ok(Lit(f)) },
             Some(c) => Err(format!("Expecting end of form after fn declaration, got {} instead", c)),
         }
     }
@@ -109,7 +109,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
         let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
         return match chars.next() {
             None => eof_err,
-            Some(')') => Ok(Def(name, Box::new(e))),
+            Some(')') => {skip_whitespace(chars); Ok(Def(name, Box::new(e))) },
             Some(c) => Err(format!("Expecting end of form after defn, got {} instead", c)),
         }
     }

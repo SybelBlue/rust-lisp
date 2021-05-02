@@ -23,12 +23,16 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
+    pub fn new() -> Self {
+        Self { prev: None, data: HashMap::new() }
+    }
+
+    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<Value, String> {
         if !allow_overwrite && self.data.contains_key(&k) {
             Err(format!("NameError: {} already defined in scope", k))
         } else {
-            self.data.insert(k, v);
-            Ok(())
+            self.data.insert(k, v.clone());
+            Ok(v)
         }
     }
 
@@ -72,4 +76,17 @@ impl Expr {
             Expr::Def(n, _) => Err(format!("Tried to define in an immutable scope {}", n)),
         }
     }
+
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> Result<Value, String> {
+        match self {
+            Expr::Def(n, body) => 
+                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite),
+            _ => self.eval(&ctxt),
+        }
+    }
+}
+
+pub(crate) fn exec_batch(exprs: Vec<Expr>) -> (Vec<Result<Value, String>>, Context<'static>) {
+    let mut ctxt = Context::new();
+    (exprs.iter().map(|e| e.exec(&mut ctxt, false)).collect(), ctxt)
 }
