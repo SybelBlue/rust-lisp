@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::parser::Expr;
+use crate::parser::{Expr, Value};
 
 fn take_while<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, f: F) -> String {
     let mut s = String::new();
@@ -75,7 +75,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     
     if let Ok(e) = parse_number(chars) { 
         skip_whitespace(chars);
-        return Ok(e); 
+        return Ok(Lit(e)); 
     }
     
     match chars.peek() {
@@ -87,7 +87,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     if chars.peek() == Some(&')') {
         chars.next();
         skip_whitespace(chars);
-        return Ok(Unit);
+        return Ok(Lit(Value::Unit));
     }
 
     let ident = parse_identifier(chars)?;
@@ -98,7 +98,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
             skip_whitespace(chars);
             if v.len() == 0 {
                 if let Ok(e) = parse_number(&mut ident.chars().peekable()) {
-                    return Ok(e);
+                    return Ok(Lit(e));
                 } else {
                     return Ok(Ident(ident))
                 }
@@ -128,7 +128,7 @@ pub(crate) fn parse_identifier(chars: &mut Peekable<Chars<'_>>) -> Result<String
     Ok(out)
 }
 
-pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
+pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Value, String> {
     let mut num = String::new();
     
     if optional(chars, |c| c == '-').is_some() {
@@ -140,9 +140,9 @@ pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, Stri
     let exp = if optional(chars, |c| c == '.').is_some() {
         num.push('.');
         num.push_str(many1(chars, "a decimal part", char::is_numeric)?.as_str());
-        num.parse().map_err(|_| format!("bad float literal {}", num)).map(Expr::Float)
+        num.parse().map_err(|_| format!("bad float literal {}", num)).map(Value::Float)
     } else {
-        num.parse().map_err(|_| format!("bad int literal {}", num)).map(Expr::Int)
+        num.parse().map_err(|_| format!("bad int literal {}", num)).map(Value::Int)
     }?;
     skip_whitespace(chars);
     Ok(exp)

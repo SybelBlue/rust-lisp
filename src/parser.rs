@@ -1,8 +1,19 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
-    Float(f64),
-    Int(i64),
+    Lit(Value),
     Ident(String),
-    Unit,
     Form(Box<Expr>, Vec<Expr>),
+}
+
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum Value {
+    Unit,
+    Int(i64),
+    Float(f64),
+}
+
+impl Expr {
+    pub fn eval(&self) -> Value {
+        todo!()
+    }
 }

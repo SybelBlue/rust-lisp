@@ -4,7 +4,7 @@ pub mod parser;
 #[cfg(test)]
 mod tests {
     mod lexer {
-        use crate::{lexer::*, parser::Expr};
+        use crate::{lexer::*, parser::{Expr, Value}};
 
         #[test]
         fn identifier() {
@@ -31,19 +31,20 @@ mod tests {
 
         #[test]
         fn number() {
+            use Value::*;
             let s = String::from("47");
             let chars = &mut s.chars().peekable();
-            assert_eq!(Ok(Expr::Int(47)), parse_number(chars));
+            assert_eq!(Ok(Int(47)), parse_number(chars));
             assert_eq!(None, chars.next());
 
             let s = String::from("-47\t\n  ");
             let chars = &mut s.chars().peekable();
-            assert_eq!(Ok(Expr::Int(-47)), parse_number(chars));
+            assert_eq!(Ok(Int(-47)), parse_number(chars));
             assert_eq!(None, chars.next());
 
             let s = String::from("-0047.34");
             let chars = &mut s.chars().peekable();
-            assert_eq!(Ok(Expr::Float(-47.34)), parse_number(chars));
+            assert_eq!(Ok(Float(-47.34)), parse_number(chars));
             assert_eq!(None, chars.next());
             
             let s = String::from("");
@@ -65,9 +66,14 @@ mod tests {
         #[test]
         fn expr() {
             use Expr::*;
-            let s = String::from("\n\t(+    1  2 3  )  \n\t");
+            use Value::*;
+
+            let s = String::from("\n\t(+    1  2 3  )  \n\t(apply f ())");
             let chars = &mut s.chars().peekable();
-            assert_eq!(parse_all(chars), vec![Ok(Form(Box::new(Ident(String::from("+"))), vec![Int(1), Int(2), Int(3)]))]);
+            assert_eq!(parse_all(chars), 
+                vec![ Ok(Form(Box::new(Ident(String::from("+"))), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
+                    , Ok(Form(Box::new(Ident(String::from("apply"))), vec![Ident(String::from("f")), Lit(Unit)]))
+                ]);
         }
     }
 }
