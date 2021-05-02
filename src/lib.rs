@@ -4,6 +4,8 @@ pub mod parser;
 #[cfg(test)]
 mod tests {
     mod lexer {
+        use std::collections::VecDeque;
+
         use crate::{lexer::*, parser::{Expr, Value}};
 
         #[test]
@@ -68,11 +70,12 @@ mod tests {
             use Expr::*;
             use Value::*;
 
-            let s = String::from("\n\t(+    1  2 3  )  \n\t(apply f ())");
+            let s = format!("\n\t(+    1  2 3  )  \n\t(apply f ()) \n(def add (fn [a b] (+ a b)))");
             let chars = &mut s.chars().peekable();
             assert_eq!(parse_all(chars), 
-                vec![ Ok(Form(String::from("+"), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
-                    , Ok(Form(String::from("apply"), vec![Ident(String::from("f")), Lit(Unit)]))
+                vec![ Ok(Form(format!("+"), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
+                    , Ok(Form(format!("apply"), vec![Ident(format!("f")), Lit(Unit)]))
+                    , Ok(Form(format!("def"), vec![Ident(format!("add")), Lit(Fn(VecDeque::from(vec![format!("a"), format!("b")]), Box::new(Form(format!("+"), vec![Ident(format!("a")), Ident(format!("b"))]))))]))
                 ]);
         }
     }

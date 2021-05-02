@@ -1,4 +1,4 @@
-use std::{iter::Peekable, str::Chars};
+use std::{collections::VecDeque, iter::Peekable, str::Chars};
 
 use crate::parser::{Expr, Value};
 
@@ -77,9 +77,11 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
         skip_whitespace(chars);
         return Ok(Lit(e)); 
     }
+
+    let eof_err = Err(format!("Reached end of file before form was closed"));
     
     match chars.peek() {
-        None => return Err(format!("Expected a form, got end of file")),
+        None => return eof_err,
         Some('(') => { chars.next(); skip_whitespace(chars) },
         Some(_) => return parse_identifier(chars).map(Ident),
     }
@@ -91,6 +93,16 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     }
 
     let ident = parse_identifier(chars)?;
+
+    if ident.as_bytes() == b"fn" {
+        let f = parse_fn_decl(chars)?;
+        return match chars.next() {
+            None => eof_err,
+            Some(')') => Ok(Lit(f)),
+            Some(c) => Err(format!("Expecting end of form after fn declaration, got {} instead", c)),
+        }
+    }
+
     let mut v = Vec::new();
     while let Some(&c) = chars.peek() {
         if c == ')' {
@@ -110,7 +122,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
             Ok(e) => v.push(e),
             Err(e) => {
                 return if !till_closing_paren(chars) {
-                    Err(format!("Reached end of file before form was closed"))
+                    eof_err
                 } else {
                     skip_whitespace(chars);
                     Err(e)
@@ -119,11 +131,30 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
         }
     }
     
-    Err(format!("Reached end of file before form was closed"))
+    eof_err
+}
+
+fn parse_fn_decl(chars: &mut Peekable<Chars<'_>>) -> Result<Value, String> {
+    if chars.peek() != Some(&'[') {
+        return Err(format!("Missing required arg list, starting with '['"));
+    }
+    chars.next();
+    skip_whitespace(chars);
+    let mut params = VecDeque::new();
+    while let Some(&c) = chars.peek() {
+        if c == ']' {
+            chars.next();
+            skip_whitespace(chars);
+            let body = Box::new(parse(chars)?);
+            return Ok(Value::Fn(params, body))
+        }
+        params.push_back(parse_identifier(chars)?);
+    }
+    Err(format!("Reached end of file before arg list was closed"))
 }
 
 pub(crate) fn parse_identifier(chars: &mut Peekable<Chars<'_>>) -> Result<String, String> {
-    let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')')?;
+    let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
     skip_whitespace(chars);
     Ok(out)
 }
