@@ -23,13 +23,22 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
+    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
+        if !allow_overwrite && self.data.contains_key(&k) {
+            Err(format!("NameError: {} already defined in scope", k))
+        } else {
+            self.data.insert(k, v);
+            Ok(())
+        }
+    }
+
     pub fn get(&self, k: &String) -> Result<Value, String> {
         if let Some(e) = self.data.get(k) {
             Ok(e.clone())
         } else if let Some(ctxt) = &self.prev {
             ctxt.get(k)
         } else {
-            Err(format!("NameError: {}", k))
+            Err(format!("NameError: {} not defined in scope", k))
         }
     }
 
@@ -47,7 +56,8 @@ impl Expr {
                 match ctxt.get(h)? {
                     Value::Fn(params, body) => {
                         if tail.len() != params.len() {
-                            return Err(format!("Not enough args provided to {}: expected {}, got {}", h, params.len(), tail.len()))
+                            return Err(format!(
+                                "ArgError: Not enough args provided to {}: expected {}, got {}", h, params.len(), tail.len()))
                         }
                         let mut args = Vec::new();
                         for a in tail {
