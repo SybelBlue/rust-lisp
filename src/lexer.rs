@@ -29,7 +29,7 @@ fn many1<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, target: &'static
     let s = take_while(chars, f);
     if s.len() == 0 {
         Err(if let Some(c) = chars.peek() {
-            format!("Invalid char {} for {}", c, target)
+            format!("Invalid char '{}' for {}", c, target)
         } else {
             format!("Expected {} before end of file", target)
         })
@@ -42,6 +42,34 @@ fn skip_whitespace(chars: &mut Peekable<Chars<'_>>) {
     take_while(chars, char::is_whitespace);
 }
 
+fn till_closing_paren(chars: &mut Peekable<Chars<'_>>) -> bool {
+    let mut n = 1u8;
+    while let Some(c) = chars.next() {
+        match c {
+            '(' => n += 1,
+            ')' => {
+                if n == 1 {
+                    return true;
+                } else {
+                    n -= 1;
+                }
+            },
+            _ => {},
+        }
+    }
+    false
+}
+
+pub fn parse_all(chars: &mut Peekable<Chars<'_>>) -> Vec<Result<Expr, String>> {
+    let mut v = Vec::new();
+    skip_whitespace(chars);
+    while chars.peek().is_some() {
+        let e = parse(chars);
+        v.push(e);
+    }
+    v
+}
+
 pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     use Expr::*;
     
@@ -50,38 +78,54 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
         return Ok(e); 
     }
     
-    match chars.next() {
-        None => Err(format!("Expected a form, got end of file")),
-        Some('(') => Ok(()),
-        Some(c) => Err(format!("Expected number or form, got {}", c)),
-    }?;
+    match chars.peek() {
+        None => return Err(format!("Expected a form, got end of file")),
+        Some('(') => { chars.next(); skip_whitespace(chars) },
+        Some(_) => return parse_identifier(chars).map(Ident),
+    }
 
-    skip_whitespace(chars);
     if chars.peek() == Some(&')') {
         chars.next();
         skip_whitespace(chars);
         return Ok(Unit);
     }
 
-    let ident = Box::new(Ident(parse_identifier(chars)?));
+    let ident = parse_identifier(chars)?;
     let mut v = Vec::new();
     while let Some(&c) = chars.peek() {
         if c == ')' {
             chars.next();
             skip_whitespace(chars);
-            return Ok(Form(ident, v))
+            if v.len() == 0 {
+                if let Ok(e) = parse_number(&mut ident.chars().peekable()) {
+                    return Ok(e);
+                } else {
+                    return Ok(Ident(ident))
+                }
+            }
+            return Ok(Form(Box::new(Ident(ident)), v))
         }
 
-        v.push(parse(chars)?);
+        match parse(chars) {
+            Ok(e) => v.push(e),
+            Err(e) => {
+                return if !till_closing_paren(chars) {
+                    Err(format!("Reached end of file before form was closed"))
+                } else {
+                    skip_whitespace(chars);
+                    Err(e)
+                }
+            },
+        }
     }
     
-    Err(format!("Expected ')' to close the form, got end of file"))
+    Err(format!("Reached end of file before form was closed"))
 }
 
 pub(crate) fn parse_identifier(chars: &mut Peekable<Chars<'_>>) -> Result<String, String> {
-    let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')');
+    let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')')?;
     skip_whitespace(chars);
-    out
+    Ok(out)
 }
 
 pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
@@ -100,10 +144,6 @@ pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, Stri
     } else {
         num.parse().map_err(|_| format!("bad int literal {}", num)).map(Expr::Int)
     }?;
-    if !matches!(chars.peek(), Some(&c) if c.is_whitespace() || c == ')') {
-        Err(format!("Missing required whitespace or ) at the end of a number literal"))
-    } else {
-        skip_whitespace(chars);
-        Ok(exp)
-    }
+    skip_whitespace(chars);
+    Ok(exp)
 }

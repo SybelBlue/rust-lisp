@@ -61,5 +61,13 @@ mod tests {
             assert!(matches!(parse_number(chars), Err(_)));
             assert_eq!(None, chars.next());
         }
+
+        #[test]
+        fn expr() {
+            use Expr::*;
+            let s = String::from("\n\t(+    1  2 3  )  \n\t");
+            let chars = &mut s.chars().peekable();
+            assert_eq!(parse_all(chars), vec![Ok(Form(Box::new(Ident(String::from("+"))), vec![Int(1), Int(2), Int(3)]))]);
+        }
     }
 }
