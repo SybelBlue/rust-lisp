@@ -38,24 +38,44 @@ fn many1<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, target: &'static
     }
 }
 
-fn followedBy<F : Fn(char) -> bool, G : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, target: &'static str, start: F, rest: G) -> Result<String, String> {
-    let &c = check_eof(chars.peek(), target)?;
-    if !start(c) {
-        return Err(format!("Invalid start char {} for {}", c, target))
-    }
-    let mut s = String::new();
-    s.push(c);
-    chars.next();
-    s.push_str(take_while(chars, rest).as_str());
-    Ok(s)
-}
-
 fn skip_whitespace(chars: &mut Peekable<Chars<'_>>) {
     take_while(chars, char::is_whitespace);
 }
 
-fn check_eof<T>(item: Option<T>, target: &'static str) -> Result<T, String> {
-    item.ok_or_else(|| format!("Hit end of file expecting {}", target))
+pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
+    use Expr::*;
+    
+    if let Ok(e) = parse_number(chars) { 
+        skip_whitespace(chars);
+        return Ok(e); 
+    }
+    
+    match chars.next() {
+        None => Err(format!("Expected a form, got end of file")),
+        Some('(') => Ok(()),
+        Some(c) => Err(format!("Expected number or form, got {}", c)),
+    }?;
+
+    skip_whitespace(chars);
+    if chars.peek() == Some(&')') {
+        chars.next();
+        skip_whitespace(chars);
+        return Ok(Unit);
+    }
+
+    let ident = Box::new(Ident(parse_identifier(chars)?));
+    let mut v = Vec::new();
+    while let Some(&c) = chars.peek() {
+        if c == ')' {
+            chars.next();
+            skip_whitespace(chars);
+            return Ok(Form(ident, v))
+        }
+
+        v.push(parse(chars)?);
+    }
+    
+    Err(format!("Expected ')' to close the form, got end of file"))
 }
 
 pub(crate) fn parse_identifier(chars: &mut Peekable<Chars<'_>>) -> Result<String, String> {
@@ -80,6 +100,10 @@ pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, Stri
     } else {
         num.parse().map_err(|_| format!("bad int literal {}", num)).map(Expr::Int)
     }?;
-    skip_whitespace(chars);
-    Ok(exp)
+    if !matches!(chars.peek(), Some(&c) if c.is_whitespace() || c == ')') {
+        Err(format!("Missing required whitespace or ) at the end of a number literal"))
+    } else {
+        skip_whitespace(chars);
+        Ok(exp)
+    }
 }
