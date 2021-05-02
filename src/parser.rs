@@ -15,24 +15,6 @@ pub enum Value {
     Fn(VecDeque<String>, Box<Expr>),
 }
 
-// #[derive(Debug)]
-// pub struct Context {
-//     data: Vec<HashMap<String, Value>>,
-// }
-
-// impl Context {
-//     pub fn get(&self, k: &String) -> Result<Value, String> {
-//         for m in self.data.iter().rev() {
-//             if let Some(v) = m.get(k) {
-//                 return Ok(v.clone())
-//             }
-//         }
-//         Err(format!("NameError: \"{}\" not found", k))
-//     }
-
-//     // pub fn push(&mut self)
-// }
-
 #[derive(Debug)]
 pub struct Context<'a> {
     data: HashMap<String, Value>,
