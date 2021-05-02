@@ -6,7 +6,10 @@ fn main() -> std::io::Result<()> {
     let exprs = parse_all(&mut s.chars().peekable());
     for res in exprs {
         match res {
-            Ok(e) => println!("{:?}", e.exec(&mut ctxt, true)),
+            Ok(e) => match e.exec(&mut ctxt, true) {
+                Ok(v) => println!("{}", v),
+                Err(err) => println!("{}", err),
+            },
             Err(s) => println!("Error\n{}\n", s),
         }
     }

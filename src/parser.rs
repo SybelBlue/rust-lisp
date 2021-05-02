@@ -16,6 +16,17 @@ pub enum Value {
     Fn(VecDeque<String>, Box<Expr>),
 }
 
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Unit => write!(f, "()"),
+            Value::Int(x) => write!(f, "{}", x),
+            Value::Float(x) => write!(f, "{}", x),
+            Value::Fn(args, _) => write!(f, "<{}-ary func>", args.len()),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     data: HashMap<String, Value>,
@@ -27,12 +38,12 @@ impl<'a> Context<'a> {
         Self { prev: None, data: HashMap::new() }
     }
 
-    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<Value, String> {
+    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
         if !allow_overwrite && self.data.contains_key(&k) {
             Err(format!("NameError: {} already defined in scope", k))
         } else {
             self.data.insert(k, v.clone());
-            Ok(v)
+            Ok(())
         }
     }
 
@@ -79,8 +90,10 @@ impl Expr {
 
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> Result<Value, String> {
         match self {
-            Expr::Def(n, body) => 
-                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite),
+            Expr::Def(n, body) => {
+                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
+                Ok(Value::Unit)
+            },
             _ => self.eval(&ctxt),
         }
     }
