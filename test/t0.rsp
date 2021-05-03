@@ -1,13 +1,5 @@
-(def three (+ 2 1))
 
-three
 
-defn ++ [x] (+ x 1)
+(defn flip [f x y] (f y x))
 
-(++ three)
-
-(defn -- [x] (- x 1))
-
-(-- three)
-
-(- 3 1.2 -4.3)
+(flip - 3 2)

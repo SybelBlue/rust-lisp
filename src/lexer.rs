@@ -14,6 +14,10 @@ impl<'a> ParseStream<'a> {
         Self { col: 1, line: 1, iter }
     }
 
+    pub fn has_next(&mut self) -> bool {
+        self.peek().is_some()
+    }
+
     pub fn peek(&mut self) -> Option<&char> {
         self.iter.peek()
     }
@@ -27,6 +31,28 @@ impl<'a> ParseStream<'a> {
             self.col += 1;
         }
         out
+    }
+
+    pub fn next_if<F: Fn(char) -> bool>(&mut self, f: F) -> Option<char> {
+        if let Some(&x) = self.peek() {
+            if f(x) {
+                self.next();
+                return Some(x)
+            }
+        }
+        None
+    }
+
+    pub fn next_if_eq(&mut self, c: char) -> Option<bool> {
+        if let Some(x) = self.peek() {
+            let eq = *x == c;
+            if eq {
+                self.next();
+            }
+            Some(eq)
+        } else {
+            None
+        }
     }
 
     pub fn loc(&self) -> (usize, usize) {
@@ -118,23 +144,22 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
 pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     use Expr::*;
     
-    if let Ok(e) = parse_number(chars) { 
+    if let Ok(e) = greedy_parse_number(chars) { 
         skip_whitespace(chars);
         return Ok(Lit(e)); 
     }
 
-    let eof_err = Err(format!("Reached end of file before form was closed"));
+    let eof_msg = format!("Reached end of file before form was closed");
     
-    match chars.peek() {
-        None => return eof_err,
-        Some('(') => { chars.next(); skip_whitespace(chars); },
-        Some(_) => return parse_identifier(chars).map(Ident),
+    if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
+        skip_whitespace(chars)
+    } else {
+        return parse_identifier(chars).map(Ident)
     }
 
-    if chars.peek() == Some(&')') {
-        chars.next();
+    if chars.next_if_eq(')') == Some(true) {
         skip_whitespace(chars);
-        return Ok(Lit(Value::Unit));
+        return Ok(Lit(Value::Unit))
     }
 
     let ident = parse_identifier(chars)?;
@@ -142,10 +167,11 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     if ident.as_bytes() == b"fn" {
         let f = parse_fn_decl(chars)?;
         let ls = chars.loc_str();
-        return match chars.peek() {
-            None => eof_err,
-            Some(')') => { chars.next(); skip_whitespace(chars); Ok(Lit(f)) },
-            Some(c) => Err(format!("Expecting end of form after fn declaration, got {} instead at {}", c, ls)),
+        return if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
+            skip_whitespace(chars);
+            Ok(Lit(f)) 
+        } else {
+            Err(format!("Expecting end of form after fn declaration at {}", ls))
         }
     }
 
@@ -154,20 +180,20 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
         let name = parse_identifier(chars)?;
         let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
         let ls = chars.loc_str();
-        return match chars.peek() {
-            None => eof_err,
-            Some(')') => { chars.next(); skip_whitespace(chars); Ok(Def(name, Box::new(e))) },
-            Some(c) => Err(format!("Expecting end of form after defn, got {} instead at {}", c, ls)),
+        return if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
+            skip_whitespace(chars);
+            Ok(Def(name, Box::new(e))) 
+        } else {
+            Err(format!("Expecting end of form after defn declaration at {}", ls))
         }
     }
 
     let mut v = Vec::new();
-    while let Some(&c) = chars.peek() {
-        if c == ')' {
-            chars.next();
+    loop {
+        if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
             skip_whitespace(chars);
             if v.len() == 0 {
-                if let Ok(e) = parse_number(&mut ParseStream::new(&mut ident.chars().peekable())) {
+                if let Ok(e) = greedy_parse_number(&mut ParseStream::new(&mut ident.chars().peekable())) {
                     return Ok(Lit(e));
                 } else {
                     return Ok(Ident(ident))
@@ -176,20 +202,19 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
             return Ok(Form(ident, v))
         }
 
+        println!("arg parse at {}: {:?}", chars.loc_str(), chars.peek());
         match parse(chars) {
             Ok(e) => v.push(e),
             Err(e) => {
-                return if !till_closing_paren(chars) {
-                    eof_err
+                return Err(if !till_closing_paren(chars) {
+                    eof_msg
                 } else {
                     skip_whitespace(chars);
-                    Err(e)
-                }
+                    e
+                })
             },
         }
     }
-    
-    eof_err
 }
 
 fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
@@ -212,19 +237,24 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
 }
 
 pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> Result<String, String> {
+    println!("start ident at {} w/{:?}", chars.loc_str(), chars.peek());
     let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
+    println!("finished ident {} at {}", out, chars.loc_str());
     skip_whitespace(chars);
     Ok(out)
 }
 
-pub(crate) fn parse_number(chars: &mut ParseStream<'_>) -> Result<Value, String> {
-    let mut num = String::new();
-    
-    if optional(chars, |c| c == '-').is_some() {
-        num.push('-');
-    }
-    
-    num.push_str(many1(chars, "an integer", char::is_numeric)?.as_str());
+pub(crate) fn greedy_parse_number(chars: &mut ParseStream<'_>) -> Result<Value, String> {
+    let negate = chars.next_if_eq('-') == Some(true); // consumes leading '-' even when fails!
+    Ok(match parse_pos_number(chars)? {
+        Value::Int(x) if negate => Value::Int(-x),
+        Value::Float(x) if negate => Value::Float(-x),
+        v => v,
+    })
+}
+
+fn parse_pos_number(chars: &mut ParseStream<'_>) -> Result<Value, String> {
+    let mut num = many1(chars, "an integer", char::is_numeric)?;
     
     let exp = if optional(chars, |c| c == '.').is_some() {
         num.push('.');

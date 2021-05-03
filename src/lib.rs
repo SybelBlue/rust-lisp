@@ -42,37 +42,37 @@ mod tests {
             let s = String::from("47");
             let cs = &mut s.chars().peekable();
             let chars = &mut ParseStream::new(cs);
-            assert_eq!(Ok(Int(47)), parse_number(chars));
+            assert_eq!(Ok(Int(47)), greedy_parse_number(chars));
             assert_eq!(None, chars.next());
 
             let s = String::from("-47\t\n  ");
             let cs = &mut s.chars().peekable();
             let chars = &mut ParseStream::new(cs);
-            assert_eq!(Ok(Int(-47)), parse_number(chars));
+            assert_eq!(Ok(Int(-47)), greedy_parse_number(chars));
             assert_eq!(None, chars.next());
 
             let s = String::from("-0047.34");
             let cs = &mut s.chars().peekable();
             let chars = &mut ParseStream::new(cs);
-            assert_eq!(Ok(Float(-47.34)), parse_number(chars));
+            assert_eq!(Ok(Float(-47.34)), greedy_parse_number(chars));
             assert_eq!(None, chars.next());
             
             let s = String::from("");
             let cs = &mut s.chars().peekable();
             let chars = &mut ParseStream::new(cs);
-            assert!(matches!(parse_number(chars), Err(_)));
+            assert!(matches!(greedy_parse_number(chars), Err(_)));
             assert_eq!(None, chars.next());
             
             let s = String::from("1.");
             let cs = &mut s.chars().peekable();
             let chars = &mut ParseStream::new(cs);
-            assert!(matches!(parse_number(chars), Err(_)));
+            assert!(matches!(greedy_parse_number(chars), Err(_)));
             assert_eq!(None, chars.next());
             
             let s = String::from("-");
             let cs = &mut s.chars().peekable();
             let chars = &mut ParseStream::new(cs);
-            assert!(matches!(parse_number(chars), Err(_)));
+            assert!(matches!(greedy_parse_number(chars), Err(_)));
             assert_eq!(None, chars.next());
         }
 
@@ -87,7 +87,9 @@ mod tests {
             assert_eq!(parse_all(chars), 
                 vec![ Ok(Form(format!("+"), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
                     , Ok(Form(format!("apply"), vec![Ident(format!("f")), Lit(Unit)]))
-                    , Ok(Form(format!("def"), vec![Ident(format!("add")), Lit(Fn(VecDeque::from(vec![format!("a"), format!("b")]), Box::new(Form(format!("+"), vec![Ident(format!("a")), Ident(format!("b"))]))))]))
+                    , Ok(Def(format!("add"), Box::new(Lit(Fn(
+                            VecDeque::from(vec![format!("a"), format!("b")]), 
+                            Box::new(Form(format!("+"), vec![Ident(format!("a")), Ident(format!("b"))])))))))
                 ]);
         }
     }
