@@ -1,4 +1,4 @@
-use crate::{context::Context, parser::{ParseError, ParseStream, Token, parse_all}};
+use crate::{context::Context, parser::{ParseError, ParseResult, ParseStream, parse_all}};
 
 pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();
@@ -159,5 +159,29 @@ impl Expr {
             },
             _ => self.eval(&ctxt, file_pos),
         }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct Token {
+    pub expr: Expr,
+    pub file_pos: FilePos,
+}
+
+impl Token {
+    pub fn new(expr: Expr, file_pos: FilePos) -> Self {
+        Self { expr, file_pos }
+    }
+
+    pub fn from_value(v: Value, file_pos: FilePos) -> ParseResult<Self> {
+        Ok(Self::new(Expr::Lit(v), file_pos))
+    }
+
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
+        self.expr.exec(ctxt, allow_overwrite, self.file_pos)
+    }
+
+    pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
+        self.expr.eval(ctxt, self.file_pos)
     }
 }

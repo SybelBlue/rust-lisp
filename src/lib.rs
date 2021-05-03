@@ -5,7 +5,7 @@ pub mod context;
 #[cfg(test)]
 mod tests {
     mod lexer {
-        use crate::{evaluator::{*, Expr::*, Value::*}, parser::Token};
+        use crate::evaluator::{*, Expr::*, Value::*};
 
         #[test]
         fn basics() {

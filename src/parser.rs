@@ -1,30 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::{context::Context, evaluator::{EvalResult, Expr, FilePos, Ident, Value}};
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct Token {
-    pub expr: Expr,
-    pub file_pos: FilePos,
-}
-
-impl Token {
-    pub fn new(expr: Expr, file_pos: FilePos) -> Self {
-        Self { expr, file_pos }
-    }
-
-    pub fn from_value(v: Value, file_pos: FilePos) -> ParseResult<Self> {
-        Ok(Self::new(Expr::Lit(v), file_pos))
-    }
-
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
-        self.expr.exec(ctxt, allow_overwrite, self.file_pos)
-    }
-
-    pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
-        self.expr.eval(ctxt, self.file_pos)
-    }
-}
+use crate::evaluator::{Expr, FilePos, Ident, Token, Value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
