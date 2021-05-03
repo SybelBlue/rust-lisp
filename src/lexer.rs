@@ -221,10 +221,10 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
 }
 
 fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
-    if chars.peek() != Some(&'[') {
+    if chars.next_if_eq('[') != Some(true) {
         return Err(format!("Missing required arg list, starting with '[' at {}", chars.loc_str()));
     }
-    chars.next();
+    
     skip_whitespace(chars);
     let mut params = VecDeque::new();
     while let Some(&c) = chars.peek() {
