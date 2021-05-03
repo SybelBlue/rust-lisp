@@ -1,11 +1,11 @@
-pub mod lexer;
 pub mod parser;
+pub mod evaluator;
 pub mod context;
 
 #[cfg(test)]
 mod tests {
     mod lexer {
-        use crate::parser::{*, Expr::*, Value::*};
+        use crate::evaluator::{*, Expr::*, Value::*};
 
         #[test]
         fn basics() {

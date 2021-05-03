@@ -1,4 +1,4 @@
-use rust_lisp::parser::exec;
+use rust_lisp::evaluator::exec;
 
 fn main() -> std::io::Result<()> {
     let s = std::fs::read_to_string("test/t0.rsp")?;

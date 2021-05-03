@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{Ident, Error, EvalResult, Value};
+use crate::evaluator::{Ident, Error, EvalResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
