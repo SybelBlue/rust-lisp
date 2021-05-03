@@ -69,16 +69,20 @@ impl<'a> Context<'a> {
     }
 
     fn get_ident(&self, k: &String) -> Option<Ident> {
-        todo!()
+        if let Some((_, op_fp)) = self.data.get(k) {
+            op_fp.map(|fp| Ident::new(k.clone(), fp))
+        } else {
+            None
+        }
     }
 
-    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> EvalResult<()> {
+    pub fn put(&mut self, k: Ident, v: Value, allow_overwrite: bool) -> EvalResult<()> {
         if !allow_overwrite {
-            if let Some(id) = self.get_ident(&k) {
-                return Err(Error::RedefError(id, k));
+            if let Some(id) = self.get_ident(&k.name) {
+                return Err(Error::RedefError(id, k.name));
             }
         }
-        self.data.insert(k, v.clone());
+        self.data.insert(k.name, (v, Some(k.file_pos)));
         Ok(())
     }
 
