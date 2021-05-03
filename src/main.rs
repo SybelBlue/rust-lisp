@@ -1,7 +1,7 @@
 use rust_lisp::evaluator::exec;
 
 fn main() -> std::io::Result<()> {
-    let s = std::fs::read_to_string("test/basics.rsp")?;
+    let s = std::fs::read_to_string("test/main.rsp")?;
     let (reses, ctxt) = exec(s);
     for r in reses {
         match r {
