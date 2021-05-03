@@ -56,7 +56,7 @@ impl<'a> ParseStream<'a> {
     }
 
     pub fn loc_str(&self) -> String {
-        format!("{}:{}", self.file_pos.line, self.file_pos.col)
+        format!("{}", self.file_pos)
     }
 }
 
