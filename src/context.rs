@@ -25,7 +25,7 @@ fn add(vals: Vec<Value>) -> Result<Value, String> {
             _ => return Err(format!("ValueError: (+) takes only numeric arguments")),
         }
     }
-    
+
     Ok(match *out {
         Ok(x) => Int(x),
         Err(x) => Float(x),
@@ -34,7 +34,10 @@ fn add(vals: Vec<Value>) -> Result<Value, String> {
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        Self { prev: None, data: HashMap::new() }
+        fn make_builtin(s: &str, f: fn(Vec<Value>) -> Result<Value, String>) -> (String, Value) {
+            (String::from(s), Value::BuiltIn(format!("({})", s), f)) 
+        }
+        Self { prev: None, data: vec![make_builtin("+", add)].into_iter().collect() }
     }
 
     pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
