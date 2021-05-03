@@ -1,5 +1,18 @@
 use crate::{context::Context, parser::{ParseError, ParseStream, Token, parse_all}};
 
+pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
+    let mut ctxt = Context::new();
+    let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
+    let mut out = Vec::new();
+    for e in op_exprs {
+        match e {
+            Err(s) => out.push(Err(Error::ParseError(s))),
+            Ok(x) => out.push(x.exec(&mut ctxt, false))
+        }
+    }
+    (out, ctxt)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FilePos {
     pub col: usize,
@@ -74,14 +87,6 @@ impl std::fmt::Display for Ident {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum Expr {
-    Lit(Value),
-    Var(String),
-    Form(Ident, Vec<Token>),
-    Def(Ident, Box<Token>),
-}
-
-#[derive(Debug, PartialEq, Clone)]
 pub enum Value {
     Unit,
     Int(i64),
@@ -102,11 +107,19 @@ impl std::fmt::Display for Value {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Expr {
+    Lit(Value),
+    Var(String),
+    Form(Ident, Vec<Token>),
+    Def(Ident, Box<Token>),
+}
+
 impl Expr {
     pub fn eval(&self, ctxt: &Context, file_pos: FilePos) -> EvalResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
-            Expr::Var(id) => ctxt.get(&Ident { name: id.clone(), file_pos }),
+            Expr::Var(id) => ctxt.get(&Ident::new(id.clone(), file_pos)),
             Expr::Form(h, tail) => {
                 match ctxt.get(&h)? {
                     Value::Fn(params, body) => {
@@ -147,17 +160,4 @@ impl Expr {
             _ => self.eval(&ctxt, file_pos),
         }
     }
-}
-
-pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
-    let mut ctxt = Context::new();
-    let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
-    let mut out = Vec::new();
-    for e in op_exprs {
-        match e {
-            Err(s) => out.push(Err(Error::ParseError(s))),
-            Ok(x) => out.push(x.exec(&mut ctxt, false))
-        }
-    }
-    (out, ctxt)
 }
