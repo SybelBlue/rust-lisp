@@ -63,6 +63,10 @@ impl<'a> Context<'a> {
         Self { prev: None, data: vec![make_builtin("+", add), make_builtin("-", sub)].into_iter().collect() }
     }
 
+    pub fn size(&self) -> usize {
+        self.data.len() + if let Some(c) = &self.prev { c.size() } else { 0 }
+    }
+
     pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
         if !allow_overwrite && self.data.contains_key(&k) {
             Err(format!("NameError: {} already defined in scope", k))

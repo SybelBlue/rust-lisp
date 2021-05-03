@@ -1,17 +1,14 @@
-use rust_lisp::{lexer::parse_all, context::Context};
+use rust_lisp::parser::exec;
 
 fn main() -> std::io::Result<()> {
     let s = std::fs::read_to_string("test/t0.rsp")?;
-    let mut ctxt = Context::new();
-    let exprs = parse_all(&mut s.chars().peekable());
-    for res in exprs {
-        match res {
-            Ok(e) => match e.exec(&mut ctxt, true) {
-                Ok(v) => println!("{}", v),
-                Err(err) => println!("{}", err),
-            },
-            Err(s) => println!("Error\n{}\n", s),
+    let (reses, ctxt) = exec(s);
+    for r in reses {
+        match r {
+            Ok(v) => println!(">> {}", v),
+            Err(s) => println!(" * {} * ", s),
         }
     }
+    println!("Batch finished w/ {} symbols", ctxt.size());
     Ok(())
 }
