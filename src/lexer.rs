@@ -144,9 +144,12 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
 pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     use Expr::*;
     
-    if let Ok(e) = greedy_parse_number(chars) { 
+    if let Ok(e) = safe_parse_number(chars) { 
         skip_whitespace(chars);
-        return Ok(Lit(e)); 
+        return Ok(match e {
+            Ok(v) => Lit(v),
+            Err(n) => Ident(n),
+        })
     }
 
     let eof_msg = format!("Reached end of file before form was closed");
@@ -242,6 +245,22 @@ pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> Result<String, St
     println!("finished ident {} at {}", out, chars.loc_str());
     skip_whitespace(chars);
     Ok(out)
+}
+
+pub(crate) fn safe_parse_number(chars: &mut ParseStream<'_>) -> Result<Result<Value, String>, String> {
+    let ls = chars.loc_str();
+    match parse_identifier(chars) {
+        Ok(n) => {
+            let n_cs = &mut n.chars().peekable();
+            let n_ps = &mut ParseStream::new(n_cs);
+            return if let Ok(v) = greedy_parse_number(n_ps) {
+                Ok(Ok(v))
+            } else {
+                Ok(Err(n))
+            }
+        },
+        Err(_) => Err(format!("Error parsing number at {}", ls)),
+    }
 }
 
 pub(crate) fn greedy_parse_number(chars: &mut ParseStream<'_>) -> Result<Value, String> {
