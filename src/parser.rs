@@ -11,12 +11,14 @@ pub enum ParseError {
 
 pub type ParseResult<T> = Result<T, ParseError>;
 
+use ParseError::*;
+
 impl std::fmt::Display for ParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::Eof(x) => write!(f, "Expected {} before end of file", x),
-            ParseError::BadChar(target, ls, c) => write!(f, "Invalid char '{}' for {} at {}", c, target, ls),
-            ParseError::Missing(x, ps) => write!(f, "Missing {} at {}", x, ps),
+            Eof(x) => write!(f, "Expected {} before end of file", x),
+            BadChar(target, ls, c) => write!(f, "Invalid char '{}' for {} at {}", c, target, ls),
+            Missing(x, ps) => write!(f, "Missing {} at {}", x, ps),
         }
     }
 }
@@ -97,9 +99,9 @@ fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str
     if s.len() == 0 {
         let ls = chars.file_pos;
         Err(if let Some(c) = chars.peek() {
-            ParseError::BadChar(String::from(target), ls, *c)
+            BadChar(String::from(target), ls, *c)
         } else {
-            ParseError::Eof(String::from(target))
+            Eof(String::from(target))
         })
     } else {
         Ok(s)
@@ -148,29 +150,29 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
 pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     use Expr::*;
 
-    let eof_msg = ParseError::Eof(format!("closing ')'"));
-    let mark = chars.file_pos;
+    let eof_msg = Eof(format!("closing ')'"));
+    let start = chars.file_pos;
 
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
     } else {
-        let mark = chars.file_pos;
+        let id_or_lit_start = chars.file_pos;
         let e = parse_ident_or_literal(chars)?;
         skip_whitespace(chars);
         return match e {
-            Ok(v) => Token::from_value(v, mark),
-            Err(n) => Ok(Token::new(Var(n.name), mark)),
+            Ok(v) => Token::from_value(v, id_or_lit_start),
+            Err(n) => Ok(Token::new(Var(n.name), n.file_pos)),
         }
     }
 
     if chars.next_if_eq(')') == Some(true) {
         skip_whitespace(chars);
-        return Token::from_value(Value::Unit, mark)
+        return Token::from_value(Value::Unit, start)
     }
 
-    let mark = chars.file_pos;
+    let after_paren = chars.file_pos;
     match parse_ident_or_literal(chars)? {
-        Ok(v) => close_target(chars, Token::new(Lit(v), mark), "fn declaration"),
+        Ok(v) => close_target(chars, Token::new(Lit(v), after_paren), "fn declaration"),
         Err(ident) => {
             if ident.name.as_bytes() == b"fn" {
                 let f = parse_fn_decl(chars)?;
@@ -180,20 +182,20 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             let is_defn = ident.name.as_bytes() == b"defn";
             if is_defn || ident.name.as_bytes() == b"def" {
                 let name = parse_identifier(chars)?;
-                let mark = chars.file_pos;
+                let fn_start = chars.file_pos;
                 let e = if is_defn { 
                     parse_fn_decl(chars)?
                 } else { 
                     parse(chars)? 
                 };
-                return close_target(chars, Token::new(Def(name, Box::new(e)), mark), "fn declaration")
+                return close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "fn declaration")
             }
         
             let mut v = Vec::new();
             loop {
                 if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
                     skip_whitespace(chars);
-                    return Ok(Token::new(Form(ident, v), mark))
+                    return Ok(Token::new(Form(ident, v), start))
                 }
         
                 match parse(chars) {
@@ -213,18 +215,18 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
 }
 
 fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> ParseResult<Token> {
-    if chars.next_if_eq(')').ok_or_else(|| ParseError::Eof(format!("closing ')'")))? {
+    if chars.next_if_eq(')').ok_or_else(|| Eof(format!("closing ')'")))? {
         skip_whitespace(chars);
         Ok(output)
     } else {
-        Err(ParseError::Missing(format!("end of form after {}", target), chars.file_pos))
+        Err(Missing(format!("end of form after {}", target), chars.file_pos))
     }
 }
 
 fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     let mark = chars.file_pos;
     if chars.next_if_eq('[') != Some(true) {
-        return Err(ParseError::Missing(format!(" arg list, starting with '['"), chars.file_pos));
+        return Err(Missing(format!(" arg list, starting with '['"), chars.file_pos));
     }
     
     skip_whitespace(chars);
@@ -238,7 +240,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
         }
         params.push(parse_identifier(chars)?);
     }
-    Err(ParseError::Eof(format!("closing ']'")))
+    Err(Eof(format!("closing ']'")))
 }
 
 fn valid_ident_char(c: char) -> bool {
@@ -263,11 +265,11 @@ fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Val
                 Err(n)
             })
         },
-        Err(ParseError::BadChar(_, fp, c)) => 
-            Err(ParseError::BadChar(format!("Error parsing identifier or literal"), fp, c)),
-        Err(ParseError::Eof(_)) => 
-            Err(ParseError::Eof(format!("identifier or literal"))),
-        Err(ParseError::Missing(s, fp)) => 
-            Err(ParseError::Missing(format!("{} looking for identifier or literal", s), fp))
+        Err(BadChar(_, fp, c)) => 
+            Err(BadChar(format!("Error parsing identifier or literal"), fp, c)),
+        Err(Eof(_)) => 
+            Err(Eof(format!("identifier or literal"))),
+        Err(Missing(s, fp)) => 
+            Err(Missing(format!("{} looking for identifier or literal", s), fp))
     }
 }
