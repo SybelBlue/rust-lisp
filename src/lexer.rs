@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::parser::{Expr, FilePos, Ident, Value};
+use crate::parser::{Expr, FilePos, Ident, ParseResult, Value};
 
 #[derive(Debug)]
 pub struct ParseStream<'a> {
@@ -73,7 +73,7 @@ fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String
     s
 }
 
-fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str, f: F) -> Result<String, String> {
+fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str, f: F) -> ParseResult<String> {
     let s = take_while(chars, f);
     if s.len() == 0 {
         let ls = chars.loc_str();
@@ -109,7 +109,7 @@ fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
     false
 }
 
-pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
+pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Expr>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
     let mut last_loc = chars.loc();
@@ -126,7 +126,7 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
     v
 }
 
-pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
+pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
     use Expr::*;
 
     let eof_msg = format!("Reached end of file before form was closed");
@@ -185,7 +185,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     }
 }
 
-fn close_target(chars: &mut ParseStream<'_>, output: Expr, target: &str) -> Result<Expr, String> {
+fn close_target(chars: &mut ParseStream<'_>, output: Expr, target: &str) -> ParseResult<Expr> {
     if chars.next_if_eq(')').ok_or_else(|| format!("Reached end of file before form was closed"))? {
         skip_whitespace(chars);
         Ok(output)
@@ -194,7 +194,7 @@ fn close_target(chars: &mut ParseStream<'_>, output: Expr, target: &str) -> Resu
     }
 }
 
-fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
+fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Value> {
     if chars.next_if_eq('[') != Some(true) {
         return Err(format!("Missing required arg list, starting with '[' at {}", chars.loc_str()));
     }
@@ -213,14 +213,14 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
     Err(format!("Reached end of file before arg list was closed"))
 }
 
-pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> Result<Ident, String> {
+pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
     let file_pos = chars.loc();
     let name = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
     skip_whitespace(chars);
     Ok(Ident::new(name, file_pos))
 }
 
-fn safe_parse_number(chars: &mut ParseStream<'_>) -> Result<Result<Value, Ident>, String> {
+fn safe_parse_number(chars: &mut ParseStream<'_>) -> ParseResult<Result<Value, Ident>> {
     let ls = chars.loc_str();
     match parse_identifier(chars) {
         Ok(n) => {

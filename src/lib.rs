@@ -32,5 +32,13 @@ mod tests {
                 assert_eq!(Ok(ex), ac)
             }
         }
+
+        #[test]
+        fn basic_errs() {
+            let s = std::fs::read_to_string("test/basics err.rsp").expect("file not found");
+            let (reses, _) = exec(s);
+            println!("{:#?}", reses);
+            assert!(false)
+        }
     }
 }

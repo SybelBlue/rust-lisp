@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::Value;
+use crate::parser::{ParseResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
@@ -8,7 +8,7 @@ pub struct Context<'a> {
     prev: Option<Box<&'a Context<'a>>>,
 }
 
-fn add(vals: Vec<Value>) -> Result<Value, String> {
+fn add(vals: Vec<Value>) -> ParseResult<Value> {
     use Value::*;
 
     let out: &mut Result<i64, f64> = &mut Ok(0);
@@ -32,7 +32,7 @@ fn add(vals: Vec<Value>) -> Result<Value, String> {
     })
 }
 
-fn sub(vals: Vec<Value>) -> Result<Value, String> {
+fn sub(vals: Vec<Value>) -> ParseResult<Value> {
     use Value::*;
     if let Some((h, t)) = vals.split_first() {
         if t.len() > 0 {
@@ -57,7 +57,7 @@ fn sub(vals: Vec<Value>) -> Result<Value, String> {
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        fn make_builtin(s: &str, f: fn(Vec<Value>) -> Result<Value, String>) -> (String, Value) {
+        fn make_builtin(s: &str, f: fn(Vec<Value>) -> ParseResult<Value>) -> (String, Value) {
             (String::from(s), Value::BuiltIn(format!("({})", s), f)) 
         }
         Self { prev: None, data: vec![make_builtin("+", add), make_builtin("-", sub)].into_iter().collect() }
@@ -67,7 +67,7 @@ impl<'a> Context<'a> {
         self.data.len() + if let Some(c) = &self.prev { c.size() } else { 0 }
     }
 
-    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
+    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> ParseResult<()> {
         if !allow_overwrite && self.data.contains_key(&k) {
             Err(format!("NameError: {} already defined in scope", k))
         } else {
@@ -76,7 +76,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn get(&self, k: &String) -> Result<Value, String> {
+    pub fn get(&self, k: &String) -> ParseResult<Value> {
         if let Some(e) = self.data.get(k) {
             Ok(e.clone())
         } else if let Some(ctxt) = &self.prev {

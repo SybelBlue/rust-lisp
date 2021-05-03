@@ -27,6 +27,9 @@ impl std::fmt::Display for FilePos {
     }
 }
 
+pub type ParseError = String;
+pub type ParseResult<T> = Result<T, ParseError>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident {
     pub name: String,
@@ -59,7 +62,7 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Fn(Vec<String>, Box<Expr>),
-    BuiltIn(String, fn(Vec<Value>) -> Result<Value, String>),
+    BuiltIn(String, fn(Vec<Value>) -> ParseResult<Value>),
 }
 
 impl std::fmt::Display for Value {
@@ -75,7 +78,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Expr {
-    pub fn eval(&self, ctxt: &Context) -> Result<Value, String> {
+    pub fn eval(&self, ctxt: &Context) -> ParseResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
             Expr::Idnt(id) => ctxt.get(&id.name),
@@ -108,7 +111,7 @@ impl Expr {
         }
     }
 
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> Result<Value, String> {
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> ParseResult<Value> {
         match self {
             Expr::Def(n, body) => {
                 ctxt.put(n.name.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
@@ -119,7 +122,7 @@ impl Expr {
     }
 }
 
-pub fn exec(s: String) -> (Vec<Result<Value, String>>, Context<'static>) {
+pub fn exec(s: String) -> (Vec<ParseResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();
     let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
     let mut out = Vec::new();
