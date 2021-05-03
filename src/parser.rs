@@ -154,7 +154,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
     } else {
-        let e = safe_parse_number(chars)?;
+        let e = parse_ident_or_literal(chars)?;
         skip_whitespace(chars);
         return Ok(match e {
             Ok(v) => Lit(v),
@@ -167,7 +167,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
         return Ok(Lit(Value::Unit))
     }
 
-    match safe_parse_number(chars)? {
+    match parse_ident_or_literal(chars)? {
         Ok(v) => close_target(chars, Lit(v), "fn declaration"),
         Err(ident) => {
             if ident.name.as_bytes() == b"fn" {
@@ -240,7 +240,7 @@ pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident
     Ok(Ident::new(name, file_pos))
 }
 
-fn safe_parse_number(chars: &mut ParseStream<'_>) -> ParseResult<Result<Value, Ident>> {
+fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Value, Ident>> {
     match parse_identifier(chars) {
         Ok(n) => {
             Ok(if let Ok(x) = n.name.parse() {
