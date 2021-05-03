@@ -1,17 +1,16 @@
 use std::{collections::VecDeque, iter::Peekable, str::Chars};
 
-use crate::parser::{Expr, Value};
+use crate::parser::{FilePos, Expr, Value};
 
 #[derive(Debug)]
 pub struct ParseStream<'a> {
-    col: usize,
-    line: usize,
+    file_pos: FilePos,
     iter: &'a mut Peekable<Chars<'a>>,
 }
 
 impl<'a> ParseStream<'a> {
     pub fn new(iter: &'a mut Peekable<Chars<'a>>) -> Self {
-        Self { col: 1, line: 1, iter }
+        Self { file_pos: FilePos::new(), iter }
     }
 
     pub fn has_next(&mut self) -> bool {
@@ -24,11 +23,8 @@ impl<'a> ParseStream<'a> {
 
     pub fn next(&mut self) -> Option<char> {
         let out = self.iter.next();
-        if out == Some('\n') || out == Some('\r') {
-            self.col = 1;
-            self.line += 1;
-        } else {
-            self.col += 1;
+        if let Some(c) = &out {
+            self.file_pos.advance(c);
         }
         out
     }
@@ -55,12 +51,12 @@ impl<'a> ParseStream<'a> {
         }
     }
 
-    pub fn loc(&self) -> (usize, usize) {
-        (self.line, self.col)
+    pub fn loc(&self) -> FilePos {
+        self.file_pos
     }
 
     pub fn loc_str(&self) -> String {
-        format!("{}:{}", self.line, self.col)
+        format!("{}:{}", self.file_pos.line, self.file_pos.col)
     }
 }
 

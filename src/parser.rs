@@ -2,6 +2,27 @@ use std::collections::VecDeque;
 
 use crate::{context::Context, lexer::{ParseStream, parse_all}};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct FilePos {
+    pub col: usize,
+    pub line: usize,
+}
+
+impl FilePos {
+    pub fn new() -> Self {
+        Self { col: 1, line: 1 }
+    }
+
+    pub fn advance(&mut self, out: &char) {
+        if out == &'\n' || out == &'\r' {
+            self.col = 1;
+            self.line += 1;
+        } else {
+            self.col += 1;
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Lit(Value),
