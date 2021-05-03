@@ -1,4 +1,4 @@
-use rust_lisp::{lexer::parse_all, parser::Context};
+use rust_lisp::{lexer::parse_all, context::Context};
 
 fn main() -> std::io::Result<()> {
     let s = std::fs::read_to_string("test/t0.rsp")?;
