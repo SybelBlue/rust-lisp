@@ -1,12 +1,6 @@
 use std::collections::HashMap;
 
-use crate::evaluator::{Ident, Error, EvalResult, Value};
-
-#[derive(Debug, Clone)]
-pub struct Context<'a> {
-    data: HashMap<String, Value>,
-    prev: Option<Box<&'a Context<'a>>>,
-}
+use crate::evaluator::{Error, EvalResult, FilePos, Ident, Value};
 
 fn add(vals: Vec<Value>) -> EvalResult<Value> {
     use Value::*;
@@ -54,10 +48,18 @@ fn sub(vals: Vec<Value>) -> EvalResult<Value> {
     Err(Error::ArgError { f_name: format!("(-)"), recieved: vals.len(), expected: 2 })
 }
 
+type CtxtMapValue = (Value, Option<FilePos>);
+type CtxtMap = HashMap<String, CtxtMapValue>;
+#[derive(Debug, Clone)]
+pub struct Context<'a> {
+    data: CtxtMap,
+    prev: Option<Box<&'a Context<'a>>>,
+}
+
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        fn make_builtin(s: &str, f: fn(Vec<Value>) -> EvalResult<Value>) -> (String, Value) {
-            (String::from(s), Value::BuiltIn(format!("({})", s), f)) 
+        fn make_builtin(s: &str, f: fn(Vec<Value>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
+            (String::from(s), (Value::BuiltIn(format!("({})", s), f), None))
         }
         Self { prev: None, data: vec![make_builtin("+", add), make_builtin("-", sub)].into_iter().collect() }
     }
@@ -81,7 +83,7 @@ impl<'a> Context<'a> {
     }
 
     pub fn get(&self, k: &String) -> EvalResult<Value> {
-        if let Some(e) = self.data.get(k) {
+        if let Some((e,_)) = self.data.get(k) {
             Ok(e.clone())
         } else if let Some(ctxt) = &self.prev {
             ctxt.get(k)
@@ -90,7 +92,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn chain(&'a self, data: HashMap<String, Value>) -> Self {
+    pub fn chain(&'a self, data: CtxtMap) -> Self {
         Self { data, prev: Some(Box::new(self)) }
     }
 }
