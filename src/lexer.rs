@@ -1,6 +1,6 @@
 use std::{collections::VecDeque, iter::Peekable, str::Chars};
 
-use crate::parser::{FilePos, Expr, Value};
+use crate::parser::{Expr, FilePos, Ident, Value};
 
 #[derive(Debug)]
 pub struct ParseStream<'a> {
@@ -150,13 +150,13 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     match safe_parse_number(chars)? {
         Ok(v) => close_target(chars, Lit(v), "fn declaration"),
         Err(ident) => {
-            if ident.as_bytes() == b"fn" {
+            if ident.name.as_bytes() == b"fn" {
                 let f = parse_fn_decl(chars)?;
                 return close_target(chars, Lit(f), "fn declaration")
             }
         
-            let is_defn = ident.as_bytes() == b"defn";
-            if is_defn || ident.as_bytes() == b"def" {
+            let is_defn = ident.name.as_bytes() == b"defn";
+            if is_defn || ident.name.as_bytes() == b"def" {
                 let name = parse_identifier(chars)?;
                 let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
                 return close_target(chars, Def(name, Box::new(e)), "fn declaration")
@@ -208,24 +208,25 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
             let body = Box::new(parse(chars)?);
             return Ok(Value::Fn(params, body))
         }
-        params.push_back(parse_identifier(chars)?);
+        params.push_back(parse_identifier(chars)?.name);
     }
     Err(format!("Reached end of file before arg list was closed"))
 }
 
-pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> Result<String, String> {
-    let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
+pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> Result<Ident, String> {
+    let file_pos = chars.loc();
+    let name = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
     skip_whitespace(chars);
-    Ok(out)
+    Ok(Ident::new(name, file_pos))
 }
 
-fn safe_parse_number(chars: &mut ParseStream<'_>) -> Result<Result<Value, String>, String> {
+fn safe_parse_number(chars: &mut ParseStream<'_>) -> Result<Result<Value, Ident>, String> {
     let ls = chars.loc_str();
     match parse_identifier(chars) {
         Ok(n) => {
-            Ok(if let Ok(x) = n.parse() {
+            Ok(if let Ok(x) = n.name.parse() {
                 Ok(Value::Int(x))
-            } else if let Ok(x) = n.parse() {
+            } else if let Ok(x) = n.name.parse() {
                 Ok(Value::Float(x))
             } else {
                 Err(n)

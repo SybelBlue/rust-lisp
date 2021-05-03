@@ -29,12 +29,30 @@ impl std::fmt::Display for FilePos {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Ident {
+    pub name: String,
+    pub file_pos: FilePos,
+}
+
+impl Ident {
+    pub fn new(name: String, file_pos: FilePos) -> Self {
+        Self { name, file_pos }
+    }
+}
+
+impl std::fmt::Display for Ident {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} at {}", self.name, self.file_pos)
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Lit(Value),
-    Idnt(String),
-    Form(String, Vec<Expr>),
-    Def(String, Box<Expr>),
+    Idnt(Ident),
+    Form(Ident, Vec<Expr>),
+    Def(Ident, Box<Expr>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -62,13 +80,14 @@ impl Expr {
     pub fn eval(&self, ctxt: &Context) -> Result<Value, String> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
-            Expr::Idnt(id) => ctxt.get(id),
+            Expr::Idnt(id) => ctxt.get(&id.name),
             Expr::Form(h, tail) => {
-                match ctxt.get(h)? {
+                match ctxt.get(&h.name)? {
                     Value::Fn(params, body) => {
                         if tail.len() != params.len() {
                             return Err(format!(
-                                "ArgError: Not enough args provided to {}: expected {}, got {}", h, params.len(), tail.len()))
+                                "ArgError: Not enough args provided to {}: expected {}, got {}", 
+                                    h.name, params.len(), tail.len()))
                         }
                         let mut args = Vec::new();
                         for a in tail {
@@ -94,7 +113,7 @@ impl Expr {
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> Result<Value, String> {
         match self {
             Expr::Def(n, body) => {
-                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
+                ctxt.put(n.name.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
                 Ok(Value::Unit)
             },
             _ => self.eval(&ctxt),
