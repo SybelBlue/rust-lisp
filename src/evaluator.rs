@@ -34,7 +34,7 @@ pub enum Error {
     ValueError(Value, String),
     ArgError { f_name: String, recieved: usize, expected: usize },
     IllegalDefError(Ident),
-    NameError(String),
+    NameError(Ident),
     RedefError(Ident, String),
     ParseError(ParseError),
 }
@@ -47,7 +47,7 @@ impl std::fmt::Display for Error {
                 write!(f, "ArgError({}): recieved {} arguments, expected {}", f_name, recieved, expected),
             Error::IllegalDefError(n) => 
                 write!(f, "IllegalDefError({}): cannot define in immutable scope at {}", n.name, n.file_pos),
-            Error::NameError(n) => write!(f, "NameError({}): not defined in scope", n),
+            Error::NameError(n) => write!(f, "NameError({}): not defined in scope at {}", n.name, n.file_pos),
             Error::RedefError(orig, n) => 
                 write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
             Error::ParseError(p) => write!(f, "{}", p),
@@ -103,12 +103,12 @@ impl std::fmt::Display for Value {
 }
 
 impl Expr {
-    pub fn eval(&self, ctxt: &Context, file_pos: Option<FilePos>) -> EvalResult<Value> {
+    pub fn eval(&self, ctxt: &Context, file_pos: FilePos) -> EvalResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
-            Expr::Var(id) => ctxt.get(id),
+            Expr::Var(id) => ctxt.get(&Ident { name: id.clone(), file_pos }),
             Expr::Form(h, tail) => {
-                match ctxt.get(&h.name.clone())? {
+                match ctxt.get(&h)? {
                     Value::Fn(params, body) => {
                         if tail.len() != params.len() {
                             return Err(Error::ArgError { f_name: h.name.clone(), expected: params.len(), recieved: tail.len() })
@@ -138,7 +138,7 @@ impl Expr {
         }
     }
 
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, file_pos: Option<FilePos>) -> EvalResult<Value> {
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, file_pos: FilePos) -> EvalResult<Value> {
         match self {
             Expr::Def(n, body) => {
                 ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;

@@ -86,8 +86,8 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    pub fn get(&self, k: &String) -> EvalResult<Value> {
-        if let Some((e,_)) = self.data.get(k) {
+    pub fn get(&self, k: &Ident) -> EvalResult<Value> {
+        if let Some((e,_)) = self.data.get(&k.name) {
             Ok(e.clone())
         } else if let Some(ctxt) = &self.prev {
             ctxt.get(k)

@@ -18,11 +18,11 @@ impl Token {
     }
 
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
-        self.expr.exec(ctxt, allow_overwrite, Some(self.file_pos))
+        self.expr.exec(ctxt, allow_overwrite, self.file_pos)
     }
 
     pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
-        self.expr.eval(ctxt, Some(self.file_pos))
+        self.expr.eval(ctxt, self.file_pos)
     }
 }
 
