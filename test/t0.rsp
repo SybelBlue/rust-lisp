@@ -10,7 +10,7 @@ three
 
 (-- three)
 
-(- 3 1.2 -4.3)
+(- 3 (1.2) -4.3)
 
 (defn flip [f x y] (f y x))
 

@@ -37,46 +37,6 @@ mod tests {
         }
 
         #[test]
-        fn number() {
-            use Value::*;
-            let s = String::from("47");
-            let cs = &mut s.chars().peekable();
-            let chars = &mut ParseStream::new(cs);
-            assert_eq!(Ok(Int(47)), greedy_parse_number(chars));
-            assert_eq!(None, chars.next());
-
-            let s = String::from("-47\t\n  ");
-            let cs = &mut s.chars().peekable();
-            let chars = &mut ParseStream::new(cs);
-            assert_eq!(Ok(Int(-47)), greedy_parse_number(chars));
-            assert_eq!(None, chars.next());
-
-            let s = String::from("-0047.34");
-            let cs = &mut s.chars().peekable();
-            let chars = &mut ParseStream::new(cs);
-            assert_eq!(Ok(Float(-47.34)), greedy_parse_number(chars));
-            assert_eq!(None, chars.next());
-            
-            let s = String::from("");
-            let cs = &mut s.chars().peekable();
-            let chars = &mut ParseStream::new(cs);
-            assert!(matches!(greedy_parse_number(chars), Err(_)));
-            assert_eq!(None, chars.next());
-            
-            let s = String::from("1.");
-            let cs = &mut s.chars().peekable();
-            let chars = &mut ParseStream::new(cs);
-            assert!(matches!(greedy_parse_number(chars), Err(_)));
-            assert_eq!(None, chars.next());
-            
-            let s = String::from("-");
-            let cs = &mut s.chars().peekable();
-            let chars = &mut ParseStream::new(cs);
-            assert!(matches!(greedy_parse_number(chars), Err(_)));
-            assert_eq!(None, chars.next());
-        }
-
-        #[test]
         fn expr() {
             use Expr::*;
             use Value::*;
