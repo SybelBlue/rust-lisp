@@ -155,63 +155,55 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
 
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
-    } else {
-        let id_or_lit_start = chars.file_pos;
-        let e = parse_ident_or_literal(chars)?;
-        skip_whitespace(chars);
-        return Ok(match e {
-            Ok(v) => Token::from_value(v, id_or_lit_start),
-            Err(n) => Token::from_ident(n),
-        })
-    }
-
-    if chars.next_if_eq(')') == Some(true) {
-        skip_whitespace(chars);
-        return Ok(Token::from_value(Value::Unit, start))
-    }
-
-    let after_paren = chars.file_pos;
-    match parse_ident_or_literal(chars)? {
-        Ok(v) => close_target(chars, Token::new(Lit(v), after_paren), "fn declaration"),
-        Err(ident) => {
-            if ident.name.as_bytes() == b"fn" {
-                let f = parse_fn_decl(chars)?;
-                return close_target(chars, f, "fn declaration")
-            }
-        
-            let is_defn = ident.name.as_bytes() == b"defn";
-            if is_defn || ident.name.as_bytes() == b"def" {
-                let name = parse_identifier(chars)?;
-                let fn_start = chars.file_pos;
-                let e = if is_defn { 
-                    parse_fn_decl(chars)?
-                } else { 
-                    parse(chars)? 
-                };
-                return close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "fn declaration")
-            }
-        
-            let mut v = Vec::new();
-            v.push(Token::from_ident(ident));
-            loop {
-                if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
-                    skip_whitespace(chars);
-                    return Ok(Token::new(Form(v), start))
-                }
-        
-                match parse(chars) {
-                    Ok(e) => v.push(e),
-                    Err(e) => {
-                        return Err(if !till_closing_paren(chars) {
-                            eof_msg
-                        } else {
-                            skip_whitespace(chars);
-                            e
-                        })
+        let mut v = Vec::new();
+        loop {
+            match chars.next_if_eq(')') {
+                None => return Err(eof_msg),
+                Some(true) => { 
+                    skip_whitespace(chars); 
+                    return Ok(Token::new(Form(v), start));
+                },
+                Some(false) =>
+                    match parse(chars) {
+                        Ok(e) => {
+                            if v.is_empty() {
+                                if let Var(s) = &e.expr {
+                                    if s.as_bytes() == b"fn" {
+                                        let f = parse_fn_decl(chars)?;
+                                        return close_target(chars, f, "fn declaration")
+                                    }
+                                
+                                    let is_defn = s.as_bytes() == b"defn";
+                                    if is_defn || s.as_bytes() == b"def" {
+                                        let name = parse_identifier(chars)?;
+                                        let fn_start = chars.file_pos;
+                                        let e = if is_defn { 
+                                            parse_fn_decl(chars)?
+                                        } else { 
+                                            parse(chars)? 
+                                        };
+                                        return close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "fn declaration")
+                                    }
+                                }
+                            }
+                            v.push(e);
+                        },
+                        Err(e) => {
+                            return Err(if !till_closing_paren(chars) {
+                                eof_msg
+                            } else {
+                                skip_whitespace(chars);
+                                e
+                            })
+                        },
                     },
-                }
             }
         }
+    } else {
+        Ok(match parse_ident_or_literal(chars)? {
+            Ok(v) => Token::new(Lit(v), start),
+            Err(ident) => Token::from_ident(ident),
+        })
     }
 }
 
