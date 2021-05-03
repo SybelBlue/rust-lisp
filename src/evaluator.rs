@@ -86,7 +86,7 @@ pub enum Value {
     Unit,
     Int(i64),
     Float(f64),
-    Fn(Vec<String>, Box<Expr>),
+    Fn(Vec<Ident>, Box<Expr>),
     BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
 
@@ -103,7 +103,7 @@ impl std::fmt::Display for Value {
 }
 
 impl Expr {
-    pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
+    pub fn eval(&self, ctxt: &Context, file_pos: Option<FilePos>) -> EvalResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
             Expr::Idnt(id) => ctxt.get(&id.name),
@@ -115,19 +115,19 @@ impl Expr {
                         }
                         let mut args = Vec::new();
                         for a in tail {
-                            args.push(a.eval(ctxt)?);
+                            args.push(a.eval(ctxt, None)?);
                         }
                         let data = params.into_iter()
                             .zip(args)
-                            .map(|(k, v)| (k, (v, None)))
+                            .map(|(k, v)| (k.name, (v, Some(k.file_pos))))
                             .collect();
                         let next = ctxt.chain(data);
-                        body.as_ref().eval(&next)
+                        body.as_ref().eval(&next, None)
                     },
                     Value::BuiltIn(_, f) => {
                         let mut args = Vec::new();
                         for a in tail {
-                            args.push(a.eval(ctxt)?);
+                            args.push(a.eval(ctxt, None)?);
                         }
                         f(args)
                     },
@@ -138,13 +138,13 @@ impl Expr {
         }
     }
 
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, file_pos: Option<FilePos>) -> EvalResult<Value> {
         match self {
             Expr::Def(n, body) => {
-                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
+                ctxt.put(n.clone(), body.as_ref().eval(&ctxt, None)?, allow_overwrite)?;
                 Ok(Value::Unit)
             },
-            _ => self.eval(&ctxt),
+            _ => self.eval(&ctxt, file_pos),
         }
     }
 }

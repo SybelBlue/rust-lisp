@@ -22,7 +22,7 @@ mod tests {
                 , Int(-1)
                 , Unit
                 , Int(2)
-                , Fn(vec![format!("a"), format!("b")], 
+                , Fn(vec![Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } }, Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } }], 
                     Box::new(Form(
                         Ident { name: format!("+"), file_pos: FilePos { col: 12, line: 19 } }, 
                         vec![ Idnt(Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } })

@@ -1,6 +1,26 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::evaluator::{Expr, FilePos, Ident, Value};
+use crate::{context::Context, evaluator::{EvalResult, Expr, FilePos, Ident, Value}};
+
+#[derive(Debug, PartialEq)]
+pub struct Token {
+    pub expr: Expr,
+    pub file_pos: FilePos,
+}
+
+impl Token {
+    pub fn new(expr: Expr, file_pos: FilePos) -> Self {
+        Self { expr, file_pos }
+    }
+
+    pub fn from_value(v: Value, file_pos: FilePos) -> ParseResult<Self> {
+        Ok(Self::new(Expr::Lit(v), file_pos))
+    }
+
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
+        self.expr.exec(ctxt, allow_overwrite, Some(self.file_pos))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -128,7 +148,7 @@ fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
     false
 }
 
-pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Expr>> {
+pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
     let mut last_loc = chars.loc();
@@ -145,48 +165,55 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Expr>> {
     v
 }
 
-pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
+pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     use Expr::*;
 
     let eof_msg = ParseError::Eof(format!("closing ')'"));
-    // let next_if_or_err = |c| chars.next_if_eq(c).ok_or_else(|| eof_msg.clone());
-    
+    let mark = chars.file_pos;
+
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
     } else {
+        let mark = chars.file_pos;
         let e = parse_ident_or_literal(chars)?;
         skip_whitespace(chars);
-        return Ok(match e {
-            Ok(v) => Lit(v),
-            Err(n) => Idnt(n),
-        })
+        return match e {
+            Ok(v) => Token::from_value(v, mark),
+            Err(n) => Ok(Token::new(Idnt(n), mark)),
+        }
     }
 
     if chars.next_if_eq(')') == Some(true) {
         skip_whitespace(chars);
-        return Ok(Lit(Value::Unit))
+        return Token::from_value(Value::Unit, mark)
     }
 
+    let mark = chars.file_pos;
     match parse_ident_or_literal(chars)? {
-        Ok(v) => close_target(chars, Lit(v), "fn declaration"),
+        Ok(v) => close_target(chars, Token::new(Lit(v), mark), "fn declaration"),
         Err(ident) => {
             if ident.name.as_bytes() == b"fn" {
                 let f = parse_fn_decl(chars)?;
-                return close_target(chars, Lit(f), "fn declaration")
+                return close_target(chars, f, "fn declaration")
             }
         
             let is_defn = ident.name.as_bytes() == b"defn";
             if is_defn || ident.name.as_bytes() == b"def" {
                 let name = parse_identifier(chars)?;
-                let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
-                return close_target(chars, Def(name, Box::new(e)), "fn declaration")
+                let mark = chars.file_pos;
+                let e = if is_defn { 
+                    parse_fn_decl(chars)?
+                } else { 
+                    parse(chars)? 
+                };
+                return close_target(chars, Token::new(Def(name, Box::new(e)), mark), "fn declaration")
             }
         
             let mut v = Vec::new();
             loop {
                 if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
                     skip_whitespace(chars);
-                    return Ok(Form(ident, v))
+                    return Ok(Token::new(Form(ident, v), mark))
                 }
         
                 match parse(chars) {
@@ -205,7 +232,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
     }
 }
 
-fn close_target(chars: &mut ParseStream<'_>, output: Expr, target: &str) -> ParseResult<Expr> {
+fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> ParseResult<Token> {
     if chars.next_if_eq(')').ok_or_else(|| ParseError::Eof(format!("closing ')'")))? {
         skip_whitespace(chars);
         Ok(output)
@@ -214,7 +241,7 @@ fn close_target(chars: &mut ParseStream<'_>, output: Expr, target: &str) -> Pars
     }
 }
 
-fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Value> {
+fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     if chars.next_if_eq('[') != Some(true) {
         return Err(ParseError::Missing(format!(" arg list, starting with '['"), chars.file_pos));
     }
@@ -228,14 +255,18 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Value> {
             let body = Box::new(parse(chars)?);
             return Ok(Value::Fn(params, body))
         }
-        params.push(parse_identifier(chars)?.name);
+        params.push(parse_identifier(chars)?);
     }
     Err(ParseError::Eof(format!("closing ']'")))
 }
 
+fn valid_ident_char(c: char) -> bool {
+    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']'
+}
+
 pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
     let file_pos = chars.loc();
-    let name = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
+    let name = many1(chars, "an identifier", valid_ident_char)?;
     skip_whitespace(chars);
     Ok(Ident::new(name, file_pos))
 }
