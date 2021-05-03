@@ -14,6 +14,7 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Fn(VecDeque<String>, Box<Expr>),
+    BuiltIn(String, fn(Vec<Value>) -> Result<Value, String>),
 }
 
 impl std::fmt::Display for Value {
@@ -23,6 +24,7 @@ impl std::fmt::Display for Value {
             Value::Int(x) => write!(f, "{}", x),
             Value::Float(x) => write!(f, "{}", x),
             Value::Fn(args, _) => write!(f, "<{}-ary func>", args.len()),
+            Value::BuiltIn(s, _) => write!(f, "<builtin func {}>", s),
         }
     }
 }
@@ -81,6 +83,13 @@ impl Expr {
                         let next = ctxt.chain(params.into_iter().zip(args).collect());
                         body.as_ref().eval(&next)
                     },
+                    Value::BuiltIn(_, f) => {
+                        let mut args = Vec::new();
+                        for a in tail {
+                            args.push(a.eval(ctxt)?);
+                        }
+                        f(args)
+                    },
                     v => Ok(v),
                 }
             },
@@ -99,7 +108,7 @@ impl Expr {
     }
 }
 
-pub(crate) fn exec_batch(exprs: Vec<Expr>) -> (Vec<Result<Value, String>>, Context<'static>) {
-    let mut ctxt = Context::new();
-    (exprs.iter().map(|e| e.exec(&mut ctxt, false)).collect(), ctxt)
-}
+// pub(crate) fn exec_batch(exprs: Vec<Expr>) -> (Vec<Result<Value, String>>, Context<'static>) {
+//     let mut ctxt = Context::new();
+//     (exprs.iter().map(|e| e.exec(&mut ctxt, false)).collect(), ctxt)
+// }
