@@ -2,7 +2,7 @@ use std::{iter::Peekable, str::Chars};
 
 use crate::{context::Context, evaluator::{EvalResult, Expr, FilePos, Ident, Value}};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Token {
     pub expr: Expr,
     pub file_pos: FilePos,
@@ -19,6 +19,10 @@ impl Token {
 
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
         self.expr.exec(ctxt, allow_overwrite, Some(self.file_pos))
+    }
+
+    pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
+        self.expr.eval(ctxt, Some(self.file_pos))
     }
 }
 
@@ -179,7 +183,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
         skip_whitespace(chars);
         return match e {
             Ok(v) => Token::from_value(v, mark),
-            Err(n) => Ok(Token::new(Idnt(n), mark)),
+            Err(n) => Ok(Token::new(Var(n.name), mark)),
         }
     }
 
@@ -242,6 +246,7 @@ fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> Par
 }
 
 fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
+    let mark = chars.file_pos;
     if chars.next_if_eq('[') != Some(true) {
         return Err(ParseError::Missing(format!(" arg list, starting with '['"), chars.file_pos));
     }
@@ -253,7 +258,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             chars.next();
             skip_whitespace(chars);
             let body = Box::new(parse(chars)?);
-            return Ok(Value::Fn(params, body))
+            return Token::from_value(Value::Fn(params, body), mark)
         }
         params.push(parse_identifier(chars)?);
     }

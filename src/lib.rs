@@ -5,7 +5,7 @@ pub mod context;
 #[cfg(test)]
 mod tests {
     mod lexer {
-        use crate::evaluator::{*, Expr::*, Value::*};
+        use crate::{evaluator::{*, Expr::*, Value::*}, parser::Token};
 
         #[test]
         fn basics() {
@@ -22,12 +22,16 @@ mod tests {
                 , Int(-1)
                 , Unit
                 , Int(2)
-                , Fn(vec![Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } }, Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } }], 
-                    Box::new(Form(
-                        Ident { name: format!("+"), file_pos: FilePos { col: 12, line: 19 } }, 
-                        vec![ Idnt(Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } })
-                            , Idnt(Ident { name: format!("b"), file_pos: FilePos { col: 16, line: 19 } })
-                            ])))
+                , Fn(
+                    vec![ Ident { name: format!("a"), file_pos: FilePos { col: 6, line: 19 } }
+                        , Ident { name: format!("b"), file_pos: FilePos { col: 8, line: 19 } }
+                        ]
+                    , Box::new(Token { 
+                        expr: Form(Ident { name: format!("+"), file_pos: FilePos { col: 12, line: 19 } }, 
+                            vec![ Token { expr: Var(format!("a")), file_pos: FilePos { col: 14, line: 19 } }
+                                , Token { expr: Var(format!("b")), file_pos: FilePos { col: 16, line: 19 } }
+                                ]), 
+                        file_pos: FilePos { col: 12, line: 19 } }))
             ].into_iter().zip(reses.into_iter()) {
                 assert_eq!(Ok(ex), ac)
             }

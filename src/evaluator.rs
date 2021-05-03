@@ -1,4 +1,4 @@
-use crate::{context::Context, parser::{ParseError, ParseStream, parse_all}};
+use crate::{context::Context, parser::{ParseError, ParseStream, Token, parse_all}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FilePos {
@@ -76,9 +76,9 @@ impl std::fmt::Display for Ident {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Lit(Value),
-    Idnt(Ident),
-    Form(Ident, Vec<Expr>),
-    Def(Ident, Box<Expr>),
+    Var(String),
+    Form(Ident, Vec<Token>),
+    Def(Ident, Box<Token>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -86,7 +86,7 @@ pub enum Value {
     Unit,
     Int(i64),
     Float(f64),
-    Fn(Vec<Ident>, Box<Expr>),
+    Fn(Vec<Ident>, Box<Token>),
     BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
 
@@ -106,7 +106,7 @@ impl Expr {
     pub fn eval(&self, ctxt: &Context, file_pos: Option<FilePos>) -> EvalResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
-            Expr::Idnt(id) => ctxt.get(&id.name),
+            Expr::Var(id) => ctxt.get(id),
             Expr::Form(h, tail) => {
                 match ctxt.get(&h.name.clone())? {
                     Value::Fn(params, body) => {
@@ -114,20 +114,20 @@ impl Expr {
                             return Err(Error::ArgError { f_name: h.name.clone(), expected: params.len(), recieved: tail.len() })
                         }
                         let mut args = Vec::new();
-                        for a in tail {
-                            args.push(a.eval(ctxt, None)?);
+                        for t in tail {
+                            args.push(t.eval(ctxt)?);
                         }
                         let data = params.into_iter()
                             .zip(args)
                             .map(|(k, v)| (k.name, (v, Some(k.file_pos))))
                             .collect();
                         let next = ctxt.chain(data);
-                        body.as_ref().eval(&next, None)
+                        body.as_ref().eval(&next)
                     },
                     Value::BuiltIn(_, f) => {
                         let mut args = Vec::new();
-                        for a in tail {
-                            args.push(a.eval(ctxt, None)?);
+                        for t in tail {
+                            args.push(t.eval(ctxt)?);
                         }
                         f(args)
                     },
@@ -141,7 +141,7 @@ impl Expr {
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, file_pos: Option<FilePos>) -> EvalResult<Value> {
         match self {
             Expr::Def(n, body) => {
-                ctxt.put(n.clone(), body.as_ref().eval(&ctxt, None)?, allow_overwrite)?;
+                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
                 Ok(Value::Unit)
             },
             _ => self.eval(&ctxt, file_pos),
