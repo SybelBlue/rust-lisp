@@ -104,12 +104,13 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
     while chars.peek().is_some() {
         let e = parse(chars);
         // if matches!(e, Err(_)) { panic!(format!("{:?}", e)) } else { println!("parse all {:?}", e) }
-        v.push(e);
         if last_loc == chars.loc() {
-            panic!(format!("Infinite loop in parse_all at {}", chars.loc_str()));
-        } else {
-            last_loc = chars.loc();
+            chars.next();
+            take_while(chars, |c| c != '\n' && c != '\r');
+            skip_whitespace(chars);
         }
+        last_loc = chars.loc();
+        v.push(e);
     }
     v
 }
