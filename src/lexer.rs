@@ -142,7 +142,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
         skip_whitespace(chars);
         return Ok(match e {
             Ok(v) => Lit(v),
-            Err(n) => Ident(n),
+            Err(n) => Idnt(n),
         })
     }
 

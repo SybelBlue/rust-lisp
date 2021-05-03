@@ -5,7 +5,7 @@ use crate::{context::Context, lexer::{ParseStream, parse_all}};
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Lit(Value),
-    Ident(String),
+    Idnt(String),
     Form(String, Vec<Expr>),
     Def(String, Box<Expr>),
 }
@@ -35,7 +35,7 @@ impl Expr {
     pub fn eval(&self, ctxt: &Context) -> Result<Value, String> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
-            Expr::Ident(id) => ctxt.get(id),
+            Expr::Idnt(id) => ctxt.get(id),
             Expr::Form(h, tail) => {
                 match ctxt.get(h)? {
                     Value::Fn(params, body) => {

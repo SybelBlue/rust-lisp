@@ -46,10 +46,10 @@ mod tests {
             let chars = &mut ParseStream::new(cs);
             assert_eq!(parse_all(chars), 
                 vec![ Ok(Form(format!("+"), vec![Lit(Int(1)), Lit(Int(2)), Lit(Int(3))]))
-                    , Ok(Form(format!("apply"), vec![Ident(format!("f")), Lit(Unit)]))
+                    , Ok(Form(format!("apply"), vec![Idnt(format!("f")), Lit(Unit)]))
                     , Ok(Def(format!("add"), Box::new(Lit(Fn(
                             VecDeque::from(vec![format!("a"), format!("b")]), 
-                            Box::new(Form(format!("+"), vec![Ident(format!("a")), Ident(format!("b"))])))))))
+                            Box::new(Form(format!("+"), vec![Idnt(format!("a")), Idnt(format!("b"))])))))))
                 ]);
         }
     }
