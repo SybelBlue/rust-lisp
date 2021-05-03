@@ -1,6 +1,25 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::parser::{Expr, FilePos, Ident, ParseResult, Value};
+use crate::parser::{Expr, FilePos, Ident, Value};
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ParseError {
+    Eof(String),
+    BadChar(String, FilePos, char),
+    Missing(String, FilePos),
+}
+
+pub type ParseResult<T> = Result<T, ParseError>;
+
+impl std::fmt::Display for ParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseError::Eof(x) => write!(f, "Expected {} before end of file", x),
+            ParseError::BadChar(target, ls, c) => write!(f, "Invalid char '{}' for {} at {}", c, target, ls),
+            ParseError::Missing(x, ps) => write!(f, "Missing {} at {}", x, ps),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ParseStream<'a> {
@@ -76,11 +95,11 @@ fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String
 fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str, f: F) -> ParseResult<String> {
     let s = take_while(chars, f);
     if s.len() == 0 {
-        let ls = chars.loc_str();
+        let ls = chars.file_pos;
         Err(if let Some(c) = chars.peek() {
-            format!("Invalid char '{}' for {} at {}", c, target, ls)
+            ParseError::BadChar(String::from(target), ls, *c)
         } else {
-            format!("Expected {} before end of file", target)
+            ParseError::Eof(String::from(target))
         })
     } else {
         Ok(s)
@@ -129,7 +148,8 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Expr>> {
 pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
     use Expr::*;
 
-    let eof_msg = format!("Reached end of file before form was closed");
+    let eof_msg = ParseError::Eof(format!("closing ')'"));
+    // let next_if_or_err = |c| chars.next_if_eq(c).ok_or_else(|| eof_msg.clone());
     
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
@@ -186,17 +206,17 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Expr> {
 }
 
 fn close_target(chars: &mut ParseStream<'_>, output: Expr, target: &str) -> ParseResult<Expr> {
-    if chars.next_if_eq(')').ok_or_else(|| format!("Reached end of file before form was closed"))? {
+    if chars.next_if_eq(')').ok_or_else(|| ParseError::Eof(format!("closing ')'")))? {
         skip_whitespace(chars);
         Ok(output)
     } else {
-        Err(format!("Expecting end of form after {} at {}", target, chars.loc_str()))
+        Err(ParseError::Missing(format!("end of form after {}", target), chars.file_pos))
     }
 }
 
 fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Value> {
     if chars.next_if_eq('[') != Some(true) {
-        return Err(format!("Missing required arg list, starting with '[' at {}", chars.loc_str()));
+        return Err(ParseError::Missing(format!(" arg list, starting with '['"), chars.file_pos));
     }
     
     skip_whitespace(chars);
@@ -210,7 +230,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Value> {
         }
         params.push(parse_identifier(chars)?.name);
     }
-    Err(format!("Reached end of file before arg list was closed"))
+    Err(ParseError::Eof(format!("closing ']'")))
 }
 
 pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
@@ -232,6 +252,11 @@ fn safe_parse_number(chars: &mut ParseStream<'_>) -> ParseResult<Result<Value, I
                 Err(n)
             })
         },
-        Err(_) => Err(format!("Error parsing identifier or literal at {}", ls)),
+        Err(ParseError::BadChar(_, fp, c)) => 
+            Err(ParseError::BadChar(format!("Error parsing identifier or literal"), fp, c)),
+        Err(ParseError::Eof(_)) => 
+            Err(ParseError::Eof(format!("identifier or literal"))),
+        Err(ParseError::Missing(s, fp)) => 
+            Err(ParseError::Missing(format!("{} looking for identifier or literal", s), fp))
     }
 }

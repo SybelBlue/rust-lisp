@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{Ident, ParseError, ParseResult, Value};
+use crate::parser::{Ident, Error, EvalResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
@@ -8,7 +8,7 @@ pub struct Context<'a> {
     prev: Option<Box<&'a Context<'a>>>,
 }
 
-fn add(vals: Vec<Value>) -> ParseResult<Value> {
+fn add(vals: Vec<Value>) -> EvalResult<Value> {
     use Value::*;
 
     let out: &mut Result<i64, f64> = &mut Ok(0);
@@ -22,7 +22,7 @@ fn add(vals: Vec<Value>) -> ParseResult<Value> {
                 Ok(x) => *out = Err(n + *x as f64),
                 Err(x) => *x += n,
             },
-            x => return Err(ParseError::ValueError(x, format!("(+) takes only numeric arguments"))),
+            x => return Err(Error::ValueError(x, format!("(+) takes only numeric arguments"))),
         }
     }
 
@@ -32,7 +32,7 @@ fn add(vals: Vec<Value>) -> ParseResult<Value> {
     })
 }
 
-fn sub(vals: Vec<Value>) -> ParseResult<Value> {
+fn sub(vals: Vec<Value>) -> EvalResult<Value> {
     use Value::*;
     if let Some((h, t)) = vals.split_first() {
         if t.len() > 0 {
@@ -40,23 +40,23 @@ fn sub(vals: Vec<Value>) -> ParseResult<Value> {
                 Int(n) => match add(Vec::from(t))? {
                     Int(x) => Ok(Int(n - x)),
                     Float(x) => Ok(Float(n as f64 - x)),
-                    x => Err(ParseError::ValueError(x, format!("Addition returned non-numeric"))),
+                    x => Err(Error::ValueError(x, format!("Addition returned non-numeric"))),
                 },
                 Float(n) => match add(Vec::from(t))? {
                     Int(x) => Ok(Float(n - x as f64)),
                     Float(x) => Ok(Float(n - x)),
-                    x => Err(ParseError::ValueError(x, format!("Addition returned non-numeric"))),
+                    x => Err(Error::ValueError(x, format!("Addition returned non-numeric"))),
                 },
-                x => Err(ParseError::ValueError(x, format!("(-) takes only numeric arguments"))),
+                _ => Err(Error::ValueError(h.clone(), format!("(-) takes only numeric arguments"))),
             }
         }
     }
-    Err(ParseError::ArgError { f_name: format!("(-)"), recieved: vals.len(), expected: 2 })
+    Err(Error::ArgError { f_name: format!("(-)"), recieved: vals.len(), expected: 2 })
 }
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        fn make_builtin(s: &str, f: fn(Vec<Value>) -> ParseResult<Value>) -> (String, Value) {
+        fn make_builtin(s: &str, f: fn(Vec<Value>) -> EvalResult<Value>) -> (String, Value) {
             (String::from(s), Value::BuiltIn(format!("({})", s), f)) 
         }
         Self { prev: None, data: vec![make_builtin("+", add), make_builtin("-", sub)].into_iter().collect() }
@@ -70,23 +70,23 @@ impl<'a> Context<'a> {
         todo!()
     }
 
-    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> ParseResult<()> {
+    pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> EvalResult<()> {
         if !allow_overwrite {
             if let Some(id) = self.get_ident(&k) {
-                return Err(ParseError::RedefError(id, k));
+                return Err(Error::RedefError(id, k));
             }
         }
         self.data.insert(k, v.clone());
         Ok(())
     }
 
-    pub fn get(&self, k: &String) -> ParseResult<Value> {
+    pub fn get(&self, k: &String) -> EvalResult<Value> {
         if let Some(e) = self.data.get(k) {
             Ok(e.clone())
         } else if let Some(ctxt) = &self.prev {
             ctxt.get(k)
         } else {
-            Err(ParseError::NameError(k.clone()))
+            Err(Error::NameError(k.clone()))
         }
     }
 

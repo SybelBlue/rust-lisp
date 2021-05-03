@@ -1,4 +1,4 @@
-use crate::{context::Context, lexer::{ParseStream, parse_all}};
+use crate::{context::Context, lexer::{ParseError, ParseStream, parse_all}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FilePos {
@@ -27,15 +27,32 @@ impl std::fmt::Display for FilePos {
     }
 }
 
-pub type ParseResult<T> = Result<T, ParseError>;
+pub type EvalResult<T> = Result<T, Error>;
 
 #[derive(Debug, PartialEq, Clone)]
-pub enum ParseError {
+pub enum Error {
     ValueError(Value, String),
     ArgError { f_name: String, recieved: usize, expected: usize },
     IllegalDefError(Ident),
     NameError(String),
     RedefError(Ident, String),
+    ParseError(ParseError),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::ValueError(v, s) => write!(f, "ValueError({}): {}", v, s),
+            Error::ArgError { f_name, recieved, expected } => 
+                write!(f, "ArgError({}): recieved {} arguments, expected {}", f_name, recieved, expected),
+            Error::IllegalDefError(n) => 
+                write!(f, "IllegalDefError({}): cannot define in immutable scope at {}", n.name, n.file_pos),
+            Error::NameError(n) => write!(f, "NameError({}): not defined in scope", n),
+            Error::RedefError(orig, n) => 
+                write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
+            Error::ParseError(p) => write!(f, "{}", p),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,7 +87,7 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Fn(Vec<String>, Box<Expr>),
-    BuiltIn(String, fn(Vec<Value>) -> ParseResult<Value>),
+    BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
 
 impl std::fmt::Display for Value {
@@ -86,15 +103,15 @@ impl std::fmt::Display for Value {
 }
 
 impl Expr {
-    pub fn eval(&self, ctxt: &Context) -> ParseResult<Value> {
+    pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
             Expr::Idnt(id) => ctxt.get(&id.name),
             Expr::Form(h, tail) => {
-                match ctxt.get(&h.name)? {
+                match ctxt.get(&h.name.clone())? {
                     Value::Fn(params, body) => {
                         if tail.len() != params.len() {
-                            return Err(ParseError::ArgError { f_name: h.name, expected: params.len(), recieved: tail.len() })
+                            return Err(Error::ArgError { f_name: h.name.clone(), expected: params.len(), recieved: tail.len() })
                         }
                         let mut args = Vec::new();
                         for a in tail {
@@ -113,11 +130,11 @@ impl Expr {
                     v => Ok(v),
                 }
             },
-            Expr::Def(n, _) => Err(ParseError::IllegalDefError(n.clone())),
+            Expr::Def(n, _) => Err(Error::IllegalDefError(n.clone())),
         }
     }
 
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> ParseResult<Value> {
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
         match self {
             Expr::Def(n, body) => {
                 ctxt.put(n.name.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
@@ -128,13 +145,13 @@ impl Expr {
     }
 }
 
-pub fn exec(s: String) -> (Vec<ParseResult<Value>>, Context<'static>) {
+pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();
     let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
     let mut out = Vec::new();
     for e in op_exprs {
         match e {
-            Err(s) => out.push(Err(s)),
+            Err(s) => out.push(Err(Error::ParseError(s))),
             Ok(x) => out.push(x.exec(&mut ctxt, false))
         }
     }
