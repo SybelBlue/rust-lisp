@@ -2,7 +2,35 @@ use std::{collections::VecDeque, iter::Peekable, str::Chars};
 
 use crate::parser::{Expr, Value};
 
-fn take_while<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, f: F) -> String {
+#[derive(Debug)]
+pub struct ParseStream<'a> {
+    col: usize,
+    line: usize,
+    iter: &'a mut Peekable<Chars<'a>>,
+}
+
+impl<'a> ParseStream<'a> {
+    pub fn new(iter: &'a mut Peekable<Chars<'a>>) -> Self {
+        Self { col: 1, line: 1, iter }
+    }
+
+    pub fn peek(&mut self) -> Option<&char> {
+        self.iter.peek()
+    }
+
+    pub fn next(&mut self) -> Option<char> {
+        let out = self.iter.next();
+        if out == Some('\n') || out == Some('\r') {
+            self.col = 1;
+            self.line += 1;
+        } else {
+            self.col += 1;
+        }
+        out
+    }
+}
+
+fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String {
     let mut s = String::new();
     while let Some(&c) = chars.peek() {
         if f(c) {
@@ -15,7 +43,7 @@ fn take_while<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, f: F) -> St
     s
 }
 
-fn optional<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, f: F) -> Option<char> {
+fn optional<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> Option<char> {
     if let Some(&c) = chars.peek() {
         if f(c) {
             chars.next();
@@ -25,7 +53,7 @@ fn optional<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, f: F) -> Opti
     None
 }
 
-fn many1<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, target: &'static str, f: F) -> Result<String, String> {
+fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str, f: F) -> Result<String, String> {
     let s = take_while(chars, f);
     if s.len() == 0 {
         Err(if let Some(c) = chars.peek() {
@@ -38,11 +66,11 @@ fn many1<F : Fn(char) -> bool>(chars: &mut Peekable<Chars<'_>>, target: &'static
     }
 }
 
-fn skip_whitespace(chars: &mut Peekable<Chars<'_>>) {
+fn skip_whitespace(chars: &mut ParseStream<'_>) {
     take_while(chars, char::is_whitespace);
 }
 
-fn till_closing_paren(chars: &mut Peekable<Chars<'_>>) -> bool {
+fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
     let mut n = 1u8;
     while let Some(c) = chars.next() {
         match c {
@@ -60,18 +88,18 @@ fn till_closing_paren(chars: &mut Peekable<Chars<'_>>) -> bool {
     false
 }
 
-pub fn parse_all(chars: &mut Peekable<Chars<'_>>) -> Vec<Result<Expr, String>> {
+pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
     while chars.peek().is_some() {
         let e = parse(chars);
-        // if matches!(e, Err(_)) { panic!("") }
+        if matches!(e, Err(_)) { panic!(format!("{:?}", e)) } else { println!("parse all {:?}", e) }
         v.push(e);
     }
     v
 }
 
-pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
+pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     use Expr::*;
     
     if let Ok(e) = parse_number(chars) { 
@@ -121,7 +149,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
             chars.next();
             skip_whitespace(chars);
             if v.len() == 0 {
-                if let Ok(e) = parse_number(&mut ident.chars().peekable()) {
+                if let Ok(e) = parse_number(&mut ParseStream::new(&mut ident.chars().peekable())) {
                     return Ok(Lit(e));
                 } else {
                     return Ok(Ident(ident))
@@ -146,7 +174,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     eof_err
 }
 
-fn parse_fn_decl(chars: &mut Peekable<Chars<'_>>) -> Result<Value, String> {
+fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
     if chars.peek() != Some(&'[') {
         return Err(format!("Missing required arg list, starting with '['"));
     }
@@ -165,13 +193,13 @@ fn parse_fn_decl(chars: &mut Peekable<Chars<'_>>) -> Result<Value, String> {
     Err(format!("Reached end of file before arg list was closed"))
 }
 
-pub(crate) fn parse_identifier(chars: &mut Peekable<Chars<'_>>) -> Result<String, String> {
+pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> Result<String, String> {
     let out = many1(chars, "an identifier", |c: char| !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']')?;
     skip_whitespace(chars);
     Ok(out)
 }
 
-pub(crate) fn parse_number(chars: &mut Peekable<Chars<'_>>) -> Result<Value, String> {
+pub(crate) fn parse_number(chars: &mut ParseStream<'_>) -> Result<Value, String> {
     let mut num = String::new();
     
     if optional(chars, |c| c == '-').is_some() {

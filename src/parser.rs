@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{context::Context, lexer::parse_all};
+use crate::{context::Context, lexer::{ParseStream, parse_all}};
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
@@ -77,7 +77,7 @@ impl Expr {
 
 pub fn exec(s: String) -> (Vec<Result<Value, String>>, Context<'static>) {
     let mut ctxt = Context::new();
-    let op_exprs = parse_all(&mut s.chars().peekable());
+    let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
     let mut out = Vec::new();
     for e in op_exprs {
         match e {
