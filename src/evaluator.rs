@@ -117,7 +117,11 @@ impl Expr {
                         for a in tail {
                             args.push(a.eval(ctxt)?);
                         }
-                        let next = ctxt.chain(params.into_iter().zip(args).collect());
+                        let data = params.into_iter()
+                            .zip(args)
+                            .map(|(k, v)| (k, (v, None)))
+                            .collect();
+                        let next = ctxt.chain(data);
                         body.as_ref().eval(&next)
                     },
                     Value::BuiltIn(_, f) => {
@@ -137,7 +141,7 @@ impl Expr {
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
         match self {
             Expr::Def(n, body) => {
-                ctxt.put(n.name.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
+                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
                 Ok(Value::Unit)
             },
             _ => self.eval(&ctxt),
