@@ -29,6 +29,10 @@ impl<'a> ParseStream<'a> {
         out
     }
 
+    pub fn loc(&self) -> (usize, usize) {
+        (self.line, self.col)
+    }
+
     pub fn loc_str(&self) -> String {
         format!("{}:{}", self.line, self.col)
     }
@@ -96,10 +100,16 @@ fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
 pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
+    let mut last_loc = chars.loc();
     while chars.peek().is_some() {
         let e = parse(chars);
         // if matches!(e, Err(_)) { panic!(format!("{:?}", e)) } else { println!("parse all {:?}", e) }
         v.push(e);
+        if last_loc == chars.loc() {
+            panic!(format!("Infinite loop in parse_all at {}", chars.loc_str()));
+        } else {
+            last_loc = chars.loc();
+        }
     }
     v
 }
