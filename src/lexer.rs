@@ -28,6 +28,10 @@ impl<'a> ParseStream<'a> {
         }
         out
     }
+
+    pub fn loc_str(&self) -> String {
+        format!("{}:{}", self.line, self.col)
+    }
 }
 
 fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String {
@@ -56,8 +60,9 @@ fn optional<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> Option<c
 fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str, f: F) -> Result<String, String> {
     let s = take_while(chars, f);
     if s.len() == 0 {
+        let ls = chars.loc_str();
         Err(if let Some(c) = chars.peek() {
-            format!("Invalid char '{}' for {}", c, target)
+            format!("Invalid char '{}' for {} at {}", c, target, ls)
         } else {
             format!("Expected {} before end of file", target)
         })
@@ -93,7 +98,7 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<Result<Expr, String>> {
     skip_whitespace(chars);
     while chars.peek().is_some() {
         let e = parse(chars);
-        if matches!(e, Err(_)) { panic!(format!("{:?}", e)) } else { println!("parse all {:?}", e) }
+        // if matches!(e, Err(_)) { panic!(format!("{:?}", e)) } else { println!("parse all {:?}", e) }
         v.push(e);
     }
     v
@@ -125,10 +130,11 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
 
     if ident.as_bytes() == b"fn" {
         let f = parse_fn_decl(chars)?;
+        let ls = chars.loc_str();
         return match chars.peek() {
             None => eof_err,
             Some(')') => { chars.next(); skip_whitespace(chars); Ok(Lit(f)) },
-            Some(c) => Err(format!("Expecting end of form after fn declaration, got {} instead", c)),
+            Some(c) => Err(format!("Expecting end of form after fn declaration, got {} instead at {}", c, ls)),
         }
     }
 
@@ -136,10 +142,11 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
     if is_defn || ident.as_bytes() == b"def" {
         let name = parse_identifier(chars)?;
         let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
+        let ls = chars.loc_str();
         return match chars.peek() {
             None => eof_err,
             Some(')') => { chars.next(); skip_whitespace(chars); Ok(Def(name, Box::new(e))) },
-            Some(c) => Err(format!("Expecting end of form after defn, got {} instead", c)),
+            Some(c) => Err(format!("Expecting end of form after defn, got {} instead at {}", c, ls)),
         }
     }
 
@@ -176,7 +183,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> Result<Expr, String> {
 
 fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
     if chars.peek() != Some(&'[') {
-        return Err(format!("Missing required arg list, starting with '['"));
+        return Err(format!("Missing required arg list, starting with '[' at {}", chars.loc_str()));
     }
     chars.next();
     skip_whitespace(chars);
