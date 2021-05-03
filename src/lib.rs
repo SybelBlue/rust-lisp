@@ -35,10 +35,9 @@ mod tests {
 
         #[test]
         fn basic_errs() {
-            let s = std::fs::read_to_string("test/basics err.rsp").expect("file not found");
+            let s = std::fs::read_to_string("test/basic-errs.rsp").expect("file not found");
             let (reses, _) = exec(s);
-            println!("{:#?}", reses);
-            assert!(false)
+            assert_eq!(reses.into_iter().filter(|x| x.is_err()).collect::<Vec<Result<Value, Error>>>().len(), 9);
         }
     }
 }
