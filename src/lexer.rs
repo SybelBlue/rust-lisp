@@ -65,6 +65,7 @@ pub fn parse_all(chars: &mut Peekable<Chars<'_>>) -> Vec<Result<Expr, String>> {
     skip_whitespace(chars);
     while chars.peek().is_some() {
         let e = parse(chars);
+        // if matches!(e, Err(_)) { panic!("") }
         v.push(e);
     }
     v
@@ -82,7 +83,7 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     
     match chars.peek() {
         None => return eof_err,
-        Some('(') => { chars.next(); skip_whitespace(chars) },
+        Some('(') => { chars.next(); skip_whitespace(chars); },
         Some(_) => return parse_identifier(chars).map(Ident),
     }
 
@@ -96,9 +97,9 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
 
     if ident.as_bytes() == b"fn" {
         let f = parse_fn_decl(chars)?;
-        return match chars.next() {
+        return match chars.peek() {
             None => eof_err,
-            Some(')') => { skip_whitespace(chars); Ok(Lit(f)) },
+            Some(')') => { chars.next(); skip_whitespace(chars); Ok(Lit(f)) },
             Some(c) => Err(format!("Expecting end of form after fn declaration, got {} instead", c)),
         }
     }
@@ -107,9 +108,9 @@ pub fn parse(chars: &mut Peekable<Chars<'_>>) -> Result<Expr, String> {
     if is_defn || ident.as_bytes() == b"def" {
         let name = parse_identifier(chars)?;
         let e = if is_defn { Lit(parse_fn_decl(chars)?) } else { parse(chars)? };
-        return match chars.next() {
+        return match chars.peek() {
             None => eof_err,
-            Some(')') => {skip_whitespace(chars); Ok(Def(name, Box::new(e))) },
+            Some(')') => { chars.next(); skip_whitespace(chars); Ok(Def(name, Box::new(e))) },
             Some(c) => Err(format!("Expecting end of form after defn, got {} instead", c)),
         }
     }

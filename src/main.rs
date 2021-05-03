@@ -6,7 +6,7 @@ fn main() -> std::io::Result<()> {
     for r in reses {
         match r {
             Ok(v) => println!(">> {}", v),
-            Err(s) => println!(" * {} * ", s),
+            Err(s) => println!(" * {} ", s),
         }
     }
     println!("Batch finished w/ {} symbols", ctxt.size());

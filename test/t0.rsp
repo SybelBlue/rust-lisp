@@ -2,7 +2,7 @@
 
 three
 
-(defn ++ [x] (+ x 1))
+defn ++ [x] (+ x 1)
 
 (++ three)
 
