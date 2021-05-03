@@ -24,9 +24,9 @@ mod tests {
                 , Int(2)
                 , Fn(vec![format!("a"), format!("b")], 
                     Box::new(Form(
-                        Ident { name: format!("+"), file_pos: FilePos { col: 12, line: 23 } }, 
-                        vec![ Idnt(Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 23 } })
-                            , Idnt(Ident { name: format!("b"), file_pos: FilePos { col: 16, line: 23 } })
+                        Ident { name: format!("+"), file_pos: FilePos { col: 12, line: 19 } }, 
+                        vec![ Idnt(Ident { name: format!("a"), file_pos: FilePos { col: 14, line: 19 } })
+                            , Idnt(Ident { name: format!("b"), file_pos: FilePos { col: 16, line: 19 } })
                             ])))
             ].into_iter().zip(reses.into_iter()) {
                 assert_eq!(Ok(ex), ac)
