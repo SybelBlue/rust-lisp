@@ -27,8 +27,16 @@ impl std::fmt::Display for FilePos {
     }
 }
 
-pub type ParseError = String;
 pub type ParseResult<T> = Result<T, ParseError>;
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ParseError {
+    ValueError(Value, String),
+    ArgError { f_name: String, recieved: usize, expected: usize },
+    IllegalDefError(Ident),
+    NameError(String),
+    RedefError(Ident, String),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident {
@@ -86,9 +94,7 @@ impl Expr {
                 match ctxt.get(&h.name)? {
                     Value::Fn(params, body) => {
                         if tail.len() != params.len() {
-                            return Err(format!(
-                                "ArgError: Not enough args provided to {}: expected {}, got {}", 
-                                    h.name, params.len(), tail.len()))
+                            return Err(ParseError::ArgError { f_name: h.name, expected: params.len(), recieved: tail.len() })
                         }
                         let mut args = Vec::new();
                         for a in tail {
@@ -107,7 +113,7 @@ impl Expr {
                     v => Ok(v),
                 }
             },
-            Expr::Def(n, _) => Err(format!("Tried to define in an immutable scope {}", n)),
+            Expr::Def(n, _) => Err(ParseError::IllegalDefError(n.clone())),
         }
     }
 

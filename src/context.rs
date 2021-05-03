@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::parser::{ParseResult, Value};
+use crate::parser::{Ident, ParseError, ParseResult, Value};
 
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
@@ -22,7 +22,7 @@ fn add(vals: Vec<Value>) -> ParseResult<Value> {
                 Ok(x) => *out = Err(n + *x as f64),
                 Err(x) => *x += n,
             },
-            _ => return Err(format!("ValueError: (+) takes only numeric arguments")),
+            x => return Err(ParseError::ValueError(x, format!("(+) takes only numeric arguments"))),
         }
     }
 
@@ -40,19 +40,18 @@ fn sub(vals: Vec<Value>) -> ParseResult<Value> {
                 Int(n) => match add(Vec::from(t))? {
                     Int(x) => Ok(Int(n - x)),
                     Float(x) => Ok(Float(n as f64 - x)),
-                    x => Err(format!("Addition returned non-numeric {:?}", x)),
+                    x => Err(ParseError::ValueError(x, format!("Addition returned non-numeric"))),
                 },
                 Float(n) => match add(Vec::from(t))? {
                     Int(x) => Ok(Float(n - x as f64)),
                     Float(x) => Ok(Float(n - x)),
-                    x => Err(format!("Addition returned non-numeric {:?}", x)),
+                    x => Err(ParseError::ValueError(x, format!("Addition returned non-numeric"))),
                 },
-                _ => return Err(format!("ValueError: (-) takes only numeric arguments")),
-
+                x => Err(ParseError::ValueError(x, format!("(-) takes only numeric arguments"))),
             }
         }
     }
-    Err(format!("ValueError: (-) requires at least two arguments"))
+    Err(ParseError::ArgError { f_name: format!("(-)"), recieved: vals.len(), expected: 2 })
 }
 
 impl<'a> Context<'a> {
@@ -67,13 +66,18 @@ impl<'a> Context<'a> {
         self.data.len() + if let Some(c) = &self.prev { c.size() } else { 0 }
     }
 
+    fn get_ident(&self, k: &String) -> Option<Ident> {
+        todo!()
+    }
+
     pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> ParseResult<()> {
-        if !allow_overwrite && self.data.contains_key(&k) {
-            Err(format!("NameError: {} already defined in scope", k))
-        } else {
-            self.data.insert(k, v.clone());
-            Ok(())
+        if !allow_overwrite {
+            if let Some(id) = self.get_ident(&k) {
+                return Err(ParseError::RedefError(id, k));
+            }
         }
+        self.data.insert(k, v.clone());
+        Ok(())
     }
 
     pub fn get(&self, k: &String) -> ParseResult<Value> {
@@ -82,7 +86,7 @@ impl<'a> Context<'a> {
         } else if let Some(ctxt) = &self.prev {
             ctxt.get(k)
         } else {
-            Err(format!("NameError: {} not defined in scope", k))
+            Err(ParseError::NameError(k.clone()))
         }
     }
 
