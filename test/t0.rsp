@@ -1,2 +1,7 @@
 (def three (+ 2 1))
-(three)
+
+three
+
+(defn ++ [x] (+ x 1))
+
+(++ three)
