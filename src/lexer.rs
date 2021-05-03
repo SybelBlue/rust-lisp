@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, iter::Peekable, str::Chars};
+use std::{iter::Peekable, str::Chars};
 
 use crate::parser::{Expr, FilePos, Ident, Value};
 
@@ -200,7 +200,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
     }
     
     skip_whitespace(chars);
-    let mut params = VecDeque::new();
+    let mut params = Vec::new();
     while let Some(&c) = chars.peek() {
         if c == ']' {
             chars.next();
@@ -208,7 +208,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> Result<Value, String> {
             let body = Box::new(parse(chars)?);
             return Ok(Value::Fn(params, body))
         }
-        params.push_back(parse_identifier(chars)?.name);
+        params.push(parse_identifier(chars)?.name);
     }
     Err(format!("Reached end of file before arg list was closed"))
 }

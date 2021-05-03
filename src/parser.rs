@@ -1,5 +1,3 @@
-use std::collections::VecDeque;
-
 use crate::{context::Context, lexer::{ParseStream, parse_all}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,7 +58,7 @@ pub enum Value {
     Unit,
     Int(i64),
     Float(f64),
-    Fn(VecDeque<String>, Box<Expr>),
+    Fn(Vec<String>, Box<Expr>),
     BuiltIn(String, fn(Vec<Value>) -> Result<Value, String>),
 }
 
