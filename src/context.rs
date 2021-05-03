@@ -32,12 +32,35 @@ fn add(vals: Vec<Value>) -> Result<Value, String> {
     })
 }
 
+fn sub(vals: Vec<Value>) -> Result<Value, String> {
+    use Value::*;
+    if let Some((h, t)) = vals.split_first() {
+        if t.len() > 0 {
+            return match *h {
+                Int(n) => match add(Vec::from(t))? {
+                    Int(x) => Ok(Int(n - x)),
+                    Float(x) => Ok(Float(n as f64 - x)),
+                    x => Err(format!("Addition returned non-numeric {:?}", x)),
+                },
+                Float(n) => match add(Vec::from(t))? {
+                    Int(x) => Ok(Float(n - x as f64)),
+                    Float(x) => Ok(Float(n - x)),
+                    x => Err(format!("Addition returned non-numeric {:?}", x)),
+                },
+                _ => return Err(format!("ValueError: (-) takes only numeric arguments")),
+
+            }
+        }
+    }
+    Err(format!("ValueError: (-) requires at least two arguments"))
+}
+
 impl<'a> Context<'a> {
     pub fn new() -> Self {
         fn make_builtin(s: &str, f: fn(Vec<Value>) -> Result<Value, String>) -> (String, Value) {
             (String::from(s), Value::BuiltIn(format!("({})", s), f)) 
         }
-        Self { prev: None, data: vec![make_builtin("+", add)].into_iter().collect() }
+        Self { prev: None, data: vec![make_builtin("+", add), make_builtin("-", sub)].into_iter().collect() }
     }
 
     pub fn put(&mut self, k: String, v: Value, allow_overwrite: bool) -> Result<(), String> {
