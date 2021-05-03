@@ -8,6 +8,30 @@ pub struct Context<'a> {
     prev: Option<Box<&'a Context<'a>>>,
 }
 
+fn add(vals: Vec<Value>) -> Result<Value, String> {
+    use Value::*;
+
+    let out: &mut Result<i64, f64> = &mut Ok(0);
+    for v in vals {
+        match v {
+            Int(n) => match out {
+                Ok(x) => *x += n,
+                Err(x) => *x += n as f64,
+            },
+            Float(n) => match out {
+                Ok(x) => *out = Err(n + *x as f64),
+                Err(x) => *x += n,
+            },
+            _ => return Err(format!("ValueError: (+) takes only numeric arguments")),
+        }
+    }
+    
+    Ok(match *out {
+        Ok(x) => Int(x),
+        Err(x) => Float(x),
+    })
+}
+
 impl<'a> Context<'a> {
     pub fn new() -> Self {
         Self { prev: None, data: HashMap::new() }
