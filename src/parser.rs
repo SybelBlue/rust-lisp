@@ -159,15 +159,15 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
         let id_or_lit_start = chars.file_pos;
         let e = parse_ident_or_literal(chars)?;
         skip_whitespace(chars);
-        return match e {
+        return Ok(match e {
             Ok(v) => Token::from_value(v, id_or_lit_start),
-            Err(n) => Ok(Token::new(Var(n.name), n.file_pos)),
-        }
+            Err(n) => Token::from_ident(n),
+        })
     }
 
     if chars.next_if_eq(')') == Some(true) {
         skip_whitespace(chars);
-        return Token::from_value(Value::Unit, start)
+        return Ok(Token::from_value(Value::Unit, start))
     }
 
     let after_paren = chars.file_pos;
@@ -192,10 +192,11 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             }
         
             let mut v = Vec::new();
+            v.push(Token::from_ident(ident));
             loop {
                 if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
                     skip_whitespace(chars);
-                    return Ok(Token::new(Form(ident, v), start))
+                    return Ok(Token::new(Form(v), start))
                 }
         
                 match parse(chars) {
@@ -236,7 +237,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             chars.next();
             skip_whitespace(chars);
             let body = Box::new(parse(chars)?);
-            return Token::from_value(Value::Fn(params, body), mark)
+            return Ok(Token::from_value(Value::Fn(params, body), mark))
         }
         params.push(parse_identifier(chars)?);
     }

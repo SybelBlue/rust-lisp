@@ -1,4 +1,4 @@
-use crate::{context::Context, parser::{ParseError, ParseResult, ParseStream, parse_all}};
+use crate::{context::Context, parser::{ParseError, ParseStream, parse_all}};
 
 pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();
@@ -95,6 +95,36 @@ pub enum Value {
     BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
 
+impl Value {
+    pub fn eval(&self, ctxt: &Context, tail: Vec<Token>) -> EvalResult<Value> {
+        match self {
+            Value::Fn(params, body) => {
+                if tail.len() != params.len() {
+                    return Err(Error::ArgError { f_name: format!("<anon func>"), expected: params.len(), recieved: tail.len() })
+                }
+                let mut args = Vec::new();
+                for t in tail {
+                    args.push(t.eval(ctxt)?);
+                }
+                let data = params.into_iter()
+                    .zip(args)
+                    .map(|(k, v)| (k.name.clone(), (v, Some(k.file_pos))))
+                    .collect();
+                let next = ctxt.chain(data);
+                body.as_ref().eval(&next)
+            },
+            Value::BuiltIn(_, f) => {
+                let mut args = Vec::new();
+                for t in tail {
+                    args.push(t.eval(ctxt)?);
+                }
+                f(args)
+            },
+            v => Ok(v.clone()),
+        }
+    }
+}
+
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -111,7 +141,7 @@ impl std::fmt::Display for Value {
 pub enum Expr {
     Lit(Value),
     Var(String),
-    Form(Ident, Vec<Token>),
+    Form(Vec<Token>),
     Def(Ident, Box<Token>),
 }
 
@@ -120,31 +150,11 @@ impl Expr {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
             Expr::Var(id) => ctxt.get(&Ident::new(id.clone(), file_pos)),
-            Expr::Form(h, tail) => {
-                match ctxt.get(&h)? {
-                    Value::Fn(params, body) => {
-                        if tail.len() != params.len() {
-                            return Err(Error::ArgError { f_name: h.name.clone(), expected: params.len(), recieved: tail.len() })
-                        }
-                        let mut args = Vec::new();
-                        for t in tail {
-                            args.push(t.eval(ctxt)?);
-                        }
-                        let data = params.into_iter()
-                            .zip(args)
-                            .map(|(k, v)| (k.name, (v, Some(k.file_pos))))
-                            .collect();
-                        let next = ctxt.chain(data);
-                        body.as_ref().eval(&next)
-                    },
-                    Value::BuiltIn(_, f) => {
-                        let mut args = Vec::new();
-                        for t in tail {
-                            args.push(t.eval(ctxt)?);
-                        }
-                        f(args)
-                    },
-                    v => Ok(v),
+            Expr::Form(tks) => {
+                if let Some((head, tail)) = tks.split_first() {
+                    head.eval(ctxt)?.eval(ctxt, Vec::from(tail))
+                } else {
+                    Ok(Value::Unit)
                 }
             },
             Expr::Def(n, _) => Err(Error::IllegalDefError(n.clone())),
@@ -173,8 +183,12 @@ impl Token {
         Self { expr, file_pos }
     }
 
-    pub fn from_value(v: Value, file_pos: FilePos) -> ParseResult<Self> {
-        Ok(Self::new(Expr::Lit(v), file_pos))
+    pub fn from_value(v: Value, file_pos: FilePos) -> Self {
+        Self::new(Expr::Lit(v), file_pos)
+    }
+
+    pub fn from_ident(ident: Ident) -> Self {
+        Self::new(Expr::Var(ident.name), ident.file_pos)
     }
 
     pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
