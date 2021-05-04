@@ -51,6 +51,7 @@ mod tests {
             assert!(matches!(reses[i], Err(ParseError(Missing(_,_))))); i += 1;
             assert!(matches!(reses[i], Err(NameError(_)))); i += 1;
             assert!(matches!(reses[i], Ok(Unit))); i += 1;
+            assert!(matches!(reses[i], Err(RedefError(_, _)))); i += 1;
             assert!(matches!(reses[i], Err(ArgError { .. } ))); i += 1;
             assert!(matches!(reses[i], Err(ValueError(_, _)))); i += 1;
             assert!(matches!(reses[i], Err(ValueError(_, _)))); i += 1;
@@ -64,7 +65,8 @@ mod tests {
             assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
             assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
             assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
-            assert!(matches!(reses[i], Err(ParseError(Eof(_)))));
+            assert!(matches!(reses[i], Err(ParseError(Eof(_))))); i += 1;
+            assert_eq!(None, reses.get(i))
         }
 
         #[test]

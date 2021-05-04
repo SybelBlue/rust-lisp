@@ -7,6 +7,7 @@ eerht
 (defn -- [x] (- x 1) (-- three)
 
 (defn flip [f x y] (f y x))
+(defn flip [f x y] (f y x))
 
 (flip - 3)
 
