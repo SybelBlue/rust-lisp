@@ -157,6 +157,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     let eof_msg = Eof(format!("closing ')'"));
     let start = chars.file_pos;
 
+    let is_quote = chars.next_if_eq('\'') == Some(true);
+
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
         let mut v = Vec::new();
@@ -165,7 +167,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                 None => return Err(eof_msg),
                 Some(true) => { 
                     skip_whitespace(chars); 
-                    return Ok(Token::new(Form(v), start));
+                    let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
+                    return Ok(Token::new(out, start));
                 },
                 Some(false) =>
                     match parse(chars) {
@@ -203,6 +206,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                     },
             }
         }
+    } else if is_quote {
+        Err(ParseError::Missing(format!("form after quote"), chars.file_pos))
     } else {
         Ok(match parse_ident_or_literal(chars)? {
             Ok(v) => Token::new(Lit(v), start),
@@ -241,7 +246,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
 }
 
 fn valid_ident_char(c: char) -> bool {
-    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']' && c != ';'
+    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']' && c != ';' && c != '\''
 }
 
 fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {

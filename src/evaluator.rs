@@ -91,6 +91,7 @@ pub enum Value {
     Unit,
     Int(i64),
     Float(f64),
+    Quote(Vec<Token>),
     Fn(Vec<Ident>, Box<Token>),
     BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
@@ -121,13 +122,15 @@ impl Value {
                 }
                 f(args)
             },
-            v => if tail.is_empty() { 
-                Ok(v.clone()) 
-            } else { 
-                Err(Error::ValueError(v.clone(), format!("not a function"))) 
-            },
+            Value::Quote(form) => run_form(form, ctxt),
+            v if tail.is_empty() => Ok(v.clone()), 
+            v => Err(Error::ValueError(v.clone(), format!("not a function"))),
         }
     }
+}
+
+fn form_string(form: &Vec<Token>) -> String {
+    form.iter().map(|t| format!("{}", t.expr)).collect::<Vec<String>>().join(" ")
 }
 
 impl std::fmt::Display for Value {
@@ -138,6 +141,7 @@ impl std::fmt::Display for Value {
             Value::Float(x) => write!(f, "{}", x),
             Value::Fn(args, _) => write!(f, "<{}-ary func>", args.len()),
             Value::BuiltIn(s, _) => write!(f, "<builtin func {}>", s),
+            Value::Quote(form) => write!(f, "({})", form_string(form))
         }
     }
 }
@@ -163,18 +167,20 @@ pub enum Expr {
     Def(Ident, Box<Token>),
 }
 
+fn run_form(form: &Vec<Token>, ctxt: &Context) -> EvalResult<Value> {
+    if let Some((head, tail)) = form.split_first() {
+        head.eval(ctxt)?.eval(ctxt, Vec::from(tail), head.expr.get_var_name())
+    } else {
+        Ok(Value::Unit)
+    }
+}
+
 impl Expr {
     pub fn eval(&self, ctxt: &Context, file_pos: FilePos) -> EvalResult<Value> {
         match self {
             Expr::Lit(v) => Ok(v.clone()),
             Expr::Var(id) => ctxt.get(&Ident::new(id.clone(), file_pos)),
-            Expr::Form(tks) => {
-                if let Some((head, tail)) = tks.split_first() {
-                    head.eval(ctxt)?.eval(ctxt, Vec::from(tail), head.expr.get_var_name())
-                } else {
-                    Ok(Value::Unit)
-                }
-            },
+            Expr::Form(form) => run_form(form, ctxt),
             Expr::Def(n, _) => Err(Error::IllegalDefError(n.clone())),
         }
     }
@@ -194,6 +200,17 @@ impl Expr {
             Some(s)
         } else {
             None
+        }
+    }
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::Lit(x) => write!(f, "{}", x),
+            Expr::Var(s) => f.write_str(s.as_str()),
+            Expr::Form(form) => write!(f, "({})", form_string(form)),
+            Expr::Def(n, b) => write!(f, "(def {} {})", n, b.as_ref().expr),
         }
     }
 }
