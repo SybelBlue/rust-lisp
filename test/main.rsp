@@ -8,11 +8,6 @@
     ++
     (fn [x] (= 3 x)))
 
-'(1 2 3 4)
-'(defn three [] 3)
-(def q4 '4)
-q4
-(q4)
-'++
+(defn tail [_ ...rest] rest)
 
-((fn [] (def unit ())))
+(tail 1 2 3 4)
