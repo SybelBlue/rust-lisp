@@ -1,6 +1,9 @@
-use crate::{context::Context, evaluator::{Error::*, EvalResult, Expr, Token, value::Value, eval_all}};
-
-use Value::*;
+use crate::{
+    context::Context, 
+    evaluator::{*,
+        result::{*, Error::*}, 
+        value::Value::{self, *}}
+};
 
 pub fn add(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     let vals = eval_all(ctxt, tokens)?;

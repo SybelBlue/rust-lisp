@@ -6,7 +6,7 @@ pub(crate) mod builtin_fns;
 
 #[cfg(test)]
 mod tests {
-    use crate::evaluator::{*, Expr::*, value::Value::*};
+    use crate::evaluator::{*, Expr::*, result::{FilePos, Error::*}, value::Value::*};
 
     #[test]
     fn basics() {
@@ -42,7 +42,7 @@ mod tests {
 
     #[test]
     fn basic_errs() {
-        use crate::{parser::ParseError::*, evaluator::Error::*};
+        use crate::parser::ParseError::*;
         let s = std::fs::read_to_string("test/basic-errs.rsp").expect("file not found");
         let (reses, _) = exec(s);
         let mut i = 0;
