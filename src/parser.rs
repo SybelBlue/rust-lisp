@@ -238,23 +238,30 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     }
     
     skip_whitespace(chars);
-    let mut params = Vec::new();
-    let mut p_map: HashMap<String, FilePos> = HashMap::new();
-    while let Some(&c) = chars.peek() {
-        if c == ']' {
-            chars.next();
-            skip_whitespace(chars);
-            let body = Box::new(parse(chars)?);
-            return Ok(Token::from_value(Value::Fn(params, None, body), mark))
-        }
-        let ident = parse_identifier(chars)?;
-        params.push(ident.clone());
-        if let Some(old) = p_map.insert(ident.name.clone(), ident.file_pos) {
-            till_closing_paren(chars);
-            return Err(DupArg { name: ident.name, old, new: ident.file_pos })
+    let mut params: Vec<Ident> = Vec::new();
+    let mut p_map = HashMap::with_capacity(6);
+    loop {
+        match chars.next_if_eq(']') {
+            None => return Err(Eof(format!("closing ']'"))),
+            Some(true) => {
+                skip_whitespace(chars);
+                let body = Box::new(parse(chars)?);
+                let op_rest = 
+                    if matches!(params.last(), Some(p) if p.name.starts_with("...")) 
+                        { params.pop() } else { None };
+
+                return Ok(Token::from_value(Value::Fn(params, op_rest, body), mark))
+            },
+            Some(false) => {
+                let ident = parse_identifier(chars)?;
+                params.push(ident.clone());
+                if let Some(old) = p_map.insert(ident.name.clone(), ident.file_pos) {
+                    till_closing_paren(chars);
+                    return Err(DupArg { name: ident.name, old, new: ident.file_pos })
+                }
+            }
         }
     }
-    Err(Eof(format!("closing ']'")))
 }
 
 fn valid_ident_char(c: char) -> bool {
