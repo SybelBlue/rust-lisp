@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{context::Context, parser::{ParseError, ParseStream, parse_all}};
 
 pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
@@ -96,22 +98,33 @@ pub enum Value {
     BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
 
+fn make_arg_error(params: &Vec<Ident>, tail: &Vec<Token>, src_expr: &Expr) -> Error {
+    let f_name = if let Some(s) = src_expr.get_var_name() { s.clone() } else { format!("<anon func>") };
+    Error::ArgError { f_name, expected: params.len(), recieved: tail.len() }
+}
+
 impl Value {
-    pub fn eval(&self, ctxt: &Context, tail: Vec<Token>, fn_name: Option<&String>) -> EvalResult<Value> {
+    pub fn eval(&self, ctxt: &Context, tail: Vec<Token>, src_expr: &Expr) -> EvalResult<Value> {
         match self {
             Value::Fn(params, op_rest, body) => {
-                if tail.len() != params.len() {
-                    let f_name = if let Some(s) = fn_name { s.clone() } else { format!("<anon func>") };
-                    return Err(Error::ArgError { f_name, expected: params.len(), recieved: tail.len() })
+                if tail.len() < params.len() || (op_rest.is_none() && tail.len() > params.len()) {                    
+                    return Err(make_arg_error(params, &tail, src_expr))
                 }
-                let mut args = Vec::new();
-                for t in tail {
-                    args.push(t.eval(ctxt)?);
+                let mut data = HashMap::with_capacity(params.len() + 1);
+                let mut iter = tail.iter();
+                for ident in params.iter() {
+                    let t = iter.next().ok_or_else(|| make_arg_error(params, &tail, src_expr))?;
+                    let t_val = t.eval(ctxt)?;
+                    let v = (t_val, Some(ident.file_pos));
+                    data.insert(ident.name.clone(), v);
                 }
-                let data = params.into_iter()
-                    .zip(args)
-                    .map(|(k, v)| (k.name.clone(), (v, Some(k.file_pos))))
-                    .collect();
+                
+                if let Some(rest) = op_rest {
+                    let qut = Value::Quote(iter.map(|t| t.clone()).collect());
+                    let v = (qut, Some(rest.file_pos));
+                    data.insert(rest.name.clone(), v);
+                }
+
                 let next = ctxt.chain(data);
                 body.as_ref().eval(&next)
             },
@@ -179,7 +192,7 @@ pub enum Expr {
 
 fn run_form(form: &Vec<Token>, ctxt: &Context) -> EvalResult<Value> {
     if let Some((head, tail)) = form.split_first() {
-        head.eval(ctxt)?.eval(ctxt, Vec::from(tail), head.expr.get_var_name())
+        head.eval(ctxt)?.eval(ctxt, Vec::from(tail), &head.expr)
     } else {
         Ok(Value::Unit)
     }

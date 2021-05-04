@@ -84,4 +84,13 @@ mod tests {
             assert_eq!(Ok(ex), ac)
         }
     }
+
+    #[test]
+    fn big_expr() {
+        let s = std::fs::read_to_string("test/big-forms.rsp").expect("file not found");
+        let (reses, _) = exec(s);
+        for (ex, ac) in vec![Int(0)].into_iter().zip(reses.into_iter()) {
+            assert_eq!(Ok(ex), ac)
+        }
+    }
 }
