@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 
-use crate::evaluator::{Expr, FilePos, Ident, Token, Value};
+use crate::evaluator::{Expr, FilePos, Ident, Token, value::Value};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::evaluator::{BuiltInFn, Error, EvalResult, FilePos, Ident, Token, Value};
+use crate::evaluator::{BuiltInFn, Error, EvalResult, FilePos, Ident, Token, value::Value};
 
 use crate::builtin_fns::*;
 
