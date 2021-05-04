@@ -63,7 +63,7 @@ impl std::fmt::Display for Error {
             Error::NameError(n) => write!(f, "NameError({}): not defined in scope at {}", n.name, n.file_pos),
             Error::RedefError(orig, n) => 
                 write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
-            Error::ParseError(p) => write!(f, "{}", p),
+            Error::ParseError(p) => write!(f, "ParseError: {}", p),
         }
     }
 }
