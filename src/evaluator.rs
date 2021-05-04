@@ -141,7 +141,7 @@ impl std::fmt::Display for Value {
             Value::Float(x) => write!(f, "{}", x),
             Value::Fn(args, _) => write!(f, "<{}-ary func>", args.len()),
             Value::BuiltIn(s, _) => write!(f, "<builtin func {}>", s),
-            Value::Quote(form) => write!(f, "({})", form_string(form))
+            Value::Quote(form) => write!(f, "'({})", form_string(form))
         }
     }
 }
