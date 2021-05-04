@@ -7,6 +7,7 @@ pub enum ParseError {
     Eof(String),
     BadChar(String, FilePos, char),
     Missing(String, FilePos),
+    BadQuote(String, FilePos),
 }
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -19,6 +20,7 @@ impl std::fmt::Display for ParseError {
             Eof(x) => write!(f, "Expected {} before end of file", x),
             BadChar(target, ls, c) => write!(f, "Invalid char '{}' for {} at {}", c, target, ls),
             Missing(x, ps) => write!(f, "Missing {} at {}", x, ps),
+            BadQuote(x, ps) => write!(f, "Cannot quote before a {} at {}", x, ps),
         }
     }
 }
@@ -177,7 +179,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                                 if let Var(s) = &e.expr {
                                     if s.as_bytes() == b"fn" {
                                         let f = parse_fn_decl(chars)?;
-                                        return close_target(chars, f, "fn declaration")
+                                        let out = close_target(chars, f, "fn declaration");
+                                        return if is_quote { Err(BadQuote(format!("fn declaration"), start)) } else { out }
                                     }
                                 
                                     let is_defn = s.as_bytes() == b"defn";
@@ -189,7 +192,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                                         } else { 
                                             parse(chars)? 
                                         };
-                                        return close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "fn declaration")
+                                        let out = close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "def");
+                                        return if is_quote { Err(BadQuote(format!("def"), start)) } else { out }
                                     }
                                 }
                             }
@@ -269,6 +273,8 @@ fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Val
         },
         Err(BadChar(_, fp, c)) => 
             Err(BadChar(format!("Error parsing identifier or literal"), fp, c)),
+        Err(BadQuote(_, fp)) => 
+            Err(BadQuote(format!("identifier or literal"), fp)),
         Err(Eof(_)) => 
             Err(Eof(format!("identifier or literal"))),
         Err(Missing(s, fp)) => 
