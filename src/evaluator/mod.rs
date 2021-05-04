@@ -1,9 +1,7 @@
+use crate::{context::Context, parser::{ParseStream, parse_all}, evaluator::{value::*, result::*}};
+
 pub mod value;
 pub mod result;
-
-use crate::{context::Context, parser::{ParseStream, parse_all}};
-
-use self::{value::*, result::*};
 
 pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();

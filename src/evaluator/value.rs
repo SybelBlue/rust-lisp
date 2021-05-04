@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use crate::context::Context;
-
-use super::*;
+use crate::{context::Context, evaluator::*};
 
 
 pub fn form_string(form: &Vec<Token>) -> String {
