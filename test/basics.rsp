@@ -1,8 +1,11 @@
+;; test def, comments
 (def three (+ 2 1))
 three
 
 (defn ++ [x] (+ x 1))
-(++ three)
+(++ three) ;; test post-line comments
+
+;; (test not happening)
 
 (defn -- [x] (- x 1)) (-- three)
 
@@ -17,3 +20,5 @@ three
 (apply -- 3)
 
 (fn [a b] (+ a b))
+
+;; test comment eof

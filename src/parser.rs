@@ -102,6 +102,15 @@ fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str
 
 fn skip_whitespace(chars: &mut ParseStream<'_>) {
     take_while(chars, char::is_whitespace);
+    if Some(true) == chars.next_if_eq(';')  {
+        skip_past_eol(chars);
+    }
+}
+
+fn skip_past_eol(chars: &mut ParseStream<'_>) {
+    take_while(chars, |c| !is_newline(c));
+    chars.next();
+    skip_whitespace(chars);
 }
 
 fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
@@ -122,6 +131,10 @@ fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
     false
 }
 
+fn is_newline(c: char) -> bool {
+    c == '\n' || c == '\r'
+}
+
 pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
@@ -130,8 +143,7 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
         let e = parse(chars);
         if last_loc == chars.file_pos {
             chars.next();
-            take_while(chars, |c| c != '\n' && c != '\r');
-            skip_whitespace(chars);
+            skip_past_eol(chars);
         }
         last_loc = chars.file_pos;
         v.push(e);
@@ -229,10 +241,10 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
 }
 
 fn valid_ident_char(c: char) -> bool {
-    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']'
+    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']' && c != ';'
 }
 
-pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
+fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
     let file_pos = chars.file_pos;
     let name = many1(chars, "an identifier", valid_ident_char)?;
     skip_whitespace(chars);

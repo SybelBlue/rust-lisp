@@ -23,14 +23,14 @@ mod tests {
                 , Unit
                 , Int(2)
                 , Fn(
-                    vec![ Ident { name: format!("a"), file_pos: FilePos { col: 6, line: 19 } }
-                        , Ident { name: format!("b"), file_pos: FilePos { col: 8, line: 19 } }
+                    vec![ Ident { name: format!("a"), file_pos: FilePos { col: 6, line: 22 } }
+                        , Ident { name: format!("b"), file_pos: FilePos { col: 8, line: 22 } }
                         ]
                     , Box::new(Token { 
                         expr: Form(
-                            vec![ Token { expr: Var(format!("+")), file_pos: FilePos { col: 12, line: 19 } }
-                                , Token { expr: Var(format!("a")), file_pos: FilePos { col: 14, line: 19 } }
-                                , Token { expr: Var(format!("b")), file_pos: FilePos { col: 16, line: 19 } }
+                            vec![ Token { expr: Var(format!("+")), file_pos: FilePos { col: 12, line: 22 } }
+                                , Token { expr: Var(format!("a")), file_pos: FilePos { col: 14, line: 22 } }
+                                , Token { expr: Var(format!("b")), file_pos: FilePos { col: 16, line: 22 } }
                                 ]), 
                         file_pos: FilePos { col: 11, line: 19 } }))
             ].into_iter().zip(reses.into_iter()) {
