@@ -36,12 +36,12 @@ pub fn sub(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
                 Int(n) => match add(ctxt, Vec::from(t))? {
                     Int(x) => Ok(Int(n - x)),
                     Float(x) => Ok(Float(n as f64 - x)),
-                    x => Err(ValueError(x, format!("(+) returned non-numeric"))),
+                    x => Err(InternalError(format!("(+) returned non-numeric {:?}", x))),
                 },
                 Float(n) => match add(ctxt, Vec::from(t))? {
                     Int(x) => Ok(Float(n - x as f64)),
                     Float(x) => Ok(Float(n - x)),
-                    x => Err(ValueError(x, format!("(+) returned non-numeric"))),
+                    x => Err(InternalError(format!("(+) returned non-numeric {:?}", x))),
                 },
                 v => Err(ValueError(v, format!("(-) takes only numeric arguments"))),
             }
@@ -78,41 +78,47 @@ pub fn unpack(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     head.eval(ctxt, tail, &first.expr)
 }
 
-pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-    if tokens.len() != 2 {
-        return Err(ArgError { f_name: format!("cons"), recieved: tokens.len(), expected: 2 });   
+fn check_arg_count(f_name: &str, tokens: &Vec<Token>, n: usize) -> EvalResult<()> {
+    if tokens.len() != n {
+        Err(ArgError { f_name: String::from(f_name), recieved: tokens.len(), expected: n })
+    } else {
+        Ok(())
     }
-    let s = tokens.last().expect("prev cons check failed! (0)");
-    let f = tokens.first().expect("prev cons check failed! (1)");
-    let first = f.eval(ctxt)?;
+}
+
+fn require_two<'a>(f_name: &str, tokens: &'a Vec<Token>) -> EvalResult<(&'a Token, &'a Token)> {
+    check_arg_count(f_name, tokens, 2)?;
+    let f = tokens.first().ok_or_else(|| InternalError(format!("{} check failed! (0)", f_name)))?;
+    let s = tokens.last().ok_or_else(|| InternalError(format!("{} check failed! (1)", f_name)))?;
+    Ok((f, s))
+}
+
+fn require_second_quote<'a>(f_name: &str, ctxt: &Context<'_>, tokens: &'a Vec<Token>) -> EvalResult<(&'a Token, Vec<Token>)> {
+    let (f, s) = require_two(f_name, tokens)?;
     match s.eval(ctxt)? {
-        Quote(tail) => {
-            let mut vd = Vec::with_capacity(tail.len() + 1);
-            vd.push(Token::from_value(first, f.file_pos));
-            vd.extend(tail.into_iter());
-            Ok(Quote(vd))
-        },
-        v => Err(ValueError(v, format!("Second arg to cons must be quote")))
+        Quote(tail) => Ok((f, tail)),
+        v => Err(ValueError(v, format!("Second arg to {} must be quote", f_name)))
     }
+}
+
+pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    let (f, tail) = require_second_quote("cons", ctxt, &tokens)?;
+    let first = f.eval(ctxt)?;
+
+    let mut vd = Vec::with_capacity(tail.len() + 1);
+    vd.push(Token::from_value(first, f.file_pos));
+    vd.extend(tail.into_iter());
+    
+    Ok(Quote(vd))
 }
 
 pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-    if tokens.len() != 2 {
-        return Err(ArgError { f_name: format!("ap"), recieved: tokens.len(), expected: 2 });
-    }
-    let s = tokens.last().expect("prev ap check failed! (0)");
-    let f = tokens.first().expect("prev ap check failed! (1)");
-    let first = f.eval(ctxt)?;
-    match s.eval(ctxt)? {
-        Quote(tail) => first.eval(ctxt, tail, &f.expr),
-        v => Err(ValueError(v, format!("Second arg to ap must be quote")))
-    }
+    let (f, tail) = require_second_quote("ap", ctxt, &tokens)?;
+    f.eval(ctxt)?.eval(ctxt, tail, &f.expr)
 }
 
 pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-    if tokens.len() != 3 {
-        return Err(ArgError { f_name: format!("if"), recieved: tokens.len(), expected: 3 })
-    }
+    check_arg_count("if", &tokens, 3)?;
 
     let first = tokens.first().expect("prev if check failed! (0)");
     let head = first.eval(ctxt)?;

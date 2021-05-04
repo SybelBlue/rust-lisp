@@ -4,6 +4,7 @@ pub type EvalResult<T> = Result<T, Error>;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Error {
+    InternalError(String),
     ValueError(Value, String),
     ArgError { f_name: String, recieved: usize, expected: usize },
     IllegalDefError(Ident),
@@ -15,6 +16,7 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::InternalError(s) => write!(f, "InternalError: {}", s),
             Error::ValueError(v, s) => write!(f, "ValueError({}): {}", v, s),
             Error::ArgError { f_name, recieved, expected } => 
                 write!(f, "ArgError({}): recieved {} arguments, expected {}", f_name, recieved, expected),
