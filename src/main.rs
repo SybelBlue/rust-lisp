@@ -3,6 +3,7 @@ use rust_lisp::evaluator::exec;
 //      Strings
 //      recur, if
 //      Quotes
+//      Duplicate param names
 fn main() -> std::io::Result<()> {
     let s = std::fs::read_to_string("test/main.rsp")?;
     let (reses, ctxt) = exec(s);

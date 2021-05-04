@@ -71,14 +71,6 @@ impl<'a> ParseStream<'a> {
             None
         }
     }
-
-    pub fn loc(&self) -> FilePos {
-        self.file_pos
-    }
-
-    pub fn loc_str(&self) -> String {
-        format!("{}", self.file_pos)
-    }
 }
 
 fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String {
@@ -133,15 +125,15 @@ fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
 pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
-    let mut last_loc = chars.loc();
+    let mut last_loc = chars.file_pos;
     while chars.peek().is_some() {
         let e = parse(chars);
-        if last_loc == chars.loc() {
+        if last_loc == chars.file_pos {
             chars.next();
             take_while(chars, |c| c != '\n' && c != '\r');
             skip_whitespace(chars);
         }
-        last_loc = chars.loc();
+        last_loc = chars.file_pos;
         v.push(e);
     }
     v
@@ -241,7 +233,7 @@ fn valid_ident_char(c: char) -> bool {
 }
 
 pub(crate) fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
-    let file_pos = chars.loc();
+    let file_pos = chars.file_pos;
     let name = many1(chars, "an identifier", valid_ident_char)?;
     skip_whitespace(chars);
     Ok(Ident::new(name, file_pos))
