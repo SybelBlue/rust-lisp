@@ -86,7 +86,7 @@ impl std::fmt::Display for Ident {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Value {
     Unit,
     Int(i64),
@@ -96,11 +96,12 @@ pub enum Value {
 }
 
 impl Value {
-    pub fn eval(&self, ctxt: &Context, tail: Vec<Token>) -> EvalResult<Value> {
+    pub fn eval(&self, ctxt: &Context, tail: Vec<Token>, fn_name: Option<&String>) -> EvalResult<Value> {
         match self {
             Value::Fn(params, body) => {
                 if tail.len() != params.len() {
-                    return Err(Error::ArgError { f_name: format!("<anon func>"), expected: params.len(), recieved: tail.len() })
+                    let f_name = if let Some(s) = fn_name { s.clone() } else { format!("<anon func>") };
+                    return Err(Error::ArgError { f_name, expected: params.len(), recieved: tail.len() })
                 }
                 let mut args = Vec::new();
                 for t in tail {
@@ -137,6 +138,19 @@ impl std::fmt::Display for Value {
     }
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Value::Unit, Value::Unit) => true,
+            (Value::Int(x), Value::Int(y)) => x == y,
+            (Value::Float(x), Value::Float(y)) => x == y,
+            (Value::Fn(_, x), Value::Fn(_, y)) => x.expr == y.expr,
+            (Value::BuiltIn(_, x), Value::BuiltIn(_, y)) => x == y,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Lit(Value),
@@ -152,7 +166,7 @@ impl Expr {
             Expr::Var(id) => ctxt.get(&Ident::new(id.clone(), file_pos)),
             Expr::Form(tks) => {
                 if let Some((head, tail)) = tks.split_first() {
-                    head.eval(ctxt)?.eval(ctxt, Vec::from(tail))
+                    head.eval(ctxt)?.eval(ctxt, Vec::from(tail), head.expr.get_var_name())
                 } else {
                     Ok(Value::Unit)
                 }
@@ -168,6 +182,14 @@ impl Expr {
                 Ok(Value::Unit)
             },
             _ => self.eval(&ctxt, file_pos),
+        }
+    }
+
+    pub fn get_var_name(&self) -> Option<&String> {
+        if let Expr::Var(s) = self {
+            Some(s)
+        } else {
+            None
         }
     }
 }

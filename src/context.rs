@@ -48,6 +48,15 @@ fn sub(vals: Vec<Value>) -> EvalResult<Value> {
     Err(Error::ArgError { f_name: format!("(-)"), recieved: vals.len(), expected: 2 })
 }
 
+fn eq(vals: Vec<Value>) -> EvalResult<Value> {
+    if let Some(u) = vals.get(0) {
+        if let Some(v) = vals.get(1) {
+            return Ok(Value::Int(if *u == *v { 1 } else { 0 }))
+        }
+    }
+    Err(Error::ArgError { f_name: format!("(==)"), recieved: vals.len(), expected: 2 })
+}
+
 type CtxtMapValue = (Value, Option<FilePos>);
 type CtxtMap = HashMap<String, CtxtMapValue>;
 #[derive(Debug, Clone)]
@@ -61,7 +70,12 @@ impl<'a> Context<'a> {
         fn make_builtin(s: &str, f: fn(Vec<Value>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
             (String::from(s), (Value::BuiltIn(format!("({})", s), f), None))
         }
-        Self { prev: None, data: vec![make_builtin("+", add), make_builtin("-", sub)].into_iter().collect() }
+        Self { prev: None, data: 
+            vec![ make_builtin("+", add)
+                , make_builtin("-", sub)
+                , make_builtin("=", eq)
+                ].into_iter().collect() 
+            }
     }
 
     pub fn size(&self) -> usize {
