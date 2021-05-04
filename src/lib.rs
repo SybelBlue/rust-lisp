@@ -26,6 +26,7 @@ mod tests {
                     vec![ Ident { name: format!("a"), file_pos: FilePos { col: 6, line: 23 } }
                         , Ident { name: format!("b"), file_pos: FilePos { col: 8, line: 23 } }
                         ]
+                    , None
                     , Box::new(Token { 
                         expr: Form(
                             vec![ Token { expr: Var(format!("+")), file_pos: FilePos { col: 12, line: 23 } }

@@ -92,14 +92,14 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Quote(Vec<Token>),
-    Fn(Vec<Ident>, Box<Token>),
+    Fn(Vec<Ident>, Option<Ident>, Box<Token>),
     BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
 }
 
 impl Value {
     pub fn eval(&self, ctxt: &Context, tail: Vec<Token>, fn_name: Option<&String>) -> EvalResult<Value> {
         match self {
-            Value::Fn(params, body) => {
+            Value::Fn(params, op_rest, body) => {
                 if tail.len() != params.len() {
                     let f_name = if let Some(s) = fn_name { s.clone() } else { format!("<anon func>") };
                     return Err(Error::ArgError { f_name, expected: params.len(), recieved: tail.len() })
@@ -139,7 +139,8 @@ impl std::fmt::Display for Value {
             Value::Unit => write!(f, "()"),
             Value::Int(x) => write!(f, "{}", x),
             Value::Float(x) => write!(f, "{}", x),
-            Value::Fn(args, _) => write!(f, "<{}-ary func>", args.len()),
+            Value::Fn(args, Some(_), _) => write!(f, "<({}+n)-ary func>", args.len()),
+            Value::Fn(args, None, _) => write!(f, "<{}-ary func>", args.len()),
             Value::BuiltIn(s, _) => write!(f, "<builtin func {}>", s),
             Value::Quote(form) =>
                 if let Some((h, &[])) = form.split_first() {
@@ -157,8 +158,12 @@ impl PartialEq for Value {
             (Value::Unit, Value::Unit) => true,
             (Value::Int(x), Value::Int(y)) => x == y,
             (Value::Float(x), Value::Float(y)) => x == y,
-            (Value::Fn(_, x), Value::Fn(_, y)) => x.expr == y.expr,
-            (Value::BuiltIn(_, x), Value::BuiltIn(_, y)) => x == y,
+            (Value::Fn(_, r, x), 
+                Value::Fn(_, s, y)) => 
+                    r == s && x.expr == y.expr,
+            (Value::BuiltIn(_, x), 
+                Value::BuiltIn(_, y)) => 
+                    x == y,
             _ => false,
         }
     }

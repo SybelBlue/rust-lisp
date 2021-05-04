@@ -2,8 +2,6 @@ use rust_lisp::evaluator::exec;
 // todo:
 //      Strings
 //      recur, if
-//      Duplicate param names
-//      varargs
 //      pmatch
 fn main() -> std::io::Result<()> {
     let path = std::env::args().nth(1).expect("Need path to file");

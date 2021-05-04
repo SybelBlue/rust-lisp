@@ -245,7 +245,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             chars.next();
             skip_whitespace(chars);
             let body = Box::new(parse(chars)?);
-            return Ok(Token::from_value(Value::Fn(params, body), mark))
+            return Ok(Token::from_value(Value::Fn(params, None, body), mark))
         }
         let ident = parse_identifier(chars)?;
         params.push(ident.clone());
@@ -258,7 +258,11 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
 }
 
 fn valid_ident_char(c: char) -> bool {
-    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']' && c != ';' && c != '\''
+    !c.is_whitespace() 
+        && c != '(' && c != ')' 
+        && c != '[' && c != ']' 
+        && c != ';' 
+        && c != '\''
 }
 
 fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
