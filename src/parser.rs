@@ -1,4 +1,4 @@
-use std::{iter::Peekable, str::Chars};
+use std::{collections::HashMap, iter::Peekable, str::Chars};
 
 use crate::evaluator::{Expr, FilePos, Ident, Token, Value};
 
@@ -8,6 +8,7 @@ pub enum ParseError {
     BadChar(String, FilePos, char),
     Missing(String, FilePos),
     BadQuote(String, FilePos),
+    DupArg { name: String, old: FilePos, new: FilePos },
 }
 
 pub type ParseResult<T> = Result<T, ParseError>;
@@ -21,6 +22,7 @@ impl std::fmt::Display for ParseError {
             BadChar(target, ls, c) => write!(f, "Invalid char '{}' for {} at {}", c, target, ls),
             Missing(x, ps) => write!(f, "Missing {} at {}", x, ps),
             BadQuote(x, ps) => write!(f, "Cannot quote before a {} at {}", x, ps),
+            DupArg { name, old, new } => write!(f, "Arg \"{}\" defined at {} and {}", name, old, new),
         }
     }
 }
@@ -122,6 +124,7 @@ fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
             '(' => n += 1,
             ')' => {
                 if n == 1 {
+                    skip_whitespace(chars);
                     return true;
                 } else {
                     n -= 1;
@@ -203,7 +206,6 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                             return Err(if !till_closing_paren(chars) {
                                 eof_msg
                             } else {
-                                skip_whitespace(chars);
                                 e
                             })
                         },
@@ -237,6 +239,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     
     skip_whitespace(chars);
     let mut params = Vec::new();
+    let mut p_map: HashMap<String, FilePos> = HashMap::new();
     while let Some(&c) = chars.peek() {
         if c == ']' {
             chars.next();
@@ -244,7 +247,12 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             let body = Box::new(parse(chars)?);
             return Ok(Token::from_value(Value::Fn(params, body), mark))
         }
-        params.push(parse_identifier(chars)?);
+        let ident = parse_identifier(chars)?;
+        params.push(ident.clone());
+        if let Some(old) = p_map.insert(ident.name.clone(), ident.file_pos) {
+            till_closing_paren(chars);
+            return Err(DupArg { name: ident.name, old, new: ident.file_pos })
+        }
     }
     Err(Eof(format!("closing ']'")))
 }
@@ -278,6 +286,8 @@ fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Val
         Err(Eof(_)) => 
             Err(Eof(format!("identifier or literal"))),
         Err(Missing(s, fp)) => 
-            Err(Missing(format!("{} looking for identifier or literal", s), fp))
+            Err(Missing(format!("{} looking for identifier or literal", s), fp)),
+        Err(DupArg { name, old, new }) =>
+            Err(DupArg { name, old, new }),
     }
 }

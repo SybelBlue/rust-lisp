@@ -17,8 +17,9 @@ eerht
 ((fn [a b] (+ a b)))
 
 (fn a] a)
-(fn [a a)
 (fn [a] a
+
+(fn [a a)
 
 '(defn three [] 3)
 '(def three 3)
@@ -26,5 +27,7 @@ eerht
 
 ((fn [] (def unit ())))
 (defn ++ [x] (+ x 1))
+
+(defn bad [a a] a)
 
 (- 2
