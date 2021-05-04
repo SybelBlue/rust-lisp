@@ -272,7 +272,7 @@ fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Val
             })
         },
         Err(BadChar(_, fp, c)) => 
-            Err(BadChar(format!("Error parsing identifier or literal"), fp, c)),
+            Err(BadChar(format!("identifier or literal"), fp, c)),
         Err(BadQuote(_, fp)) => 
             Err(BadQuote(format!("identifier or literal"), fp)),
         Err(Eof(_)) => 

@@ -40,9 +40,31 @@ mod tests {
 
         #[test]
         fn basic_errs() {
+            use crate::{parser::ParseError::*, evaluator::Error::*};
             let s = std::fs::read_to_string("test/basic-errs.rsp").expect("file not found");
             let (reses, _) = exec(s);
-            assert!(reses.iter().all(|v| matches!(v, Ok(Unit) | Err(_))));
+            let mut i = 0;
+            assert!(matches!(reses[i], Err(ParseError(Missing(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(NameError(_)))); i += 1;
+            assert!(matches!(reses[i], Ok(Unit))); i += 1;
+            assert!(matches!(reses[i], Err(NameError(_)))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(Missing(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(NameError(_)))); i += 1;
+            assert!(matches!(reses[i], Ok(Unit))); i += 1;
+            assert!(matches!(reses[i], Err(ArgError { .. } ))); i += 1;
+            assert!(matches!(reses[i], Err(ValueError(_, _)))); i += 1;
+            assert!(matches!(reses[i], Err(ValueError(_, _)))); i += 1;
+            assert!(matches!(reses[i], Err(ArgError { .. } ))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(Missing(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(NameError(_)))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(BadChar(_,_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(BadChar(_,_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(BadChar(_,_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(Missing(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(ParseError(Eof(_)))));
         }
 
         #[test]
