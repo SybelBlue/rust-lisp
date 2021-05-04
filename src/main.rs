@@ -1,11 +1,10 @@
 use rust_lisp::evaluator::exec;
 // todo:
 //      Strings
-//      Proper forms
 //      recur, if
 //      Quotes
 fn main() -> std::io::Result<()> {
-    let s = std::fs::read_to_string("test/basic-errs.rsp")?;
+    let s = std::fs::read_to_string("test/main.rsp")?;
     let (reses, ctxt) = exec(s);
     for r in reses {
         match r {

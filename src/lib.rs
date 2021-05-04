@@ -42,7 +42,21 @@ mod tests {
         fn basic_errs() {
             let s = std::fs::read_to_string("test/basic-errs.rsp").expect("file not found");
             let (reses, _) = exec(s);
-            assert_eq!(reses.into_iter().filter(|x| x.is_err()).collect::<Vec<Result<Value, Error>>>().len(), 9);
+            assert!(reses.iter().all(|v| matches!(v, Ok(Unit) | Err(_))));
+        }
+
+        #[test]
+        fn complex_fns() {
+            let s = std::fs::read_to_string("test/funcs.rsp").expect("file not found");
+            let (reses, _) = exec(s);
+            for (ex, ac) in vec![ Unit
+                , Unit
+                , Int(3)
+                , Unit
+                , Int(1)
+                ].into_iter().zip(reses.into_iter()) {
+                assert_eq!(Ok(ex), ac)
+            }
         }
     }
 }
