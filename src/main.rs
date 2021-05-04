@@ -6,7 +6,9 @@ use rust_lisp::evaluator::exec;
 //      varargs
 //      pmatch
 fn main() -> std::io::Result<()> {
-    let s = std::fs::read_to_string("test/basic-errs.rsp")?;
+    let path = std::env::args().nth(1).expect("Need path to file");
+    println!("Loading {}...", path);
+    let s = std::fs::read_to_string(path.as_str())?;
     let (reses, ctxt) = exec(s);
     for r in reses {
         match r {
