@@ -44,12 +44,6 @@ impl std::fmt::Display for Ident {
     }
 }
 
-#[derive(Clone)]
-pub struct BuiltInFn {
-    pub name: String, 
-    pub f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>,
-}
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Lit(Value),
