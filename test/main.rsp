@@ -12,3 +12,20 @@
 
 (tail 1 + 3 4)
 ((tail 1 + 3 4))
+
+(defn pair-diff [a b ...rest]
+    (+ 
+        (- a b) 
+        (if 
+            (= '() rest)
+            0
+            (ap pair-diff rest))))
+
+(pair-diff 10 1 3 5)
+
+(defn apply [f ...args] (ap f args))
+
+
+(= 'good (apply if 1 'good 'bad))
+
+(ap ap '(+ 1 2))

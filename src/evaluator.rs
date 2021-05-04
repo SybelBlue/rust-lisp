@@ -197,17 +197,23 @@ impl std::fmt::Display for Value {
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
+        use Value::*;
         match (self, other) {
-            (Value::Unit, Value::Unit) => true,
-            (Value::Int(x), Value::Int(y)) => x == y,
-            (Value::Float(x), Value::Float(y)) => x == y,
-            (Value::Fn(_, r, x), 
-                Value::Fn(_, s, y)) => 
+            (Unit, x) => x == &Unit,
+            (Int(x), Int(y)) => x == y,
+            (Int(_), _) => false,
+            (Float(x), Float(y)) => x == y,
+            (Float(_), _) => false,
+            (Fn(_, r, x), 
+                Fn(_, s, y)) => 
                     r == s && x.expr == y.expr,
-            (Value::BuiltIn(x), 
-                Value::BuiltIn(y)) => 
-                    x == y,
-            _ => false,
+            (Fn(_, _, _), _) => false, 
+            (BuiltIn(x), 
+                BuiltIn(y)) => x == y,
+            (BuiltIn(_), _) => false,
+            (Quote(x), Quote(y)) => 
+                x.len() == y.len() && x.iter().zip(y).all(|(a, b)| a.expr == b.expr),
+            (Quote(_), _) => false,
         }
     }
 }

@@ -21,6 +21,9 @@ impl<'a> Context<'a> {
             vec![ make_builtin("+", add)
                 , make_builtin("-", sub)
                 , make_builtin("=", eq)
+                , make_builtin("ap", ap)
+                , make_builtin("if", if_)
+                , make_builtin("quote", quote)
                 ].into_iter().collect() 
             }
     }
