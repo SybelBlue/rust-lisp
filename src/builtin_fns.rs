@@ -5,7 +5,7 @@ use crate::{
         value::Value::{self, *}}
 };
 
-pub fn add(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+fn just_add(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Result<i64, f64>> {
     let vals = eval_all(ctxt, tokens)?;
 
     let out: &mut Result<i64, f64> = &mut Ok(0);
@@ -23,7 +23,11 @@ pub fn add(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
         }
     }
 
-    Ok(match *out {
+    Ok(*out)
+}
+
+pub fn add(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    Ok(match just_add(ctxt, tokens)? {
         Ok(x) => Int(x),
         Err(x) => Float(x),
     })
@@ -33,15 +37,13 @@ pub fn sub(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     if let Some((h, t)) = tokens.split_first() {
         if t.len() > 0 {
             return match h.eval(ctxt)? {
-                Int(n) => match add(ctxt, Vec::from(t))? {
-                    Int(x) => Ok(Int(n - x)),
-                    Float(x) => Ok(Float(n as f64 - x)),
-                    x => Err(InternalError(format!("(+) returned non-numeric {:?}", x))),
+                Int(n) => match just_add(ctxt, Vec::from(t))? {
+                    Ok(x) => Ok(Int(n - x)),
+                    Err(x) => Ok(Float(n as f64 - x)),
                 },
-                Float(n) => match add(ctxt, Vec::from(t))? {
-                    Int(x) => Ok(Float(n - x as f64)),
-                    Float(x) => Ok(Float(n - x)),
-                    x => Err(InternalError(format!("(+) returned non-numeric {:?}", x))),
+                Float(n) => match just_add(ctxt, Vec::from(t))? {
+                    Ok(x) => Ok(Float(n - x as f64)),
+                    Err(x) => Ok(Float(n - x)),
                 },
                 v => Err(ValueError(v, format!("(-) takes only numeric arguments"))),
             }
