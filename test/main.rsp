@@ -1,13 +1,6 @@
 (= 2 (- 3 1))
 
 (defn ++ [x] (+ x 1))
-(defn id [x] x)
-
-((fn [ap inc x] ((ap id inc) (inc (ap inc x))))
-    (fn [f x] (f x)) 
-    (fn [x] (+ x 1)) 
-    0)
-
 
 (defn ->> [x g f] (f (g x)))
 

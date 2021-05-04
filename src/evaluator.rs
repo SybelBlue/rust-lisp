@@ -121,7 +121,11 @@ impl Value {
                 }
                 f(args)
             },
-            v => Ok(v.clone()),
+            v => if tail.is_empty() { 
+                Ok(v.clone()) 
+            } else { 
+                Err(Error::ValueError(v.clone(), format!("not a function"))) 
+            },
         }
     }
 }
