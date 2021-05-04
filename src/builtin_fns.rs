@@ -75,19 +75,36 @@ pub fn unpack(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     head.eval(ctxt, tail, &first.expr)
 }
 
+pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    if tokens.len() != 2 {
+        return Err(ArgError { f_name: format!("cons"), recieved: tokens.len(), expected: 2 });   
+    }
+    let s = tokens.last().expect("prev cons check failed! (0)");
+    let f = tokens.first().expect("prev cons check failed! (1)");
+    let first = f.eval(ctxt)?;
+    match s.eval(ctxt)? {
+        Quote(tail) => {
+            let mut vd = Vec::with_capacity(tail.len() + 1);
+            vd.push(Token::from_value(first, f.file_pos));
+            vd.extend(tail.into_iter());
+            Ok(Quote(vd))
+        },
+        v => Err(ValueError(v, format!("Second arg to cons must be quote")))
+    }
+}
 
-// pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-//     if tokens.len() != 2 {
-//         return Err(ArgError { f_name: format!("ap"), recieved: tokens.len(), expected: 2 });
-//     }
-//     let s = tokens.last().expect("prev ap check failed! (0)");
-//     let f = tokens.first().expect("prev ap check failed! (1)");
-//     let first = f.eval(ctxt)?;
-//     match s.eval(ctxt)? {
-//         Quote(tail) => first.eval(ctxt, tail, &f.expr), // already can be made! remake to take lists
-//         v => Err(ValueError(v, format!("Second arg to ap must be quote")))
-//     }
-// }
+pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    if tokens.len() != 2 {
+        return Err(ArgError { f_name: format!("ap"), recieved: tokens.len(), expected: 2 });
+    }
+    let s = tokens.last().expect("prev ap check failed! (0)");
+    let f = tokens.first().expect("prev ap check failed! (1)");
+    let first = f.eval(ctxt)?;
+    match s.eval(ctxt)? {
+        Quote(tail) => first.eval(ctxt, tail, &f.expr),
+        v => Err(ValueError(v, format!("Second arg to ap must be quote")))
+    }
+}
 
 pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     if tokens.len() != 3 {
