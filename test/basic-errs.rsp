@@ -24,4 +24,7 @@ eerht
 '(def three 3)
 '(fn [] 3)
 
+((fn [] (def unit ())))
+(defn ++ [x] (+ x 1))
+
 (- 2

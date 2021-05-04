@@ -65,6 +65,8 @@ mod tests {
             assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
             assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
             assert!(matches!(reses[i], Err(ParseError(BadQuote(_,_))))); i += 1;
+            assert!(matches!(reses[i], Err(IllegalDefError(_)))); i += 1;
+            assert!(matches!(reses[i], Err(RedefError(_, _)))); i += 1;
             assert!(matches!(reses[i], Err(ParseError(Eof(_))))); i += 1;
             assert_eq!(None, reses.get(i))
         }

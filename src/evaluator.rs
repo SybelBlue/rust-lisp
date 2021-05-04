@@ -130,7 +130,7 @@ impl Value {
 }
 
 fn form_string(form: &Vec<Token>) -> String {
-    form.iter().map(|t| format!("{}", t.expr)).collect::<Vec<String>>().join(" ")
+    form.iter().map(|t| format!("{}", t)).collect::<Vec<String>>().join(" ")
 }
 
 impl std::fmt::Display for Value {
@@ -141,7 +141,12 @@ impl std::fmt::Display for Value {
             Value::Float(x) => write!(f, "{}", x),
             Value::Fn(args, _) => write!(f, "<{}-ary func>", args.len()),
             Value::BuiltIn(s, _) => write!(f, "<builtin func {}>", s),
-            Value::Quote(form) => write!(f, "'({})", form_string(form))
+            Value::Quote(form) =>
+                if let Some((h, &[])) = form.split_first() {
+                    write!(f, "'{}", h)
+                } else {
+                    write!(f, "'({})", form_string(form))
+                }
         }
     }
 }
@@ -210,7 +215,7 @@ impl std::fmt::Display for Expr {
             Expr::Lit(x) => write!(f, "{}", x),
             Expr::Var(s) => f.write_str(s.as_str()),
             Expr::Form(form) => write!(f, "({})", form_string(form)),
-            Expr::Def(n, b) => write!(f, "(def {} {})", n, b.as_ref().expr),
+            Expr::Def(n, b) => write!(f, "(def {} {})", n, b),
         }
     }
 }
@@ -240,5 +245,11 @@ impl Token {
 
     pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {
         self.expr.eval(ctxt, self.file_pos)
+    }
+}
+
+impl std::fmt::Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.expr)
     }
 }

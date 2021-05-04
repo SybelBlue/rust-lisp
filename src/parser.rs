@@ -210,13 +210,13 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                     },
             }
         }
-    } else if is_quote {
-        Err(ParseError::Missing(format!("form after quote"), chars.file_pos))
     } else {
-        Ok(match parse_ident_or_literal(chars)? {
+        let t = match parse_ident_or_literal(chars)? {
             Ok(v) => Token::new(Lit(v), start),
             Err(ident) => Token::from_ident(ident),
-        })
+        };
+
+        Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
     }
 }
 
