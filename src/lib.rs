@@ -2,6 +2,8 @@ pub mod parser;
 pub mod evaluator;
 pub mod context;
 
+pub(crate) mod builtin_fns;
+
 #[cfg(test)]
 mod tests {
     use crate::evaluator::{*, Expr::*, Value::*};

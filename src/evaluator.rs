@@ -15,6 +15,14 @@ pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     (out, ctxt)
 }
 
+pub fn eval_all(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Vec<Value>> {
+    let mut out = Vec::new();
+    for e in tokens {
+        out.push(e.eval(ctxt)?);
+    }
+    Ok(out)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FilePos {
     pub col: usize,
@@ -95,7 +103,35 @@ pub enum Value {
     Float(f64),
     Quote(Vec<Token>),
     Fn(Vec<Ident>, Option<Ident>, Box<Token>),
-    BuiltIn(String, fn(Vec<Value>) -> EvalResult<Value>),
+    BuiltIn(BuiltInFn),
+}
+
+#[derive(Clone)]
+pub struct BuiltInFn {
+    pub name: String, 
+    pub f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>,
+}
+
+impl BuiltInFn {
+    pub fn new(name: &str, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> Value {
+        Value::BuiltIn(Self::simple(String::from(name), f))
+    }
+
+    pub fn simple(name: String, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> Self {
+        BuiltInFn { name, f }
+    }
+}
+
+impl std::fmt::Debug for BuiltInFn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BIBody({})", self.name)
+    }
+}
+
+impl std::cmp::PartialEq for BuiltInFn {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
 }
 
 fn make_arg_error(params: &Vec<Ident>, tail: &Vec<Token>, src_expr: &Expr) -> Error {
@@ -128,13 +164,7 @@ impl Value {
                 let next = ctxt.chain(data);
                 body.as_ref().eval(&next)
             },
-            Value::BuiltIn(_, f) => {
-                let mut args = Vec::new();
-                for t in tail {
-                    args.push(t.eval(ctxt)?);
-                }
-                f(args)
-            },
+            Value::BuiltIn(bifn) => (bifn.f)(ctxt, tail),
             Value::Quote(form) => run_form(form, ctxt),
             v if tail.is_empty() => Ok(v.clone()), 
             v => Err(Error::ValueError(v.clone(), format!("not a function"))),
@@ -154,7 +184,7 @@ impl std::fmt::Display for Value {
             Value::Float(x) => write!(f, "{}", x),
             Value::Fn(args, Some(_), _) => write!(f, "<({}+n)-ary func>", args.len()),
             Value::Fn(args, None, _) => write!(f, "<{}-ary func>", args.len()),
-            Value::BuiltIn(s, _) => write!(f, "<builtin func {}>", s),
+            Value::BuiltIn(bifn) => write!(f, "<builtin func {}>", bifn.name),
             Value::Quote(form) =>
                 if let Some((h, &[])) = form.split_first() {
                     write!(f, "'{}", h)
@@ -174,8 +204,8 @@ impl PartialEq for Value {
             (Value::Fn(_, r, x), 
                 Value::Fn(_, s, y)) => 
                     r == s && x.expr == y.expr,
-            (Value::BuiltIn(_, x), 
-                Value::BuiltIn(_, y)) => 
+            (Value::BuiltIn(x), 
+                Value::BuiltIn(y)) => 
                     x == y,
             _ => false,
         }
@@ -219,10 +249,10 @@ impl Expr {
     }
 
     pub fn get_var_name(&self) -> Option<&String> {
-        if let Expr::Var(s) = self {
-            Some(s)
-        } else {
-            None
+        match self {
+            Expr::Var(n) => Some(n),
+            Expr::Lit(Value::BuiltIn(bifn)) => Some(&bifn.name),
+            _ => None,
         }
     }
 }
