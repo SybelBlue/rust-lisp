@@ -1,4 +1,4 @@
-use crate::{context::Context, evaluator::{Error::*, EvalResult, Token, Value, eval_all}};
+use crate::{context::Context, evaluator::{Error::*, EvalResult, Expr, Token, Value, eval_all}};
 
 use Value::*;
 
@@ -58,21 +58,36 @@ pub fn eq(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     Err(ArgError { f_name: format!("(==)"), recieved: vals.len(), expected: 2 })
 }
 
-pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+pub fn unpack(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     let (first, rest) = 
         tokens.split_first()
-            .ok_or_else(|| ArgError { f_name: format!("ap"), recieved: 0, expected: 1 })?;
+            .ok_or_else(|| ArgError { f_name: format!("unpack"), recieved: 0, expected: 1 })?;
     let head = first.eval(ctxt)?;
     let mut tail = Vec::with_capacity(tokens.len());
     for t in Vec::from(rest) {
-        if let Quote(form) = t.eval(ctxt)? {
+        let v = t.eval(ctxt)?;
+        if let Quote(form) = v {
             tail.extend(form.into_iter());
         } else {
-            tail.push(t);
+            tail.push(Token::new(Expr::Lit(v), t.file_pos));
         }
     }
     head.eval(ctxt, tail, &first.expr)
 }
+
+
+// pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+//     if tokens.len() != 2 {
+//         return Err(ArgError { f_name: format!("ap"), recieved: tokens.len(), expected: 2 });
+//     }
+//     let s = tokens.last().expect("prev ap check failed! (0)");
+//     let f = tokens.first().expect("prev ap check failed! (1)");
+//     let first = f.eval(ctxt)?;
+//     match s.eval(ctxt)? {
+//         Quote(tail) => first.eval(ctxt, tail, &f.expr), // already can be made! remake to take lists
+//         v => Err(ValueError(v, format!("Second arg to ap must be quote")))
+//     }
+// }
 
 pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     if tokens.len() != 3 {

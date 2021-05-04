@@ -1,8 +1,12 @@
 use rust_lisp::evaluator::exec;
+
 // todo:
 //      Strings
-//      recur, if
+//      recur
+//      macros
+//      list - car cdr
 //      pmatch
+
 fn main() -> std::io::Result<()> {
     let path = std::env::args().nth(1).expect("Need path to file");
     println!("Loading {}...", path);
