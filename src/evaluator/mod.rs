@@ -10,15 +10,20 @@ pub mod token;
 
 pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();
+    let out = exec_using(s, &mut ctxt);
+    (out, ctxt)
+}
+
+pub fn exec_using(s: String, ctxt: &mut Context) -> Vec<EvalResult<Value>> {
     let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
     let mut out = Vec::new();
     for e in op_exprs {
         match e {
             Err(s) => out.push(Err(Error::ParseError(s))),
-            Ok(x) => out.push(x.exec(&mut ctxt, false))
+            Ok(x) => out.push(x.exec(ctxt, false))
         }
     }
-    (out, ctxt)
+    out
 }
 
 pub fn eval_all(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Vec<Value>> {
@@ -63,7 +68,14 @@ impl Expr {
                 ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
                 Ok(Value::Unit)
             },
-            Expr::Import(n, Some(Ident { name, .. })) => {
+            Expr::Import(n, Some(ident)) => {
+                let dir = std::env::current_dir()
+                    .map_err(|e| Error::ImportError(ident.clone(), e.to_string()))?;
+                let path = std::env::join_paths(vec![dir.as_path(), std::path::Path::new(n.name.as_str())])
+                    .map_err(|e| Error::ImportError(ident.clone(), e.to_string()))?;
+                let s = std::fs::read_to_string(path)
+                    .map_err(|e| Error::ImportError(ident.clone(), e.to_string()))?;
+                let reses = exec_using(s, ctxt);
                 todo!()
             },
             Expr::Import(n, None) => {
