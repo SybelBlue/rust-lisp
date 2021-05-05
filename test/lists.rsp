@@ -1,0 +1,22 @@
+(defn tail [_ ...rest] rest)
+
+(defn nil? [x] (= '() x))
+
+(defn list [a ...rest]
+    (cons a 
+        (if (nil? rest) 
+            '() 
+            (ap list rest))))
+
+(defn pairs [a b ...rest]
+    (cons
+        (list a b)
+        (if (nil? rest) 
+            '()
+            (ap pairs rest))))
+
+(defn range [s e]
+    (if (= s e)
+        '()
+        (cons s (range (+ s 1) e))))
+

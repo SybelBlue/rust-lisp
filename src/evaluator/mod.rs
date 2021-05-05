@@ -71,8 +71,8 @@ impl Expr {
             Expr::Import(n, namespace) => {
                 let dir = std::env::current_dir()
                     .map_err(|e| Error::ImportError(n.clone(), e.to_string()))?;
-                let path = std::env::join_paths(vec![dir.as_path(), std::path::Path::new(n.name.as_str())])
-                    .map_err(|e| Error::ImportError(n.clone(), e.to_string()))?;
+                let mut path = dir.join(n.name.as_str());
+                path.set_extension("rsp");
                 let s = std::fs::read_to_string(path)
                     .map_err(|e| Error::ImportError(n.clone(), e.to_string()))?;
                 

@@ -1,3 +1,5 @@
+(import test/lists)
+
 (= 2 (- 3 1))
 
 (defn ++ [x] (+ x 1))
@@ -8,52 +10,4 @@
     ++
     (fn [x] (= 3 x)))
 
-(defn tail [_ ...rest] rest)
-
-(tail 1 + 3 4)
-((tail 1 + 3 4))
-
-(defn pair-diff [a b ...rest]
-    (+ 
-        (- a b) 
-        (if 
-            (= '() rest)
-            0
-            (ap pair-diff rest))))
-
-(pair-diff 10 1 3 5)
-
-(defn apply [f ...args] (ap f args))
-
-
-(= 'good (apply if 1 'good 'bad))
-
-(unpack unpack '(+ 1) 2 '(3 4))
-
-(defn nil? [x] (= '() x))
-
-(cons (+ 2 -1) '(2 3))
-
-(defn list [a ...rest]
-    (cons a 
-        (if (nil? rest) 
-            '() 
-            (ap list rest))))
-
-(defn pairs [a b ...rest]
-    (cons
-        (list a b)
-        (if (nil? rest) 
-            rest
-            (ap pairs rest))))
-
-(pairs 1 2 3 4 5 6)
-
-(defn range [s e]
-    (if (= s e)
-        '()
-        (cons s (range (+ s 1) e))))
-
-(defn -ap [f args] ((cons f args)))
-(-ap pairs (range 0 10))
 (ap pairs (range 0 10))
