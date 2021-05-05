@@ -8,15 +8,16 @@
             '() 
             (ap list rest))))
 
-(defn pairs [a b ...rest]
+(defn -pairs [a b ...rest]
     (cons
         (list a b)
         (if (nil? rest) 
             '()
-            (ap pairs rest))))
+            (ap -pairs rest))))
+
+(defn pairs [ls] (ap -pairs ls))
 
 (defn range [s e]
     (if (= s e)
         '()
         (cons s (range (+ s 1) e))))
-

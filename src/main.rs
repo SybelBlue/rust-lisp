@@ -4,7 +4,7 @@ use rust_lisp::evaluator::exec;
 //      Strings
 //      recur
 //      macros
-//      list - car cdr
+//      list-likes (iterator, sll)
 //      pmatch
 
 fn main() -> std::io::Result<()> {

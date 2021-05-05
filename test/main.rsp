@@ -10,4 +10,4 @@
     ++
     (fn [x] (= 3 x)))
 
-(ap pairs (range 0 10))
+(pairs (range 0 10))
