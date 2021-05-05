@@ -21,7 +21,7 @@ eerht
 
 (fn [a a)
 
-'(defn flip [] 3)
+'(defn flip [] (+ 3 2) )
 '(def flip 3)
 '(fn [] 3)
 

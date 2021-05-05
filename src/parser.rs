@@ -175,39 +175,14 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                     let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
                     return Ok(Token::new(out, start));
                 },
-                Some(false) =>
+                Some(false) => {
                     match parse(chars) {
                         Ok(e) => {
                             if v.is_empty() {
                                 if let Var(s) = &e.expr {
-                                    if s.as_bytes() == b"fn" {
-                                        let f = parse_fn_decl(chars)?;
-                                        let out = close_target(chars, f, "fn declaration");
-                                        return if is_quote { Err(BadQuote(format!("fn declaration"), start)) } else { out }
-                                    }
-                                
-                                    let is_defn = s.as_bytes() == b"defn";
-                                    if is_defn || s.as_bytes() == b"def" {
-                                        let name = parse_identifier(chars)?;
-                                        let fn_start = chars.file_pos;
-                                        let e = if is_defn { 
-                                            parse_fn_decl(chars)?
-                                        } else { 
-                                            parse(chars)? 
-                                        };
-                                        let out = close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "def");
-                                        return if is_quote { Err(BadQuote(format!("def"), start)) } else { out }
-                                    }
-
-                                    if s.as_bytes() == b"import" {
-                                        if is_quote {
-                                            return Err(BadQuote(format!("import"), start))
-                                        }
-
-                                        let name = parse_identifier(chars)?;
-                                        let alias = parse_identifier(chars).ok();
-                                        let output = Token::new(Expr::Import(name, alias), start);
-                                        return close_target(chars, output, "import");
+                                    let sf = parse_special_form(chars, s, start, is_quote)?;
+                                    if let Some(out) = sf {
+                                        return Ok(out)
                                     }
                                 }
                             }
@@ -220,7 +195,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                                 e
                             })
                         },
-                    },
+                    }
+                },
             }
         }
     } else {
@@ -231,6 +207,50 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
 
         Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
     }
+}
+
+fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, is_quote: bool) -> ParseResult<Option<Token>> {
+    if s.as_bytes() == b"fn" {
+        if is_quote { 
+            till_closing_paren(chars);
+            return Err(BadQuote(format!("fn declaration"), start)) 
+        }
+        let f = parse_fn_decl(chars)?;
+        let out = close_target(chars, f, "fn declaration")?;
+        return Ok(Some(out));
+    }
+
+    let is_defn = s.as_bytes() == b"defn";
+    if is_defn || s.as_bytes() == b"def" {
+        if is_quote { 
+            till_closing_paren(chars);
+            return Err(BadQuote(format!("def"), start)) 
+        }
+        let name = parse_identifier(chars)?;
+        let fn_start = chars.file_pos;
+        let e = if is_defn { 
+            parse_fn_decl(chars)?
+        } else { 
+            parse(chars)? 
+        };
+        let out = close_target(chars, Token::new(Expr::Def(name, Box::new(e)), fn_start), "def")?;
+        return Ok(Some(out));
+    }
+
+    if s.as_bytes() == b"import" {
+        if is_quote {
+            till_closing_paren(chars);
+            return Err(BadQuote(format!("import"), start))
+        }
+
+        let name = parse_identifier(chars)?;
+        let alias = parse_identifier(chars).ok();
+        let output = Token::new(Expr::Import(name, alias), start);
+        let out = close_target(chars, output, "import")?;
+        return Ok(Some(out));
+    }
+
+    Ok(None)
 }
 
 fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> ParseResult<Token> {
