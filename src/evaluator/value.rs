@@ -113,7 +113,7 @@ impl Value {
                     Ok(ts) => ts.len(),
                     Err((vs, _)) => vs.len(),
                 };
-                if len != 0 {
+                if len == 0 {
                     Ok(v.clone())
                 } else {
                     Err(Error::ValueError(v.clone(), format!("not a function")))
@@ -148,7 +148,8 @@ impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         use Value::*;
         match (self, other) {
-            (Unit, x) => x == &Unit,
+            (Unit, Unit) => true,
+            (Unit, _) => false,
             (Int(x), Int(y)) => x == y,
             (Int(_), _) => false,
             (Float(x), Float(y)) => x == y,

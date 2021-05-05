@@ -48,3 +48,12 @@
             (ap pairs rest))))
 
 (pairs 1 2 3 4 5 6)
+
+(defn range [s e]
+    (if (= s e)
+        '()
+        (cons s (range (+ s 1) e))))
+
+(defn -ap [f args] ((cons f args)))
+(-ap pairs (range 0 10))
+(ap pairs (range 0 10))
