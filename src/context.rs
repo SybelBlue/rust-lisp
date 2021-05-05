@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::evaluator::{Token, value::{Ident, Value}, result::*};
+use crate::evaluator::{token::Token, value::{Ident, Value}, result::*};
 
 use crate::builtin_fn::*;
 
