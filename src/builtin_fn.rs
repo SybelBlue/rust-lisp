@@ -5,6 +5,34 @@ use crate::{
         value::Value::{self, *}}
 };
 
+#[derive(Clone)]
+pub struct BuiltInFn {
+    pub name: String, 
+    pub f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>,
+}
+
+impl BuiltInFn {
+    pub fn new(name: &str, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> Value {
+        Value::BuiltIn(Self::simple(String::from(name), f))
+    }
+
+    pub fn simple(name: String, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> Self {
+        BuiltInFn { name, f }
+    }
+}
+
+impl std::fmt::Debug for BuiltInFn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "BIBody({})", self.name)
+    }
+}
+
+impl std::cmp::PartialEq for BuiltInFn {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name
+    }
+}
+
 fn just_add(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Result<i64, f64>> {
     let vals = eval_all(ctxt, tokens)?;
 
