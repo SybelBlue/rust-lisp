@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::evaluator::{Token, value::{Ident, Value, BuiltInFn}, result::*};
 
-use crate::builtin_fns::*;
+use crate::builtin_fn::*;
 
 pub type CtxtMapValue = (Value, Option<FilePos>);
 pub type CtxtMap = HashMap<String, CtxtMapValue>;
