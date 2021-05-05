@@ -77,7 +77,7 @@ pub fn unpack(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
             tail.push(Token::new(Expr::Lit(v), t.file_pos));
         }
     }
-    head.eval(ctxt, tail, &first.expr)
+    head.eval(ctxt, Ok(tail), &first.expr.get_var_name())
 }
 
 fn check_arg_count(f_name: &str, tokens: &Vec<Token>, n: usize) -> EvalResult<()> {
@@ -95,28 +95,35 @@ fn require_two<'a>(f_name: &str, tokens: &'a Vec<Token>) -> EvalResult<(&'a Toke
     Ok((f, s))
 }
 
-fn require_second_quote<'a>(f_name: &str, ctxt: &Context<'_>, tokens: &'a Vec<Token>) -> EvalResult<(&'a Token, Vec<Token>)> {
-    let (f, s) = require_two(f_name, tokens)?;
+pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    let (f, s) = require_two("cons", &tokens)?;
+    let first = f.eval(ctxt)?;
     match s.eval(ctxt)? {
-        Quote(tail) => Ok((f, tail)),
-        v => Err(ValueError(v, format!("Second arg to {} must be quote", f_name)))
+        Quote(tail) => {
+            let mut v = Vec::with_capacity(tail.len() + 1);
+            v.push(Token::from_value(first, f.file_pos));
+            v.extend(tail);
+            Ok(Quote(v))
+        },
+        List(tail) => {
+            let mut vd = tail.clone();
+            vd.push_front(first);
+            Ok(List(tail))
+        },
+        v => Err(ValueError(v, format!("Second arg to cons must be quote or list")))
     }
 }
 
-pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-    let (f, tail) = require_second_quote("cons", ctxt, &tokens)?;
-    let first = f.eval(ctxt)?;
-
-    let mut vd = Vec::with_capacity(tail.len() + 1);
-    vd.push(Token::from_value(first, f.file_pos));
-    vd.extend(tail.into_iter());
-    
-    Ok(Quote(vd))
-}
-
 pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-    let (f, tail) = require_second_quote("ap", ctxt, &tokens)?;
-    f.eval(ctxt)?.eval(ctxt, tail, &f.expr)
+    let (f, s) = require_two("ap", &tokens)?;
+    let first = f.eval(ctxt)?;
+    match s.eval(ctxt)? {
+        Quote(tail) => first.eval(ctxt, Ok(tail), &f.expr.get_var_name()),
+        List(tail) => {
+            first.eval(ctxt, Err((Vec::from(tail), f.file_pos)), &f.expr.get_var_name())
+        },
+        v => Err(ValueError(v, format!("Second arg to ap must be quote")))
+    }
 }
 
 pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {

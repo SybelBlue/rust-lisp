@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::VecDeque;
 
-use crate::{context::Context, evaluator::*};
+use crate::{context::{Context, CtxtMap}, evaluator::*};
 
 
 pub fn form_string(form: &Vec<Token>) -> String {
@@ -59,44 +59,66 @@ pub enum Value {
     Int(i64),
     Float(f64),
     Quote(Vec<Token>),
+    List(VecDeque<Value>),
     Fn(Vec<Ident>, Option<Ident>, Box<Token>),
     BuiltIn(BuiltInFn),
 }
 
-fn make_arg_error(params: &Vec<Ident>, tail: &Vec<Token>, src_expr: &Expr) -> Error {
-    let f_name = if let Some(s) = src_expr.get_var_name() { s.clone() } else { format!("<anon func>") };
-    Error::ArgError { f_name, expected: params.len(), recieved: tail.len() }
+fn make_arg_error(params: &Vec<Ident>, tail_len: usize, fn_name: &Option<String>) -> Error {
+    let f_name = if let Some(s) = fn_name { s.clone() } else { format!("<anon func>") };
+    Error::ArgError { f_name, expected: params.len(), recieved: tail_len }
 }
 
 impl Value {
-    pub fn eval(&self, ctxt: &Context, tail: Vec<Token>, src_expr: &Expr) -> EvalResult<Value> {
+    pub fn eval(&self, ctxt: &Context, r_tail: Result<Vec<Token>, (Vec<Value>, FilePos)>, fn_name: &Option<String>) -> EvalResult<Value> {
         match self {
             Value::Fn(params, op_rest, body) => {
-                if tail.len() < params.len() || (op_rest.is_none() && tail.len() > params.len()) {                    
-                    return Err(make_arg_error(params, &tail, src_expr))
+                let tail = match r_tail {
+                    Ok(ts) => eval_all(ctxt, ts)?,
+                    Err((vs, _)) => vs, 
+                };
+
+                let tail_len = tail.len();
+                if tail_len < params.len() || (op_rest.is_none() && tail_len > params.len()) {                    
+                    return Err(make_arg_error(params, tail_len, fn_name))
                 }
-                let mut data = HashMap::with_capacity(params.len() + 1);
-                let mut iter = tail.iter();
+        
+                let mut iter = tail.into_iter();
+                let mut data = CtxtMap::with_capacity(params.len() + 1);
                 for ident in params.iter() {
-                    let t = iter.next().ok_or_else(|| make_arg_error(params, &tail, src_expr))?;
-                    let t_val = t.eval(ctxt)?;
-                    let v = (t_val, Some(ident.file_pos));
+                    let t = iter.next().expect("simple eval check failed");
+                    let v = (t, Some(ident.file_pos));
                     data.insert(ident.name.clone(), v);
                 }
                 
                 if let Some(rest) = op_rest {
-                    let qut = Value::Quote(iter.map(|t| t.clone()).collect());
+                    let qut = Value::Quote(iter.map(|t| Token::from_value(t, rest.file_pos)).collect());
                     let v = (qut, Some(rest.file_pos));
                     data.insert(rest.name.clone(), v);
                 }
-
+        
                 let next = ctxt.chain(data);
                 body.as_ref().eval(&next)
             },
-            Value::BuiltIn(bifn) => (bifn.f)(ctxt, tail),
+            Value::BuiltIn(bifn) => {
+                let tail = match r_tail {
+                    Ok(ts) => ts,
+                    Err((vs, file_pos)) => vs.into_iter().map(|v| Token::from_value(v, file_pos)).collect(),
+                };
+                (bifn.f)(ctxt, tail)
+            },
             Value::Quote(form) => run_form(form, ctxt),
-            v if tail.is_empty() => Ok(v.clone()), 
-            v => Err(Error::ValueError(v.clone(), format!("not a function"))),
+            v => {
+                let len = match r_tail {
+                    Ok(ts) => ts.len(),
+                    Err((vs, _)) => vs.len(),
+                };
+                if len != 0 {
+                    Ok(v.clone())
+                } else {
+                    Err(Error::ValueError(v.clone(), format!("not a function")))
+                }
+            }
         }
     }
 }
@@ -116,6 +138,8 @@ impl std::fmt::Display for Value {
                 } else {
                     write!(f, "'({})", form_string(form))
                 }
+            Value::List(list) =>
+                write!(f, "'({})", list.iter().map(|v| format!("{}", v)).collect::<Vec<String>>().join(" "))
         }
     }
 }
@@ -138,7 +162,16 @@ impl PartialEq for Value {
             (BuiltIn(_), _) => false,
             (Quote(x), Quote(y)) => 
                 x.len() == y.len() && x.iter().zip(y).all(|(a, b)| a.expr == b.expr),
+            (Quote(x), List(y)) =>
+                x.len() == y.len() && x.iter().zip(y)
+                    .all(|(a, b)| if let Expr::Lit(av) = &a.expr { av == b } else { false }),
             (Quote(_), _) => false,
+            (List(x), List(y)) => 
+                x.len() == y.len() && x.iter().zip(y).all(|(a, b)| a == b),
+            (List(x), Quote(y)) =>
+                x.len() == y.len() && x.iter().zip(y)
+                    .all(|(a, b)| if let Expr::Lit(bv) = &b.expr { bv == a } else { false }),
+            (List(_), _) => false,
         }
     }
 }

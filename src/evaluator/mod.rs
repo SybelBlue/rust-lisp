@@ -34,7 +34,7 @@ pub enum Expr {
 
 fn run_form(form: &Vec<Token>, ctxt: &Context) -> EvalResult<Value> {
     if let Some((head, tail)) = form.split_first() {
-        head.eval(ctxt)?.eval(ctxt, Vec::from(tail), &head.expr)
+        head.eval(ctxt)?.eval(ctxt, Ok(Vec::from(tail)), &head.expr.get_var_name())
     } else {
         Ok(Value::Unit)
     }
@@ -60,10 +60,10 @@ impl Expr {
         }
     }
 
-    pub fn get_var_name(&self) -> Option<&String> {
+    pub fn get_var_name(&self) -> Option<String> {
         match self {
-            Expr::Var(n) => Some(n),
-            Expr::Lit(Value::BuiltIn(bifn)) => Some(&bifn.name),
+            Expr::Var(n) => Some(n.clone()),
+            Expr::Lit(Value::BuiltIn(bifn)) => Some(bifn.name.clone()),
             _ => None,
         }
     }

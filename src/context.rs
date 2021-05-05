@@ -4,8 +4,8 @@ use crate::evaluator::{Token, value::{Ident, Value, BuiltInFn}, result::*};
 
 use crate::builtin_fns::*;
 
-type CtxtMapValue = (Value, Option<FilePos>);
-type CtxtMap = HashMap<String, CtxtMapValue>;
+pub type CtxtMapValue = (Value, Option<FilePos>);
+pub type CtxtMap = HashMap<String, CtxtMapValue>;
 #[derive(Debug, Clone)]
 pub struct Context<'a> {
     data: CtxtMap,
