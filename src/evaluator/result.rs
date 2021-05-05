@@ -11,6 +11,7 @@ pub enum Error {
     NameError(Ident),
     RedefError(Ident, String),
     ParseError(ParseError),
+    ImportError(Ident),
 }
 
 impl std::fmt::Display for Error {
@@ -26,6 +27,7 @@ impl std::fmt::Display for Error {
             Error::RedefError(orig, n) => 
                 write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
             Error::ParseError(p) => write!(f, "ParseError: {}", p),
+            Error::ImportError(n) => write!(f, "ImportError({})", n.name),
         }
     }
 }
