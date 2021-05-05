@@ -21,8 +21,8 @@ eerht
 
 (fn [a a)
 
-'(defn three [] 3)
-'(def three 3)
+'(defn flip [] 3)
+'(def flip 3)
 '(fn [] 3)
 
 ((fn [] (def unit ())))

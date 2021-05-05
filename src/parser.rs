@@ -198,6 +198,17 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                                         let out = close_target(chars, Token::new(Def(name, Box::new(e)), fn_start), "def");
                                         return if is_quote { Err(BadQuote(format!("def"), start)) } else { out }
                                     }
+
+                                    if s.as_bytes() == b"import" {
+                                        if is_quote {
+                                            return Err(BadQuote(format!("import"), start))
+                                        }
+
+                                        let name = parse_identifier(chars)?;
+                                        let alias = parse_identifier(chars).ok();
+                                        let output = Token::new(Expr::Import(name, alias), start);
+                                        return close_target(chars, output, "import");
+                                    }
                                 }
                             }
                             v.push(e);
