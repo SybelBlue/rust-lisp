@@ -35,6 +35,7 @@ pub enum Expr {
     Var(String),
     Form(Vec<Token>),
     Def(Ident, Box<Token>),
+    Import(Ident, Option<Ident>),
 }
 
 fn run_form(form: &Vec<Token>, ctxt: &Context) -> EvalResult<Value> {
@@ -52,6 +53,7 @@ impl Expr {
             Expr::Var(id) => ctxt.get(&Ident::new(id.clone(), file_pos)),
             Expr::Form(form) => run_form(form, ctxt),
             Expr::Def(n, _) => Err(Error::IllegalDefError(n.clone())),
+            Expr::Import(n, _) => Err(Error::IllegalDefError(n.clone())),
         }
     }
 
@@ -60,6 +62,12 @@ impl Expr {
             Expr::Def(n, body) => {
                 ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
                 Ok(Value::Unit)
+            },
+            Expr::Import(n, Some(Ident { name, .. })) => {
+                todo!()
+            },
+            Expr::Import(n, None) => {
+                todo!()
             },
             _ => self.eval(&ctxt, file_pos),
         }
@@ -81,6 +89,8 @@ impl std::fmt::Display for Expr {
             Expr::Var(s) => f.write_str(s.as_str()),
             Expr::Form(form) => write!(f, "({})", form_string(form)),
             Expr::Def(n, b) => write!(f, "(def {} {})", n, b),
+            Expr::Import(n, Some(b)) => write!(f, "(import {} {})", n, b),
+            Expr::Import(n, None) => write!(f, "(import {})", n),
         }
     }
 }
