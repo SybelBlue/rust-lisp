@@ -19,8 +19,8 @@ impl Token {
         Self::new(Expr::Var(ident.name), ident.file_pos)
     }
 
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool) -> EvalResult<Value> {
-        self.expr.exec(ctxt, allow_overwrite, self.file_pos)
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, namespace: &Option<String>) -> EvalResult<Value> {
+        self.expr.exec(ctxt, allow_overwrite, self.file_pos, namespace)
     }
 
     pub fn eval(&self, ctxt: &Context) -> EvalResult<Value> {

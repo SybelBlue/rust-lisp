@@ -10,17 +10,17 @@ pub mod token;
 
 pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
     let mut ctxt = Context::new();
-    let out = exec_using(s, &mut ctxt);
+    let out = exec_using(s, &mut ctxt, &None);
     (out, ctxt)
 }
 
-pub fn exec_using(s: String, ctxt: &mut Context) -> Vec<EvalResult<Value>> {
+pub fn exec_using(s: String, ctxt: &mut Context, namespace: &Option<String>) -> Vec<EvalResult<Value>> {
     let op_exprs = parse_all(&mut ParseStream::new(&mut s.chars().peekable()));
     let mut out = Vec::new();
     for e in op_exprs {
         match e {
             Err(s) => out.push(Err(Error::ParseError(s))),
-            Ok(x) => out.push(x.exec(ctxt, false))
+            Ok(x) => out.push(x.exec(ctxt, false, namespace))
         }
     }
     out
@@ -62,24 +62,23 @@ impl Expr {
         }
     }
 
-    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, file_pos: FilePos) -> EvalResult<Value> {
+    pub fn exec(&self, ctxt: &mut Context, allow_overwrite: bool, file_pos: FilePos, namespace: &Option<String>) -> EvalResult<Value> {
         match self {
             Expr::Def(n, body) => {
-                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite)?;
+                ctxt.put(n.clone(), body.as_ref().eval(&ctxt)?, allow_overwrite, namespace)?;
                 Ok(Value::Unit)
             },
-            Expr::Import(n, Some(ident)) => {
+            Expr::Import(n, namespace) => {
                 let dir = std::env::current_dir()
-                    .map_err(|e| Error::ImportError(ident.clone(), e.to_string()))?;
+                    .map_err(|e| Error::ImportError(n.clone(), e.to_string()))?;
                 let path = std::env::join_paths(vec![dir.as_path(), std::path::Path::new(n.name.as_str())])
-                    .map_err(|e| Error::ImportError(ident.clone(), e.to_string()))?;
+                    .map_err(|e| Error::ImportError(n.clone(), e.to_string()))?;
                 let s = std::fs::read_to_string(path)
-                    .map_err(|e| Error::ImportError(ident.clone(), e.to_string()))?;
-                let reses = exec_using(s, ctxt);
-                todo!()
-            },
-            Expr::Import(n, None) => {
-                todo!()
+                    .map_err(|e| Error::ImportError(n.clone(), e.to_string()))?;
+                
+                exec_using(s, ctxt, &namespace.clone().map(|id| id.name));
+
+                Ok(Value::Unit)
             },
             _ => self.eval(&ctxt, file_pos),
         }

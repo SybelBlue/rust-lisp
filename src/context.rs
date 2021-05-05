@@ -42,13 +42,20 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn put(&mut self, k: Ident, v: Value, allow_overwrite: bool) -> EvalResult<()> {
+    pub fn put(&mut self, k: Ident, v: Value, allow_overwrite: bool, namespace: &Option<String>) -> EvalResult<()> {
+        let key = if let Some(prefix) = namespace {
+            format!("{}.{}", prefix, k.name)
+        } else {
+            k.name
+        };
+
         if !allow_overwrite {
-            if let Some(id) = self.get_ident(&k.name) {
-                return Err(Error::RedefError(id, k.name));
+            if let Some(id) = self.get_ident(&key) {
+                return Err(Error::RedefError(id, key));
             }
         }
-        self.data.insert(k.name, (v, Some(k.file_pos)));
+
+        self.data.insert(key, (v, Some(k.file_pos)));
         Ok(())
     }
 
