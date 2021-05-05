@@ -26,6 +26,7 @@ impl<'a> Context<'a> {
                 , make_builtin("cons", cons)
                 , make_builtin("if", if_)
                 , make_builtin("quote", quote)
+                , make_builtin("list", list)
                 ].into_iter().collect() 
             }
     }

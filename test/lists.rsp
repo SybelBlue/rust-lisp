@@ -2,11 +2,6 @@
 
 (defn nil? [x] (= '() x))
 
-(defn list [a ...rest]
-    (cons a 
-        (if (nil? rest) 
-            '() 
-            (ap list rest))))
 
 (defn -pairs [a b ...rest]
     (cons

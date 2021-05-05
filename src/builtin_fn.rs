@@ -1,11 +1,10 @@
-use crate::{
-    context::Context, 
-    evaluator::{*,
+use std::collections::VecDeque;
+
+use crate::{context::Context, evaluator::{*,
         result::{*, Error::*}, 
         value::Value::{self, *},
         token::Token
-    }
-};
+    }};
 
 #[derive(Clone)]
 pub struct BuiltInFn {
@@ -173,5 +172,9 @@ pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
 }
 
 pub fn quote(_: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
-    Ok(Value::Quote(tokens))
+    Ok(Quote(tokens))
+}
+
+pub fn list(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    eval_all(ctxt, tokens).map(VecDeque::from).map(List)
 }
