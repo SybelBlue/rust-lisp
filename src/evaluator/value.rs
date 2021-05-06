@@ -127,7 +127,15 @@ impl Value {
                 };
                 (bifn.f)(ctxt, tail)
             },
-            Quote(form) => run_form(form, ctxt),
+            Quote(form) => {
+                if form.len() == 1 {
+                    let f = form.first().expect("form check failed");
+                    if let Expr::Lit(v) = &f.expr {
+                        return Ok(v.clone());
+                    }
+                }
+                run_form(form, ctxt)
+            },
             Unit | Int(_) | Float(_) | List(_) => {
                 let len = match r_tail {
                     Ok(ts) => ts.len(),

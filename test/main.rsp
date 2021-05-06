@@ -28,7 +28,7 @@
 
 (macro switch [b 'x ...rest]
     (if b 
-        (head x)
+        (x)
         (ap switch rest)))
 
 (defn err [] (range 0 10000))
