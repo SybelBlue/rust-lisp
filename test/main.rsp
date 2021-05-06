@@ -25,3 +25,19 @@
 (ap + (range 1 5))
 
 (pairs (range 0 10))
+
+
+(macro switch [b 'x ...rest]
+    (if b 
+        (x)
+        rest))
+
+(defn err [] (range 0 10000))
+
+(if (= 1 0)
+    (err)
+    'good)
+
+(switch 
+    (= 1 0) (err)
+    1 'good)

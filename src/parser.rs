@@ -220,20 +220,20 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
         return Ok(Some(out));
     }
 
-    let is_defn = s.as_bytes() == b"defn";
+    let is_def = s.as_bytes() == b"def";
     let is_macro = s.as_bytes() == b"macro";
-    if is_defn || is_macro || s.as_bytes() == b"def" {
+    if is_def || is_macro || s.as_bytes() == b"defn" {
         if is_quote { 
             till_closing_paren(chars);
             return Err(BadQuote(format!("def"), start)) 
         }
         let name = parse_identifier(chars)?;
         let fn_start = chars.file_pos;
-        let e = if is_defn { 
-            parse_fn_decl(chars, is_macro)?
+        let e = if is_def { 
+            parse(chars)
         } else { 
-            parse(chars)? 
-        };
+            parse_fn_decl(chars, is_macro)
+        }?;
         let out = close_target(chars, Token::new(Expr::Def(name, Box::new(e)), fn_start), "def")?;
         return Ok(Some(out));
     }

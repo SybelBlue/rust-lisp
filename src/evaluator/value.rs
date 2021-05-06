@@ -37,9 +37,23 @@ pub enum Value {
     BuiltIn(BuiltInFn),
 }
 
-fn make_arg_error(params: &Vec<Ident>, tail_len: usize, fn_name: &Option<String>) -> Error {
+fn make_arg_error(params_len: usize, tail_len: usize, fn_name: &Option<String>) -> Error {
     let f_name = if let Some(s) = fn_name { s.clone() } else { format!("<anon func>") };
-    Error::ArgError { f_name, expected: params.len(), recieved: tail_len }
+    Error::ArgError { f_name, expected: params_len, recieved: tail_len }
+}
+
+#[inline]
+fn arg_check(
+        tail_len: usize, 
+        fn_name: &Option<String>,
+        params_len: usize, 
+        op_rest: &Option<Ident>)
+         -> EvalResult<()> {
+    if tail_len < params_len || (op_rest.is_none() && tail_len > params_len) {                    
+        Err(make_arg_error(params_len, tail_len, fn_name))
+    } else {
+        Ok(())
+    }
 }
 
 #[inline]
@@ -51,26 +65,17 @@ fn run_fn(
         op_rest: &Option<Ident>, 
         body: &Box<Token>)
          -> EvalResult<Value> {
-    let tail_len = tail.len();
-    if tail_len < params.len() || (op_rest.is_none() && tail_len > params.len()) {                    
-        return Err(make_arg_error(params, tail_len, fn_name))
+    arg_check(tail.len(), fn_name, params.len(), op_rest)?;
+    let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(params.len() + 1));
+    let mut t_iter = tail.into_iter();
+    for p in params.into_iter() {
+        let t = t_iter.next().expect("fn check failed");
+        next.put(p.clone(), t, false, &None)?;
+    }
+    if let Some(r) = op_rest {
+        next.put(r.clone(), List(t_iter.collect()), false, &None)?;
     }
 
-    let mut iter = tail.into_iter();
-    let mut data = CtxtMap::with_capacity(params.len() + 1);
-    for ident in params.iter() {
-        let t = iter.next().expect("simple eval check failed");
-        let v = (t, Some(ident.file_pos));
-        data.insert(ident.name.clone(), v);
-    }
-    
-    if let Some(rest) = op_rest {
-        let qut = List(iter.collect());
-        let v = (qut, Some(rest.file_pos));
-        data.insert(rest.name.clone(), v);
-    }
-
-    let next = ctxt.chain(data);
     body.as_ref().eval(&next)
 }
 
@@ -79,22 +84,29 @@ impl Value {
         match self {
             Macro(macro_params, op_rest, body) => {
                 let macro_params = macro_params.clone();
-                let tail = match r_tail {
+                match r_tail {
                     Ok(ts) => {
-                        let mut tail = Vec::new();
-                        for (t, (b, _)) in ts.into_iter().zip(macro_params.iter()) {
-                            tail.push(if *b {
+                        arg_check(ts.len(), fn_name, macro_params.len(), op_rest)?;
+                        let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(macro_params.len() + 1));
+                        let mut t_iter = ts.into_iter();
+                        for (b, p) in macro_params.into_iter() {
+                            let t = t_iter.next().expect("macro check failed");
+                            let v = if b {
                                 Quote(vec![t])
                             } else {
                                 t.eval(ctxt)?
-                            });
+                            };
+                            next.put(p, v, false, &None)?;
                         }
-                        tail
+                        if let Some(r) = op_rest {
+                            next.put(r.clone(), Quote(t_iter.collect()), false, &None)?;
+                        }
+                        body.as_ref().eval(&next)
                     },
-                    Err((vs, _)) => vs,
-                };
-                let params = macro_params.into_iter().map(|(_, i)| i).collect();
-                run_fn(ctxt, tail, fn_name, &params, op_rest, body)
+                    Err((vs, _)) => 
+                        run_fn(ctxt, vs, fn_name, 
+                            &macro_params.into_iter().map(|(_, i)| i).collect(), op_rest, body),
+                }
             },
             Fn(params, op_rest, body) => {
                 let tail = match r_tail {
