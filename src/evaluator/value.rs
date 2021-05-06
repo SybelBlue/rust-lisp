@@ -97,7 +97,11 @@ impl Value {
                         for (b, p) in macro_params.into_iter() {
                             let t = t_iter.next().expect("macro check failed");
                             let v = if b {
-                                Quote(vec![t])
+                                Quote(if let Expr::Form(form) = t.expr {
+                                    form
+                                } else {
+                                    vec![t]
+                                })
                             } else {
                                 t.eval(ctxt)?
                             };

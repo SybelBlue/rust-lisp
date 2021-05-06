@@ -89,7 +89,7 @@ pub fn eq(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
             return Ok(res)
         }
     }
-    Err(ArgError { f_name: format!("(==)"), recieved: vals.len(), expected: 2 })
+    Err(ArgError { f_name: format!("(=)"), recieved: vals.len(), expected: 2 })
 }
 
 pub fn unpack(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
@@ -140,6 +140,25 @@ pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
             Ok(List(vd))
         },
         v => Err(ValueError(v, format!("Second arg to cons must be quote or list")))
+    }
+}
+
+pub fn append(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    let (f, s) = require_two("append", &tokens)?;
+    let first = f.eval(ctxt)?;
+    match s.eval(ctxt)? {
+        Quote(tail) => {
+            let mut v = Vec::with_capacity(tail.len() + 1);
+            v.extend(tail);
+            v.push(Token::from_value(first, f.file_pos));
+            Ok(Quote(v))
+        },
+        List(tail) => {
+            let mut vd = tail.clone();
+            vd.push_back(first);
+            Ok(List(vd))
+        },
+        v => Err(ValueError(v, format!("Second arg to append must be quote or list")))
     }
 }
 

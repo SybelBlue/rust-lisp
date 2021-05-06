@@ -28,6 +28,7 @@ impl<'a> Context<'a> {
                 , make_builtin("id", id)
                 , make_builtin("quote", quote)
                 , make_builtin("list", list)
+                , make_builtin("append", append)
                 , make_builtin("assert", assert)
                 ].into_iter().collect() 
             }

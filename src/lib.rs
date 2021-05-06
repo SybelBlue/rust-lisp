@@ -104,4 +104,13 @@ mod tests {
             assert_eq!(Ok(Unit), r);
         }
     }
+
+    #[test]
+    fn macros() {
+        let s = std::fs::read_to_string("test/macros.rsp").expect("file not found");
+        let (reses, _) = exec(s);
+        for r in reses {
+            assert_eq!(Ok(Unit), r);
+        }
+    }
 }
