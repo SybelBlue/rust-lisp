@@ -57,9 +57,14 @@ fn arg_check(
 }
 
 #[inline]
+fn into_tokens(vs: Vec<Value>, file_pos: FilePos) -> Vec<Token> {
+    vs.into_iter().map(|v| Token::from_value(v, file_pos)).collect()
+}
+
+#[inline]
 fn run_fn(
         ctxt: &Context, 
-        tail: Vec<Value>, 
+        tail: Vec<Token>, 
         fn_name: &Option<String>,
         params: &Vec<Ident>, 
         op_rest: &Option<Ident>, 
@@ -70,10 +75,10 @@ fn run_fn(
     let mut t_iter = tail.into_iter();
     for p in params.into_iter() {
         let t = t_iter.next().expect("fn check failed");
-        next.put(p.clone(), t, false, &None)?;
+        next.put(p.clone(), t.eval(ctxt)?, false, &None)?;
     }
     if let Some(r) = op_rest {
-        next.put(r.clone(), List(t_iter.collect()), false, &None)?;
+        next.put(r.clone(), Quote(t_iter.collect()), false, &None)?;
     }
 
     body.as_ref().eval(&next)
@@ -103,22 +108,22 @@ impl Value {
                         }
                         body.as_ref().eval(&next)
                     },
-                    Err((vs, _)) => 
-                        run_fn(ctxt, vs, fn_name, 
+                    Err((vs, file_pos)) => 
+                        run_fn(ctxt, into_tokens(vs, file_pos), fn_name, 
                             &macro_params.into_iter().map(|(_, i)| i).collect(), op_rest, body),
                 }
             },
             Fn(params, op_rest, body) => {
                 let tail = match r_tail {
-                    Ok(ts) => eval_all(ctxt, ts)?,
-                    Err((vs, _)) => vs, 
+                    Ok(ts) => ts,
+                    Err((vs, file_pos)) => into_tokens(vs, file_pos), 
                 };
                 run_fn(ctxt, tail, fn_name, params, op_rest, body)
             },
             BuiltIn(bifn) => {
                 let tail = match r_tail {
                     Ok(ts) => ts,
-                    Err((vs, file_pos)) => vs.into_iter().map(|v| Token::from_value(v, file_pos)).collect(),
+                    Err((vs, file_pos)) => into_tokens(vs, file_pos),
                 };
                 (bifn.f)(ctxt, tail)
             },
