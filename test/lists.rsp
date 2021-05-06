@@ -2,6 +2,9 @@
 
 (defn nil? [x] (= '() x))
 
+(defn -head [h ..._] h)
+(defn head [ls] (ap -head ls))
+
 (defn -pairs [a b ...rest]
     (cons
         (list a b)

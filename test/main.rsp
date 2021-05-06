@@ -26,18 +26,19 @@
 
 (pairs (range 0 10))
 
-
 (macro switch [b 'x ...rest]
     (if b 
-        (x)
-        rest))
+        (head x)
+        (ap switch rest)))
 
 (defn err [] (range 0 10000))
 
+(head '('ok err))
 (if (= 1 0)
     (err)
     'good)
 
 (switch 
     (= 1 0) (err)
-    1 'good)
+    (= 2 0) (err)
+    (= 0 0) 'ok)
