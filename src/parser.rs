@@ -215,13 +215,14 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
             till_closing_paren(chars);
             return Err(BadQuote(format!("fn declaration"), start)) 
         }
-        let f = parse_fn_decl(chars)?;
+        let f = parse_fn_decl(chars, false)?;
         let out = close_target(chars, f, "fn declaration")?;
         return Ok(Some(out));
     }
 
     let is_defn = s.as_bytes() == b"defn";
-    if is_defn || s.as_bytes() == b"def" {
+    let is_macro = s.as_bytes() == b"macro";
+    if is_defn || is_macro || s.as_bytes() == b"def" {
         if is_quote { 
             till_closing_paren(chars);
             return Err(BadQuote(format!("def"), start)) 
@@ -229,7 +230,7 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
         let name = parse_identifier(chars)?;
         let fn_start = chars.file_pos;
         let e = if is_defn { 
-            parse_fn_decl(chars)?
+            parse_fn_decl(chars, is_macro)?
         } else { 
             parse(chars)? 
         };
@@ -262,7 +263,7 @@ fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> Par
     }
 }
 
-fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
+fn parse_fn_decl(chars: &mut ParseStream<'_>, is_macro: bool) -> ParseResult<Token> {
     let mark = chars.file_pos;
     if chars.next_if_eq('[') != Some(true) {
         return Err(Missing(format!(" arg list, starting with '['"), chars.file_pos));
@@ -270,6 +271,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     
     skip_whitespace(chars);
     let mut params: Vec<Ident> = Vec::new();
+    let mut quoted = Vec::new();
     let mut p_map = HashMap::with_capacity(6);
     loop {
         match chars.next_if_eq(']') {
@@ -278,25 +280,36 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                 skip_whitespace(chars);
                 let body = Box::new(parse(chars)?);
                 let op_rest = 
-                    if let Some(p) = params.last() {
+                    if let (Some(p), Some(q)) = (params.last(), quoted.last()) {
                         if let Some(new) = p.name.strip_prefix("...") {
+                            if *q {
+                                return Err(BadQuote(format!("macro arg list rest"), p.file_pos))
+                            }
                             let new_pos = &mut p.file_pos.clone();
                             new_pos.col += 3;
-                            Some(Ident::new(String::from(new), *new_pos))
+                            Ok(Some(Ident::new(String::from(new), *new_pos)))
                         } else { 
-                            None 
-                        }    
-                    } else { None };
+                            Ok(None)
+                        }   
+                    } else { Ok(None) }?;
                 
                 if op_rest.is_some() {
                     params.pop();
                 }
 
-                return Ok(Token::from_value(Value::Fn(params, op_rest, body), mark))
+                return Ok(Token::from_value(
+                    if is_macro {
+                        Value::Macro(quoted.into_iter().zip(params.into_iter()).collect(), op_rest, body)
+                    } else {
+                        Value::Fn(params, op_rest, body)
+                    }, 
+                    mark))
             },
             Some(false) => {
+                let is_macro_quoted = is_macro && chars.next_if_eq('\'') == Some(true);
                 let ident = parse_identifier(chars)?;
                 params.push(ident.clone());
+                quoted.push(is_macro_quoted);
                 if let Some(old) = p_map.insert(ident.name.clone(), ident.file_pos) {
                     till_closing_paren(chars);
                     return Err(DupArg { name: ident.name, old, new: ident.file_pos })
