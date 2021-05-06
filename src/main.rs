@@ -3,6 +3,7 @@ use rust_lisp::evaluator::exec;
 // todo:
 //      Strings
 //      fix qualified imports
+//      recur
 //      macros
 //      list-likes (iterator, sll)
 //      pmatch
