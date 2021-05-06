@@ -95,4 +95,13 @@ mod tests {
             assert_eq!(Ok(ex), ac)
         }
     }
+
+    #[test]
+    fn rest() {
+        let s = std::fs::read_to_string("test/rest.rsp").expect("file not found");
+        let (reses, _) = exec(s);
+        for r in reses {
+            assert_eq!(Ok(Unit), r);
+        }
+    }
 }

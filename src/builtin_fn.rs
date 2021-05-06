@@ -176,6 +176,24 @@ pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
         .eval(ctxt)
 }
 
+pub fn assert(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    check_arg_count("assert", &tokens, 1)?;
+
+    let first = tokens.first().expect("prev assert check failed! (0)");
+    let head = first.eval(ctxt)?;
+    let truthy = match head {
+        Int(x) => Ok(x != 0),
+        Float(x) => Ok(x != 0f64),
+        v => Err(ValueError(v, format!("First assert arg must be numeric"))),
+    }?;
+
+    if !truthy {
+        panic!(format!("AssertError: falsy {}", first))
+    }
+
+    Ok(Unit)
+}
+
 pub fn quote(_: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     Ok(Quote(tokens))
 }

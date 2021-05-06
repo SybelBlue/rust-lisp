@@ -1,0 +1,32 @@
+(defn assert-eq [a b] (assert (= a b)))
+
+(defn tail [_ ...t] t)
+(assert-eq '(2 3) (tail 1 2 3)) ;; quoted output
+
+(defn error [] (assert 0))
+
+(defn head [h ..._] h)
+(assert (head 1 (error) (error))) ;; lazy eval
+
+;; helper
+(defn range [s e]
+    (if (= s e)
+        (list)
+        (cons s (range (+ s 1) e))))
+
+(defn sum [x ...rest]
+    (if (= '() rest) ;; comparable (nil checking)
+        x
+        (+ x (ap sum rest)))) ;; recursive ap
+
+(assert-eq (+ 1 2 3 4) (sum 1 2 3 4))
+
+(defn -pairs [a b ...rest] ;; multiple args
+    (cons
+        (list a b)
+        (if (= '() rest) 
+            '()
+            (ap -pairs rest))))
+
+(defn pairs [ls] (ap -pairs ls))
+(assert-eq (list '(1 2) '(3 4) '(5 6)) (pairs (range 1 7)))
