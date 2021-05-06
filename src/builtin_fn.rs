@@ -137,7 +137,7 @@ pub fn cons(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
         List(tail) => {
             let mut vd = tail.clone();
             vd.push_front(first);
-            Ok(List(tail))
+            Ok(List(vd))
         },
         v => Err(ValueError(v, format!("Second arg to cons must be quote or list")))
     }

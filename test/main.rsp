@@ -7,8 +7,9 @@
 (defn ->> [x f ...rest] 
     (if (nil? rest)
         (f x)
-        (cons (f x) rest)))
-
+        (ap ->> (cons (f x) rest))))
+(->> 2
+    ++)
 (->> 2
     ++
     (fn [x] (= 3 x)))
@@ -18,5 +19,9 @@
     ++)
 
 (list (+ 1 2) 4 () (fn [] ()))
+(cons (++ 2) '(2 1))
+
+(ap + '(1 2 3 4))
+(ap + (range 1 5))
 
 (pairs (range 0 10))
