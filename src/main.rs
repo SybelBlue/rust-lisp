@@ -1,12 +1,12 @@
 use rust_lisp::evaluator::exec;
 
 // todo:
-//      Strings
-//      fix qualified imports
 //      recur
-//      macros
-//      list-likes (iterator, sll)
 //      pmatch
+//      let
+//      Strings
+//      fix imports
+//      list-likes (iterator, sll)
 
 fn main() -> std::io::Result<()> {
     let path = std::env::args().nth(1).expect("Need path to file");
