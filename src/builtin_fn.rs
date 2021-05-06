@@ -155,6 +155,11 @@ pub fn ap(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     }
 }
 
+pub fn id(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    check_arg_count("id", &tokens, 1)?;
+    tokens.first().expect("id check failed").eval(ctxt)
+}
+
 pub fn if_(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     check_arg_count("if", &tokens, 3)?;
 

@@ -2,7 +2,6 @@
 
 (defn nil? [x] (= '() x))
 
-
 (defn -pairs [a b ...rest]
     (cons
         (list a b)
@@ -14,5 +13,16 @@
 
 (defn range [s e]
     (if (= s e)
-        '()
+        (list)
         (cons s (range (+ s 1) e))))
+
+(defn -filter [f x ...ls]
+    (if (f x)
+        (if (nil? ls)
+            (list x)
+            (cons x (filter f ls)))
+        (if (nil? ls)
+            (list)
+            (cons x (filter f ls)))))
+(defn filter [f ls]
+    (-filter f ls))
