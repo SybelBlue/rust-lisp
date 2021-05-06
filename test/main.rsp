@@ -4,11 +4,18 @@
 
 (defn ++ [x] (+ x 1))
 
-(defn ->> [x g f] (f (g x)))
+(defn ->> [x f ...rest] 
+    (if (nil? rest)
+        (f x)
+        (cons (f x) rest)))
 
 (->> 2
     ++
     (fn [x] (= 3 x)))
+(->> 2
+    ++
+    ++
+    ++)
 
 (list (+ 1 2) 4 () (fn [] ()))
 

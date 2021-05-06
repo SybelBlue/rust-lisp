@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 use crate::{builtin_fn::BuiltInFn, context::{Context, CtxtMap}, evaluator::*};
 
 
-pub fn form_string(form: &Vec<Token>) -> String {
+pub fn form_string(form: &[Token]) -> String {
     form.iter().map(|t| format!("{}", t)).collect::<Vec<String>>().join(" ")
 }
 
@@ -64,7 +64,7 @@ impl Value {
                 }
                 
                 if let Some(rest) = op_rest {
-                    let qut = Value::Quote(iter.map(|t| Token::from_value(t, rest.file_pos)).collect());
+                    let qut = Value::List(iter.collect());
                     let v = (qut, Some(rest.file_pos));
                     data.insert(rest.name.clone(), v);
                 }
