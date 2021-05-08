@@ -10,7 +10,6 @@ pub type CtxtMap = HashMap<String, CtxtMapValue>;
 pub enum Context<'a> {
     FnStack {
         data: CtxtMap,
-        caller: &'a Value,
         prev: &'a Context<'a>,
     },
     Base {
@@ -101,7 +100,7 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn chain(&'a self, data: CtxtMap, caller: &'a Value) -> Self {
-        Self::FnStack { data, caller, prev: &self }
+    pub fn chain(&'a self, data: CtxtMap) -> Self {
+        Self::FnStack { data, prev: &self }
     }
 }

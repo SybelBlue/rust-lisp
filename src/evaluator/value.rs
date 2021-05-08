@@ -63,7 +63,6 @@ fn into_tokens(vs: Vec<Value>, file_pos: FilePos) -> Vec<Token> {
 
 #[inline]
 fn run_fn(
-        caller: &Value,
         ctxt: &Context, 
         tail: Vec<Token>, 
         fn_name: &Option<String>,
@@ -72,7 +71,7 @@ fn run_fn(
         body: &Box<Token>)
          -> EvalResult<Value> {
     arg_check(tail.len(), fn_name, params.len(), op_rest)?;
-    let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(params.len() + 1), caller);
+    let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(params.len() + 1));
     let mut t_iter = tail.into_iter();
     for p in params.into_iter() {
         let t = t_iter.next().expect("fn check failed");
@@ -93,7 +92,7 @@ impl Value {
                 match r_tail {
                     Ok(ts) => {
                         arg_check(ts.len(), fn_name, macro_params.len(), op_rest)?;
-                        let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(macro_params.len() + 1), self);
+                        let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(macro_params.len() + 1));
                         let mut t_iter = ts.into_iter();
                         for (b, p) in macro_params.into_iter() {
                             let t = t_iter.next().expect("macro check failed");
@@ -114,7 +113,7 @@ impl Value {
                         body.as_ref().eval(&next)
                     },
                     Err((vs, file_pos)) => 
-                        run_fn(self, ctxt, into_tokens(vs, file_pos), fn_name, 
+                        run_fn(ctxt, into_tokens(vs, file_pos), fn_name, 
                             &macro_params.into_iter().map(|(_, i)| i).collect(), op_rest, body),
                 }
             },
@@ -123,7 +122,7 @@ impl Value {
                     Ok(ts) => ts,
                     Err((vs, file_pos)) => into_tokens(vs, file_pos), 
                 };
-                run_fn(self, ctxt, tail, fn_name, params, op_rest, body)
+                run_fn(ctxt, tail, fn_name, params, op_rest, body)
             },
             BuiltIn(bifn) => {
                 let tail = match r_tail {

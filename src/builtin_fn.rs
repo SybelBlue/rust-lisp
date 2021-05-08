@@ -1,11 +1,15 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
-use crate::{context::Context, evaluator::{*,
+use crate::{
+    context::{Context, CtxtMap, CtxtMapValue}, 
+    evaluator::{
+        *, 
+        expr::Expr, 
         result::{*, Error::*}, 
-        value::Value::{self, *},
-        token::Token,
-        expr::Expr
-    }};
+        token::Token, 
+        value::{Value::{self, *}
+    }
+}};
 
 #[derive(Clone)]
 pub struct BuiltInFn {
@@ -220,4 +224,84 @@ pub fn quote(_: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
 
 pub fn list(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     eval_all(ctxt, tokens).map(VecDeque::from).map(List)
+}
+
+pub fn p_match(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
+    let t_len = tokens.len();
+    let mut t_iter = tokens.into_iter();
+    let val = t_iter.next()
+        .ok_or_else(|| Error::ArgError { f_name: format!("match"), recieved: 0, expected: t_len })?
+        .eval(ctxt)?;
+    
+    while let Some(template) = t_iter.next() {
+        let branch = t_iter.next()
+            .ok_or_else(|| Error::ArgError { f_name: format!("match"), recieved: t_len, expected: t_len + 1 })?;
+        match matches_(ctxt, &val, template)? {
+            MatchResult::NoMatch => {},
+            MatchResult::Matches => {},
+            MatchResult::NewCtxt(_) => {},
+        }
+    }
+
+    todo!()
+}
+
+enum MatchResult {
+    NoMatch,
+    Matches,
+    NewCtxt(HashMap<String, CtxtMapValue>),
+}
+
+fn matches_<'a>(ctxt: &'a Context<'a>, val: &Value, template: Token) -> EvalResult<MatchResult> {
+    use MatchResult::*;
+    match template.expr {
+        Expr::Var(x) => {
+            let mut next = CtxtMap::with_capacity(1);
+            next.insert(x, (val.clone(), Some(template.file_pos)));
+            Ok(NewCtxt(next))
+        },
+        Expr::Lit(v) => { 
+            Ok(if &v == val {
+                Matches
+            } else {
+                NoMatch
+            })
+         },
+        Expr::Form(form) => { 
+            match val {
+                Quote(v) => {
+                    if v.len() != form.len() { 
+                        Ok(NoMatch)
+                    } else {
+                        let mut next = CtxtMap::with_capacity(v.len());
+                        for (tk, to) in v.iter().zip(form) {
+                            match matches_(ctxt, &tk.eval(ctxt)?, to)? {
+                                NoMatch => return Ok(NoMatch),
+                                Matches => {},
+                                NewCtxt(x) => next.extend(x), // todo! can redef variables!
+                            }
+                        }
+                        Ok(NewCtxt(next))
+                    }
+                },
+                List(v) => {
+                    if v.len() != form.len() { 
+                        Ok(NoMatch)
+                    } else {
+                        let mut next = CtxtMap::with_capacity(v.len());
+                        for (va, to) in v.iter().zip(form) {
+                            match matches_(ctxt, va, to)? {
+                                NoMatch => return Ok(NoMatch),
+                                Matches => {},
+                                NewCtxt(x) => next.extend(x), // todo! can redef variables!
+                            }
+                        }
+                        Ok(NewCtxt(next))
+                    }
+                },
+                _ => Ok(NoMatch)
+            }
+        },
+        Expr::Def(_, _) | Expr::Import(_, _) => Err(ValueError(Unit, format!("matches requires a literal, variable, or form template")))
+    }
 }
