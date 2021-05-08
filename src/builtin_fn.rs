@@ -3,7 +3,8 @@ use std::collections::VecDeque;
 use crate::{context::Context, evaluator::{*,
         result::{*, Error::*}, 
         value::Value::{self, *},
-        token::Token
+        token::Token,
+        expr::Expr
     }};
 
 #[derive(Clone)]

@@ -6,7 +6,7 @@ pub(crate) mod builtin_fn;
 
 #[cfg(test)]
 mod tests {
-    use crate::evaluator::{*, token::*, Expr::*, result::{FilePos, Error::*}, value::{Ident, Value::*}};
+    use crate::evaluator::{*, token::*, expr::Expr::*, result::{FilePos, Error::*}, value::{Ident, Value::*}};
 
     #[test]
     fn basics() {

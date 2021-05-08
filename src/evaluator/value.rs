@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{builtin_fn::BuiltInFn, context::{Context, CtxtMap}, evaluator::{*, value::Value::*}};
+use crate::{builtin_fn::BuiltInFn, context::{Context, CtxtMap}, evaluator::{*, value::Value::*, expr::*}};
 
 
 pub fn form_string(form: &[Token]) -> String {
