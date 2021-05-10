@@ -238,12 +238,11 @@ pub fn p_match(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
             .ok_or_else(|| Error::ArgError { f_name: format!("match"), recieved: t_len, expected: t_len + 1 })?;
         match matches_(ctxt, &val, template)? {
             MatchResult::NoMatch => {},
-            MatchResult::Matches => {},
-            MatchResult::NewCtxt(_) => {},
+            MatchResult::Matches => return branch.eval(ctxt),
+            MatchResult::NewCtxt(data) => return branch.eval(&ctxt.chain(data)),
         }
     }
-
-    todo!()
+    Err(ArgError { f_name: format!("match"), recieved: t_len, expected: t_len + 2 })
 }
 
 enum MatchResult {
