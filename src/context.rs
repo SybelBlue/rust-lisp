@@ -103,4 +103,8 @@ impl<'a> Context<'a> {
     pub fn chain(&'a self, data: CtxtMap) -> Self {
         Self::FnStack { data, prev: &self }
     }
+
+    pub fn chain_new(&'a self, capacity: usize) -> Self {
+        self.chain(CtxtMap::with_capacity(capacity))
+    }
 }

@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{builtin_fn::BuiltInFn, context::{Context, CtxtMap}, evaluator::{*, value::Value::*, expr::*}};
+use crate::{builtin_fn::BuiltInFn, context::Context, evaluator::{*, value::Value::*, expr::*}};
 
 
 pub fn form_string(form: &[Token]) -> String {
@@ -71,7 +71,7 @@ fn run_fn(
         body: &Box<Token>)
          -> EvalResult<Value> {
     arg_check(tail.len(), fn_name, params.len(), op_rest)?;
-    let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(params.len() + 1));
+    let mut next = ctxt.chain_new(params.len() + 1);
     let mut t_iter = tail.into_iter();
     for p in params.into_iter() {
         let t = t_iter.next().expect("fn check failed");
@@ -92,7 +92,7 @@ impl Value {
                 match r_tail {
                     Ok(ts) => {
                         arg_check(ts.len(), fn_name, macro_params.len(), op_rest)?;
-                        let mut next = Context::chain(&ctxt, CtxtMap::with_capacity(macro_params.len() + 1));
+                        let mut next = ctxt.chain_new(macro_params.len() + 1);
                         let mut t_iter = ts.into_iter();
                         for (b, p) in macro_params.into_iter() {
                             let t = t_iter.next().expect("macro check failed");
