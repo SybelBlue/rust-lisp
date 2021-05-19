@@ -42,10 +42,6 @@ fn main() -> std::io::Result<()> {
     reader.set_prompt(">> ")?;
     
     while let ReadResult::Input(input) = reader.read_line()? {
-        if input.as_bytes() == b"dir" {
-            println!("{:?}", ctxt.dir());
-            continue;
-        }
         let reses = exec_using(input, &mut ctxt, &None);
         for r in reses {
             match r {

@@ -226,6 +226,12 @@ pub fn list(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     eval_all(ctxt, tokens).map(VecDeque::from).map(List)
 }
 
+pub fn dir<'a>(ctxt: &'a Context<'a>, tokens: Vec<Token>) -> EvalResult<Value> {
+    check_arg_count("dir", &tokens, 0)?;
+
+    Ok(Quote(ctxt.dir().into_iter().map(|s| Token::new(Expr::Var(s.clone()), FilePos::new())).collect()))
+}
+
 pub fn p_match(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     let t_len = tokens.len();
     let mut t_iter = tokens.into_iter();

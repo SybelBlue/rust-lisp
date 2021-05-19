@@ -36,6 +36,7 @@ impl<'a> Context<'a> {
                 , make_builtin("append", append)
                 , make_builtin("assert", assert)
                 , make_builtin("match", p_match)
+                , make_builtin("dir", dir)
                 ].into_iter().collect() 
             }
     }
