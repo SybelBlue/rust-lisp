@@ -108,4 +108,13 @@ impl<'a> Context<'a> {
     pub fn chain_new(&'a self, capacity: usize) -> Self {
         self.chain(CtxtMap::with_capacity(capacity))
     }
+
+    pub fn dir(&'a self) -> Vec<&'a String> {
+        let d = self.get_data().keys();
+        if let Some(prev) = self.get_prev() {
+            d.chain(prev.dir()).collect()
+        } else {
+            d.collect()
+        }
+    }
 }
