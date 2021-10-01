@@ -1,10 +1,9 @@
-use std::collections::VecDeque;
-
 use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*, token::Token, expr::Expr};
 
 
 pub fn form_string(form: &[Token]) -> String {
-    form.iter().map(|t| format!("{:?}", t)).collect::<Vec<String>>().join(" ")
+    // form.iter().map(|t| t.data.clone()).collect::<Vec<String>>().join(" ")
+    unimplemented!()
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

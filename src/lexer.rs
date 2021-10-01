@@ -1,6 +1,6 @@
-use std::{collections::HashMap, iter::Peekable, str::Chars};
+use std::{iter::Peekable, str::Chars};
 
-use crate::{result::FilePos, value::{Ident, Value}, token::Token};
+use crate::{result::FilePos, value::Ident, token::Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LexError {
@@ -160,7 +160,7 @@ pub fn lex(chars: &mut LexStream<'_>) -> LexResult<Token> {
     let eof_msg = Eof(format!("closing ')'"));
     let start = chars.file_pos;
 
-    let is_quote = chars.next_if_eq('\'') == Some(true);
+    // let is_quote = chars.next_if_eq('\'') == Some(true);
 
     if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
         skip_whitespace(chars);
@@ -171,153 +171,28 @@ pub fn lex(chars: &mut LexStream<'_>) -> LexResult<Token> {
                 Some(true) => { 
                     skip_whitespace(chars); 
                     // let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
-                    unimplemented!();
-                    // return Ok(Token::new(out, start));
+                    return Ok(Token::Form(v));
                 },
                 Some(false) => {
                     match lex(chars) {
-                        Ok(e) => {
-                            if v.is_empty() {
-                                // if let Var(s) = &e.expr {
-                                //     let sf = lex_special_form(chars, s, start, is_quote)?;
-                                //     if let Some(out) = sf {
-                                //         return Ok(out)
-                                //     }
-                                // }
-                                unimplemented!()
-                            }
-                            v.push(e);
-                        },
-                        Err(e) => {
+                        Ok(e) => v.push(e),
+                        Err(e) =>
                             return Err(if !till_closing_paren(chars) {
                                 eof_msg
                             } else {
                                 e
-                            })
-                        },
+                            }),
                     }
                 },
             }
         }
     } else {
-        // let t = match lex_ident_or_literal(chars)? {
-        //     Ok(v) => Token::new(Lit(v), start),
-        //     Err(ident) => Token::from_ident(ident),
-        // };
-        unimplemented!();
+        let t = match lex_ident_or_literal(chars)? {
+            Ok(v) => Token::Lit(start, v),
+            Err(ident) => Token::Str(ident),
+        };
         // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
-    }
-}
-
-fn lex_special_form(chars: &mut LexStream<'_>, s: &String, start: FilePos, is_quote: bool) -> LexResult<Option<Token>> {
-    if s.as_bytes() == b"fn" {
-        if is_quote { 
-            till_closing_paren(chars);
-            return Err(BadQuote(format!("fn declaration"), start)) 
-        }
-        let f = lex_fn_decl(chars, false)?;
-        let out = close_target(chars, f, "fn declaration")?;
-        return Ok(Some(out));
-    }
-
-    let is_def = s.as_bytes() == b"def";
-    let is_macro = s.as_bytes() == b"macro";
-    if is_def || is_macro || s.as_bytes() == b"defn" {
-        if is_quote { 
-            till_closing_paren(chars);
-            return Err(BadQuote(format!("def"), start)) 
-        }
-        let name = lex_identifier(chars)?;
-        let fn_start = chars.file_pos;
-        let e = if is_def { 
-            lex(chars)
-        } else { 
-            lex_fn_decl(chars, is_macro)
-        }?;
-        unimplemented!()
-        // let out = close_target(chars, Token::new(Expr::Def(name, Box::new(e)), fn_start), "def")?;
-        // return Ok(Some(out));
-    }
-
-    if s.as_bytes() == b"import" {
-        if is_quote {
-            till_closing_paren(chars);
-            return Err(BadQuote(format!("import"), start))
-        }
-
-        let name = lex_identifier(chars)?;
-        let alias = lex_identifier(chars).ok();
-        unimplemented!()
-        // let output = Token::new(Expr::Import(name, alias), start);
-        // let out = close_target(chars, output, "import")?;
-        // return Ok(Some(out));
-    }
-
-    Ok(None)
-}
-
-fn close_target(chars: &mut LexStream<'_>, output: Token, target: &str) -> LexResult<Token> {
-    if chars.next_if_eq(')').ok_or_else(|| Eof(format!("closing ')'")))? {
-        skip_whitespace(chars);
-        Ok(output)
-    } else {
-        Err(Missing(format!("end of form after {}", target), chars.file_pos))
-    }
-}
-
-fn lex_fn_decl(chars: &mut LexStream<'_>, is_macro: bool) -> LexResult<Token> {
-    let mark = chars.file_pos;
-    if chars.next_if_eq('[') != Some(true) {
-        return Err(Missing(format!(" arg list, starting with '['"), chars.file_pos));
-    }
-    
-    skip_whitespace(chars);
-    let mut params: Vec<Ident> = Vec::new();
-    let mut quoted = Vec::new();
-    let mut p_map = HashMap::with_capacity(6);
-    loop {
-        match chars.next_if_eq(']') {
-            None => return Err(Eof(format!("closing ']'"))),
-            Some(true) => {
-                skip_whitespace(chars);
-                let body = Box::new(lex(chars)?);
-                let op_rest = 
-                    if let (Some(p), Some(q)) = (params.last(), quoted.last()) {
-                        if let Some(new) = p.name.strip_prefix("...") {
-                            if *q {
-                                return Err(BadQuote(format!("macro arg list rest"), p.file_pos))
-                            }
-                            let new_pos = &mut p.file_pos.clone();
-                            new_pos.col += 3;
-                            Ok(Some(Ident::new(String::from(new), *new_pos)))
-                        } else { 
-                            Ok(None)
-                        }   
-                    } else { Ok(None) }?;
-                
-                if op_rest.is_some() {
-                    params.pop();
-                }
-                unimplemented!()
-                // return Ok(Token::from_value(
-                //     if is_macro {
-                //         Value::Macro(quoted.into_iter().zip(params.into_iter()).collect(), op_rest, body)
-                //     } else {
-                //         Value::Fn(params, op_rest, body)
-                //     }, 
-                //     mark))
-            },
-            Some(false) => {
-                let is_macro_quoted = is_macro && chars.next_if_eq('\'') == Some(true);
-                let ident = lex_identifier(chars)?;
-                params.push(ident.clone());
-                quoted.push(is_macro_quoted);
-                if let Some(old) = p_map.insert(ident.name.clone(), ident.file_pos) {
-                    till_closing_paren(chars);
-                    return Err(DupArg { name: ident.name, old, new: ident.file_pos })
-                }
-            }
-        }
+        Ok(t)
     }
 }
 
@@ -336,13 +211,11 @@ fn lex_identifier(chars: &mut LexStream<'_>) -> LexResult<Ident> {
     Ok(Ident::new(name, file_pos))
 }
 
-fn lex_ident_or_literal(chars: &mut LexStream<'_>) -> LexResult<Result<Value, Ident>> {
+fn lex_ident_or_literal(chars: &mut LexStream<'_>) -> LexResult<Result<i64, Ident>> {
     match lex_identifier(chars) {
         Ok(n) => {
-            Ok(if let Ok(x) = n.name.lex() {
-                Ok(Value::Int(x))
-            // } else if let Ok(x) = n.name.lex() {
-            //     Ok(Value::Float(x))
+            Ok(if let Ok(x) = n.name.parse() {
+                Ok(x)
             } else {
                 Err(n)
             })

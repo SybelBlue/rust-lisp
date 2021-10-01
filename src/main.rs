@@ -50,6 +50,9 @@ fn main() -> std::io::Result<()> {
         //         Err(e) => println!("** {} ", e),
         //     }
         // }
+        let mut cs = input.chars().peekable();
+        let mut lexstream = rust_lisp::lexer::LexStream::new(&mut cs);
+        println!("{:?}", rust_lisp::lexer::lex(&mut lexstream));
     }
     
     println!("Batch finished w/ {} symbols", ctxt.size());
