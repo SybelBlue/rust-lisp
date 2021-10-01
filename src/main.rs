@@ -12,9 +12,9 @@ use rust_lisp::{context::Context};
 
 fn main() -> std::io::Result<()> {
     let arg = std::env::args().nth(1);
-    let mut ctxt = arg.map_or_else(Context::new, |path| {
+    let ctxt = arg.map_or_else(Context::new, |path| {
         match std::fs::read_to_string(path.as_str()) {
-            Ok(s) => {
+            Ok(_s) => {
                 println!("Loading {}...", path);
 
                 // let (reses, ctxt) = exec(s.clone());
@@ -52,7 +52,7 @@ fn main() -> std::io::Result<()> {
         // }
         let mut cs = input.chars().peekable();
         let mut lexstream = rust_lisp::lexer::LexStream::new(&mut cs);
-        println!("{:?}", rust_lisp::lexer::lex(&mut lexstream));
+        println!("{:?}", rust_lisp::lexer::lex_all(&mut lexstream));
     }
     
     println!("Batch finished w/ {} symbols", ctxt.size());

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{value::{Ident, Value}, result::*};
 
-use crate::builtin_fn::*;
+// use crate::builtin_fn::*;
 
 pub type CtxtMapValue = (Value, Option<FilePos>);
 pub type CtxtMap = HashMap<String, CtxtMapValue>;
@@ -88,7 +88,7 @@ impl Context {
         }
     }
 
-    pub fn chain(&self, data: CtxtMap) -> Self {
+    pub fn chain(&self, _data: CtxtMap) -> Self {
         unimplemented!()
     }
 
