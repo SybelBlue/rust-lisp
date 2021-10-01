@@ -1,0 +1,43 @@
+;; data, instance, class, if, ==, ::
+
+(data Bool
+    True
+    False)
+
+(and (x :: Bool) (y :: Bool)
+    (if (x == True) (y == True) False)
+
+(or (x :: Bool) (y :: Bool)
+    (if (x == True) True (y == True))
+
+
+(data (IMPData x)
+    (N Int :: IMPData Int)
+    (B Bool :: IMPData Bool))
+
+(false (B False))
+;; false :: IMPData Bool
+(three (N 3))
+;; three :: IMPData Int
+
+
+(class (Mul r l out)
+    (* :: r -> l -> out))
+
+(class (Add r l out)
+    (+ :: r -> l -> out))
+
+
+(linear a b c
+    (+ (* a b) c))
+;; linear :: (Mul p0 p1 t0, Add t0 p3 t1) => p0 -> p1 -> p2 -> t1
+
+(instance (Mul Bool Bool Bool)
+    (* (and)))
+
+(instance (Add Bool Bool Bool)
+    (+ (or)))
+
+
+(main (linear False True True))
+;; generates linear_bool_bool_bool_bool
