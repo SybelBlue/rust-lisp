@@ -3,7 +3,7 @@ use std::{collections::HashMap, iter::Peekable, str::Chars};
 use crate::{result::FilePos, value::{Ident, Value}, token::Token};
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ParseError {
+pub enum LexError {
     Eof(String),
     BadChar(String, FilePos, char),
     Missing(String, FilePos),
@@ -11,11 +11,11 @@ pub enum ParseError {
     DupArg { name: String, old: FilePos, new: FilePos },
 }
 
-pub type ParseResult<T> = Result<T, ParseError>;
+pub type LexResult<T> = Result<T, LexError>;
 
-use ParseError::*;
+use LexError::*;
 
-impl std::fmt::Display for ParseError {
+impl std::fmt::Display for LexError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Eof(x) => write!(f, "Expected {} before end of file", x),
@@ -28,14 +28,14 @@ impl std::fmt::Display for ParseError {
 }
 
 #[derive(Debug)]
-pub struct ParseStream<'a> {
+pub struct LexStream<'a> {
     file_pos: FilePos,
     iter: &'a mut Peekable<Chars<'a>>,
 }
 
-impl<'a> ParseStream<'a> {
+impl<'a> LexStream<'a> {
     pub fn new(iter: &'a mut Peekable<Chars<'a>>) -> Self {
-        Self { file_pos: FilePos::new(), iter }
+        LexStream { file_pos: FilePos::new(), iter }
     }
 
     pub fn has_next(&mut self) -> bool {
@@ -77,7 +77,7 @@ impl<'a> ParseStream<'a> {
     }
 }
 
-fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String {
+fn take_while<F : Fn(char) -> bool>(chars: &mut LexStream<'_>, f: F) -> String {
     let mut s = String::new();
     while let Some(&c) = chars.peek() {
         if f(c) {
@@ -90,7 +90,7 @@ fn take_while<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, f: F) -> String
     s
 }
 
-fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str, f: F) -> ParseResult<String> {
+fn many1<F : Fn(char) -> bool>(chars: &mut LexStream<'_>, target: &'static str, f: F) -> LexResult<String> {
     let s = take_while(chars, f);
     if s.len() == 0 {
         let ls = chars.file_pos;
@@ -104,20 +104,20 @@ fn many1<F : Fn(char) -> bool>(chars: &mut ParseStream<'_>, target: &'static str
     }
 }
 
-fn skip_whitespace(chars: &mut ParseStream<'_>) {
+fn skip_whitespace(chars: &mut LexStream<'_>) {
     take_while(chars, char::is_whitespace);
     if Some(true) == chars.next_if_eq(';')  {
         skip_past_eol(chars);
     }
 }
 
-fn skip_past_eol(chars: &mut ParseStream<'_>) {
+fn skip_past_eol(chars: &mut LexStream<'_>) {
     take_while(chars, |c| !is_newline(c));
     chars.next();
     skip_whitespace(chars);
 }
 
-fn till_closing_paren(chars: &mut ParseStream<'_>) -> bool {
+fn till_closing_paren(chars: &mut LexStream<'_>) -> bool {
     let mut n = 1u8;
     while let Some(c) = chars.next() {
         match c {
@@ -140,12 +140,12 @@ fn is_newline(c: char) -> bool {
     c == '\n' || c == '\r'
 }
 
-pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
+pub fn lex_all(chars: &mut LexStream<'_>) -> Vec<LexResult<Token>> {
     let mut v = Vec::new();
     skip_whitespace(chars);
     let mut last_loc = chars.file_pos;
     while chars.peek().is_some() {
-        let e = parse(chars);
+        let e = lex(chars);
         if last_loc == chars.file_pos {
             chars.next();
             skip_past_eol(chars);
@@ -156,7 +156,7 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
     v
 }
 
-pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
+pub fn lex(chars: &mut LexStream<'_>) -> LexResult<Token> {
     let eof_msg = Eof(format!("closing ')'"));
     let start = chars.file_pos;
 
@@ -175,11 +175,11 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                     // return Ok(Token::new(out, start));
                 },
                 Some(false) => {
-                    match parse(chars) {
+                    match lex(chars) {
                         Ok(e) => {
                             if v.is_empty() {
                                 // if let Var(s) = &e.expr {
-                                //     let sf = parse_special_form(chars, s, start, is_quote)?;
+                                //     let sf = lex_special_form(chars, s, start, is_quote)?;
                                 //     if let Some(out) = sf {
                                 //         return Ok(out)
                                 //     }
@@ -200,7 +200,7 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             }
         }
     } else {
-        // let t = match parse_ident_or_literal(chars)? {
+        // let t = match lex_ident_or_literal(chars)? {
         //     Ok(v) => Token::new(Lit(v), start),
         //     Err(ident) => Token::from_ident(ident),
         // };
@@ -209,13 +209,13 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
     }
 }
 
-fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, is_quote: bool) -> ParseResult<Option<Token>> {
+fn lex_special_form(chars: &mut LexStream<'_>, s: &String, start: FilePos, is_quote: bool) -> LexResult<Option<Token>> {
     if s.as_bytes() == b"fn" {
         if is_quote { 
             till_closing_paren(chars);
             return Err(BadQuote(format!("fn declaration"), start)) 
         }
-        let f = parse_fn_decl(chars, false)?;
+        let f = lex_fn_decl(chars, false)?;
         let out = close_target(chars, f, "fn declaration")?;
         return Ok(Some(out));
     }
@@ -227,12 +227,12 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
             till_closing_paren(chars);
             return Err(BadQuote(format!("def"), start)) 
         }
-        let name = parse_identifier(chars)?;
+        let name = lex_identifier(chars)?;
         let fn_start = chars.file_pos;
         let e = if is_def { 
-            parse(chars)
+            lex(chars)
         } else { 
-            parse_fn_decl(chars, is_macro)
+            lex_fn_decl(chars, is_macro)
         }?;
         unimplemented!()
         // let out = close_target(chars, Token::new(Expr::Def(name, Box::new(e)), fn_start), "def")?;
@@ -245,8 +245,8 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
             return Err(BadQuote(format!("import"), start))
         }
 
-        let name = parse_identifier(chars)?;
-        let alias = parse_identifier(chars).ok();
+        let name = lex_identifier(chars)?;
+        let alias = lex_identifier(chars).ok();
         unimplemented!()
         // let output = Token::new(Expr::Import(name, alias), start);
         // let out = close_target(chars, output, "import")?;
@@ -256,7 +256,7 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
     Ok(None)
 }
 
-fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> ParseResult<Token> {
+fn close_target(chars: &mut LexStream<'_>, output: Token, target: &str) -> LexResult<Token> {
     if chars.next_if_eq(')').ok_or_else(|| Eof(format!("closing ')'")))? {
         skip_whitespace(chars);
         Ok(output)
@@ -265,7 +265,7 @@ fn close_target(chars: &mut ParseStream<'_>, output: Token, target: &str) -> Par
     }
 }
 
-fn parse_fn_decl(chars: &mut ParseStream<'_>, is_macro: bool) -> ParseResult<Token> {
+fn lex_fn_decl(chars: &mut LexStream<'_>, is_macro: bool) -> LexResult<Token> {
     let mark = chars.file_pos;
     if chars.next_if_eq('[') != Some(true) {
         return Err(Missing(format!(" arg list, starting with '['"), chars.file_pos));
@@ -280,7 +280,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>, is_macro: bool) -> ParseResult<Tok
             None => return Err(Eof(format!("closing ']'"))),
             Some(true) => {
                 skip_whitespace(chars);
-                let body = Box::new(parse(chars)?);
+                let body = Box::new(lex(chars)?);
                 let op_rest = 
                     if let (Some(p), Some(q)) = (params.last(), quoted.last()) {
                         if let Some(new) = p.name.strip_prefix("...") {
@@ -309,7 +309,7 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>, is_macro: bool) -> ParseResult<Tok
             },
             Some(false) => {
                 let is_macro_quoted = is_macro && chars.next_if_eq('\'') == Some(true);
-                let ident = parse_identifier(chars)?;
+                let ident = lex_identifier(chars)?;
                 params.push(ident.clone());
                 quoted.push(is_macro_quoted);
                 if let Some(old) = p_map.insert(ident.name.clone(), ident.file_pos) {
@@ -329,19 +329,19 @@ fn valid_ident_char(c: char) -> bool {
         && c != '\''
 }
 
-fn parse_identifier(chars: &mut ParseStream<'_>) -> ParseResult<Ident> {
+fn lex_identifier(chars: &mut LexStream<'_>) -> LexResult<Ident> {
     let file_pos = chars.file_pos;
     let name = many1(chars, "an identifier", valid_ident_char)?;
     skip_whitespace(chars);
     Ok(Ident::new(name, file_pos))
 }
 
-fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Value, Ident>> {
-    match parse_identifier(chars) {
+fn lex_ident_or_literal(chars: &mut LexStream<'_>) -> LexResult<Result<Value, Ident>> {
+    match lex_identifier(chars) {
         Ok(n) => {
-            Ok(if let Ok(x) = n.name.parse() {
+            Ok(if let Ok(x) = n.name.lex() {
                 Ok(Value::Int(x))
-            // } else if let Ok(x) = n.name.parse() {
+            // } else if let Ok(x) = n.name.lex() {
             //     Ok(Value::Float(x))
             } else {
                 Err(n)

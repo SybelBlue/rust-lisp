@@ -1,4 +1,4 @@
-pub mod parser;
+pub mod lexer;
 pub mod result;
 pub mod expr;
 pub mod value;

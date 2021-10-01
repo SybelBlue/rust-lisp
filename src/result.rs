@@ -1,4 +1,4 @@
-use crate::{parser::ParseError, value::{Value, Ident}};
+use crate::{lexer::LexError, value::{Value, Ident}};
 
 pub type EvalResult<T> = Result<T, Error>;
 
@@ -10,7 +10,7 @@ pub enum Error {
     IllegalDefError(Ident),
     NameError(Ident),
     RedefError(Ident, String),
-    ParseError(ParseError),
+    LexError(LexError),
     ImportError(Ident, String),
 }
 
@@ -26,7 +26,7 @@ impl std::fmt::Display for Error {
             Error::NameError(n) => write!(f, "NameError({}): not defined in scope at {}", n.name, n.file_pos),
             Error::RedefError(orig, n) => 
                 write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
-            Error::ParseError(p) => write!(f, "ParseError: {}", p),
+            Error::LexError(p) => write!(f, "LexError: {}", p),
             Error::ImportError(n, msg) => write!(f, "ImportError({}): {}", n.name, msg),
         }
     }
