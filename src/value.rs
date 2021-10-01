@@ -1,4 +1,4 @@
-use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*, token::Token, expr::Expr};
+use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*, token::Token};
 
 
 pub fn form_string(_form: &[Token]) -> String {
@@ -24,20 +24,36 @@ impl std::fmt::Display for Ident {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum Type {}
+// #[derive(Debug, Clone, PartialEq)]
+// pub struct Class {
+//     name: Ident,
+//     vars: Vec<Ident>,
+// }
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Type {
+    Int,
+    Usr(Ident, Vec<Type>),
+    Var(String),
+    Arrow(Ident, Box<Type>, Box<Type>),
+    // Constraint(Class, Box<Type>)
+}
 
 #[derive(Debug, Clone)]
 pub enum Value {
-    Int(i64),
     Fn(Type, String, Box<Expr>),
     BuiltIn(BuiltInFn),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Expr {
+    // pub tp: Type,
+    // pub expr: ExprBody
 }
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Int(x) => write!(f, "{}", x),
             Fn(tp, _, _) => write!(f, "<func: {:?}>", tp),
             BuiltIn(bifn) => write!(f, "<builtin func {}>", bifn.name),
         }
@@ -47,8 +63,6 @@ impl std::fmt::Display for Value {
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Int(x), Int(y)) => x == y,
-            (Int(_), _) => false,
             (Fn(_, r, x), 
                 Fn(_, s, y)) => 
                     r == s && x == y,

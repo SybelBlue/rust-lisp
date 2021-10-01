@@ -189,12 +189,12 @@ pub fn lex(chars: &mut LexStream<'_>, require_form: bool) -> LexResult<Token> {
     } else if require_form {
         Err(Missing(format!("( looking for start of form"), start))
     } else {
-        let t = match lex_ident_or_literal(chars)? {
-            Ok(v) => Token::Lit(start, v),
-            Err(ident) => Token::Str(ident),
-        };
+        // let t = match lex_ident_or_literal(chars)? {
+        //     Ok(v) => Token::Lit(start, v),
+        //     Err(ident) => Token::Str(ident),
+        // };
         // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
-        Ok(t)
+        lex_token(chars)
     }
 }
 
@@ -213,15 +213,9 @@ fn lex_identifier(chars: &mut LexStream<'_>) -> LexResult<Ident> {
     Ok(Ident::new(name, file_pos))
 }
 
-fn lex_ident_or_literal(chars: &mut LexStream<'_>) -> LexResult<Result<i64, Ident>> {
+fn lex_token(chars: &mut LexStream<'_>) -> LexResult<Token> {
     match lex_identifier(chars) {
-        Ok(n) => {
-            Ok(if let Ok(x) = n.name.parse() {
-                Ok(x)
-            } else {
-                Err(n)
-            })
-        },
+        Ok(ident) => Ok(Token::new(ident)),
         Err(BadChar(_, fp, c)) => 
             Err(BadChar(format!("identifier or literal"), fp, c)),
         Err(BadQuote(_, fp)) => 
