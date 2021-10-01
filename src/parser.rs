@@ -172,8 +172,9 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                 None => return Err(eof_msg),
                 Some(true) => { 
                     skip_whitespace(chars); 
-                    let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
-                    return Ok(Token::new(out, start));
+                    // let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
+                    unimplemented!();
+                    // return Ok(Token::new(out, start));
                 },
                 Some(false) => {
                     match parse(chars) {
@@ -204,8 +205,8 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             Ok(v) => Token::new(Lit(v), start),
             Err(ident) => Token::from_ident(ident),
         };
-
-        Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
+        unimplemented!();
+        // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
     }
 }
 
@@ -234,8 +235,9 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
         } else { 
             parse_fn_decl(chars, is_macro)
         }?;
-        let out = close_target(chars, Token::new(Expr::Def(name, Box::new(e)), fn_start), "def")?;
-        return Ok(Some(out));
+        unimplemented!()
+        // let out = close_target(chars, Token::new(Expr::Def(name, Box::new(e)), fn_start), "def")?;
+        // return Ok(Some(out));
     }
 
     if s.as_bytes() == b"import" {
@@ -246,9 +248,10 @@ fn parse_special_form(chars: &mut ParseStream<'_>, s: &String, start: FilePos, i
 
         let name = parse_identifier(chars)?;
         let alias = parse_identifier(chars).ok();
-        let output = Token::new(Expr::Import(name, alias), start);
-        let out = close_target(chars, output, "import")?;
-        return Ok(Some(out));
+        unimplemented!()
+        // let output = Token::new(Expr::Import(name, alias), start);
+        // let out = close_target(chars, output, "import")?;
+        // return Ok(Some(out));
     }
 
     Ok(None)
@@ -299,7 +302,8 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>, is_macro: bool) -> ParseResult<Tok
 
                 return Ok(Token::from_value(
                     if is_macro {
-                        Value::Macro(quoted.into_iter().zip(params.into_iter()).collect(), op_rest, body)
+                        unimplemented!()
+                        // Value::Macro(quoted.into_iter().zip(params.into_iter()).collect(), op_rest, body)
                     } else {
                         Value::Fn(params, op_rest, body)
                     }, 
@@ -339,8 +343,8 @@ fn parse_ident_or_literal(chars: &mut ParseStream<'_>) -> ParseResult<Result<Val
         Ok(n) => {
             Ok(if let Ok(x) = n.name.parse() {
                 Ok(Value::Int(x))
-            } else if let Ok(x) = n.name.parse() {
-                Ok(Value::Float(x))
+            // } else if let Ok(x) = n.name.parse() {
+            //     Ok(Value::Float(x))
             } else {
                 Err(n)
             })

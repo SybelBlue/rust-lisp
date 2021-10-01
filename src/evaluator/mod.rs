@@ -9,7 +9,7 @@ pub mod result;
 pub mod token;
 pub mod expr;
 
-pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context<'static>) {
+pub fn exec(s: String) -> (Vec<EvalResult<Value>>, Context) {
     let mut ctxt = Context::new();
     let out = exec_using(s, &mut ctxt, &None);
     (out, ctxt)
@@ -27,7 +27,7 @@ pub fn exec_using(s: String, ctxt: &mut Context, namespace: &Option<String>) -> 
     out
 }
 
-pub fn eval_all(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Vec<Value>> {
+pub fn eval_all(ctxt: &Context, tokens: Vec<Token>) -> EvalResult<Vec<Value>> {
     let mut out = Vec::new();
     for e in tokens {
         out.push(e.eval(ctxt)?);

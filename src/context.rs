@@ -7,60 +7,46 @@ use crate::builtin_fn::*;
 pub type CtxtMapValue = (Value, Option<FilePos>);
 pub type CtxtMap = HashMap<String, CtxtMapValue>;
 #[derive(Debug, Clone)]
-pub enum Context<'a> {
-    FnStack {
-        data: CtxtMap,
-        prev: &'a Context<'a>,
-    },
-    Base {
-        data: CtxtMap,
-    }
+pub struct Context {
+    data: CtxtMap
 }
 
-impl<'a> Context<'a> {
+impl Context {
     pub fn new() -> Self {
-        fn make_builtin(s: &str, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
+        fn make_builtin(s: &str, f: fn(&Context, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
             (String::from(s), (BuiltInFn::new(s, f), None))
         }
-        Self::Base { data: 
-            vec![ make_builtin("+", add)
-                , make_builtin("-", sub)
-                , make_builtin("=", eq)
-                , make_builtin("ap", ap)
-                , make_builtin("unpack", unpack)
-                , make_builtin("cons", cons)
-                , make_builtin("if", if_)
-                , make_builtin("id", id)
-                , make_builtin("quote", quote)
-                , make_builtin("list", list)
-                , make_builtin("append", append)
-                , make_builtin("assert", assert)
-                , make_builtin("match", p_match)
-                , make_builtin("dir", dir)
-                ].into_iter().collect() 
+        Self { data: 
+            vec![]
+                // [ make_builtin("+", add)
+                // , make_builtin("-", sub)
+                // , make_builtin("=", eq)
+                // , make_builtin("ap", ap)
+                // , make_builtin("unpack", unpack)
+                // , make_builtin("cons", cons)
+                // , make_builtin("if", if_)
+                // , make_builtin("id", id)
+                // , make_builtin("quote", quote)
+                // , make_builtin("list", list)
+                // , make_builtin("append", append)
+                // , make_builtin("assert", assert)
+                // , make_builtin("match", p_match)
+                // , make_builtin("dir", dir)
+                // ]
+                .into_iter().collect() 
             }
     }
 
     fn get_data(&self) -> &CtxtMap {
-        match self {
-            Self::Base { data, .. } => data,
-            Self::FnStack { data, .. } => data,
-        }
+        &self.data
     }
 
     fn get_data_mut(&mut self) -> &mut CtxtMap {
-        match self {
-            Self::Base { data, .. } => data,
-            Self::FnStack { data, .. } => data,
-        }
+        &mut self.data
     }
 
     fn get_prev(&self) -> Option<&Self> {
-        if let Self::FnStack { prev, .. } = self {
-            Some(*prev)
-        } else {
-            None
-        }
+        unimplemented!()
     }
 
     pub fn size(&self) -> usize {
@@ -102,15 +88,15 @@ impl<'a> Context<'a> {
         }
     }
 
-    pub fn chain(&'a self, data: CtxtMap) -> Self {
-        Self::FnStack { data, prev: &self }
+    pub fn chain(&self, data: CtxtMap) -> Self {
+        unimplemented!()
     }
 
-    pub fn chain_new(&'a self, capacity: usize) -> Self {
+    pub fn chain_new(&self, capacity: usize) -> Self {
         self.chain(CtxtMap::with_capacity(capacity))
     }
 
-    pub fn dir(&'a self) -> Vec<&'a String> {
+    pub fn dir(&self) -> Vec<&String> {
         let d = self.get_data().keys();
         if let Some(prev) = self.get_prev() {
             d.chain(prev.dir()).collect()
