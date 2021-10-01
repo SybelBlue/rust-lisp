@@ -1,10 +1,10 @@
 use std::collections::VecDeque;
 
-use crate::{builtin_fn::BuiltInFn, context::Context, evaluator::{*, value::Value::*, expr::*}};
+use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*, token::Token, expr::Expr};
 
 
 pub fn form_string(form: &[Token]) -> String {
-    form.iter().map(|t| format!("{}", t)).collect::<Vec<String>>().join(" ")
+    form.iter().map(|t| format!("{:?}", t)).collect::<Vec<String>>().join(" ")
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,19 +26,20 @@ impl std::fmt::Display for Ident {
 }
 
 #[derive(Debug, Clone)]
+pub enum Type {}
+
+#[derive(Debug, Clone)]
 pub enum Value {
     Int(i64),
-    Fn(Vec<Ident>, Option<Ident>, Box<Token>),
+    Fn(Type, String, Box<Expr>),
     BuiltIn(BuiltInFn),
 }
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Unit => write!(f, "()"),
             Int(x) => write!(f, "{}", x),
-            Fn(args, Some(_), _) => write!(f, "<({}+n)-ary func>", args.len()),
-            Fn(args, None, _) => write!(f, "<{}-ary func>", args.len()),
+            Fn(tp, _, _) => write!(f, "<func: {:?}>", tp),
             BuiltIn(bifn) => write!(f, "<builtin func {}>", bifn.name),
         }
     }
@@ -51,7 +52,7 @@ impl PartialEq for Value {
             (Int(_), _) => false,
             (Fn(_, r, x), 
                 Fn(_, s, y)) => 
-                    r == s && x.expr == y.expr,
+                    r == s && x == y,
             (Fn(_, _, _), _) => false, 
             (BuiltIn(x), 
                 BuiltIn(y)) => x == y,

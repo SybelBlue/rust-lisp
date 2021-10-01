@@ -1,6 +1,6 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{context::Context, evaluator::{exec, exec_using}};
+use rust_lisp::{context::Context};
 
 // todo:
 //      recur
@@ -17,17 +17,18 @@ fn main() -> std::io::Result<()> {
             Ok(s) => {
                 println!("Loading {}...", path);
 
-                let (reses, ctxt) = exec(s.clone());
-                for r in reses {
-                    match r {
-                        Ok(v) => println!(" | {}", v),
-                        Err(e) => println!(" * {} ", e),
-                    }
-                }
+                // let (reses, ctxt) = exec(s.clone());
+                // for r in reses {
+                //     match r {
+                //         Ok(v) => println!(" | {}", v),
+                //         Err(e) => println!(" * {} ", e),
+                //     }
+                // }
 
-                println!("Loaded {} w/ {} symbols", path, ctxt.size());
+                // println!("Loaded {} w/ {} symbols", path, ctxt.size());
 
-                ctxt
+                // ctxt
+                unimplemented!()
             },
             Err(e) => {
                 println!("Loading {} failed with\n{}", path, e);
@@ -42,13 +43,13 @@ fn main() -> std::io::Result<()> {
     reader.set_prompt(">> ")?;
     
     while let ReadResult::Input(input) = reader.read_line()? {
-        let reses = exec_using(input, &mut ctxt, &None);
-        for r in reses {
-            match r {
-                Ok(v) => println!(" | {}", v),
-                Err(e) => println!("** {} ", e),
-            }
-        }
+        // let reses = exec_using(input, &mut ctxt, &None);
+        // for r in reses {
+        //     match r {
+        //         Ok(v) => println!(" | {}", v),
+        //         Err(e) => println!("** {} ", e),
+        //     }
+        // }
     }
     
     println!("Batch finished w/ {} symbols", ctxt.size());

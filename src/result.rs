@@ -1,4 +1,4 @@
-use crate::{parser::ParseError, evaluator::{Ident, value::Value}};
+use crate::{parser::ParseError, value::{Value, Ident}};
 
 pub type EvalResult<T> = Result<T, Error>;
 

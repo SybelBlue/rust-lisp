@@ -1,6 +1,6 @@
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 
-use crate::evaluator::{expr::Expr, token::Token, result::FilePos, value::{Ident, Value}};
+use crate::{result::FilePos, value::{Ident, Value}, token::Token};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
@@ -157,8 +157,6 @@ pub fn parse_all(chars: &mut ParseStream<'_>) -> Vec<ParseResult<Token>> {
 }
 
 pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
-    use Expr::*;
-
     let eof_msg = Eof(format!("closing ')'"));
     let start = chars.file_pos;
 
@@ -180,12 +178,13 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
                     match parse(chars) {
                         Ok(e) => {
                             if v.is_empty() {
-                                if let Var(s) = &e.expr {
-                                    let sf = parse_special_form(chars, s, start, is_quote)?;
-                                    if let Some(out) = sf {
-                                        return Ok(out)
-                                    }
-                                }
+                                // if let Var(s) = &e.expr {
+                                //     let sf = parse_special_form(chars, s, start, is_quote)?;
+                                //     if let Some(out) = sf {
+                                //         return Ok(out)
+                                //     }
+                                // }
+                                unimplemented!()
                             }
                             v.push(e);
                         },
@@ -201,10 +200,10 @@ pub fn parse(chars: &mut ParseStream<'_>) -> ParseResult<Token> {
             }
         }
     } else {
-        let t = match parse_ident_or_literal(chars)? {
-            Ok(v) => Token::new(Lit(v), start),
-            Err(ident) => Token::from_ident(ident),
-        };
+        // let t = match parse_ident_or_literal(chars)? {
+        //     Ok(v) => Token::new(Lit(v), start),
+        //     Err(ident) => Token::from_ident(ident),
+        // };
         unimplemented!();
         // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
     }
@@ -299,15 +298,14 @@ fn parse_fn_decl(chars: &mut ParseStream<'_>, is_macro: bool) -> ParseResult<Tok
                 if op_rest.is_some() {
                     params.pop();
                 }
-
-                return Ok(Token::from_value(
-                    if is_macro {
-                        unimplemented!()
-                        // Value::Macro(quoted.into_iter().zip(params.into_iter()).collect(), op_rest, body)
-                    } else {
-                        Value::Fn(params, op_rest, body)
-                    }, 
-                    mark))
+                unimplemented!()
+                // return Ok(Token::from_value(
+                //     if is_macro {
+                //         Value::Macro(quoted.into_iter().zip(params.into_iter()).collect(), op_rest, body)
+                //     } else {
+                //         Value::Fn(params, op_rest, body)
+                //     }, 
+                //     mark))
             },
             Some(false) => {
                 let is_macro_quoted = is_macro && chars.next_if_eq('\'') == Some(true);

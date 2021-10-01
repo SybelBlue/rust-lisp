@@ -2,14 +2,10 @@ use std::collections::{HashMap, VecDeque};
 
 use crate::{
     context::{Context, CtxtMap, CtxtMapValue}, 
-    evaluator::{
-        *, 
-        expr::Expr, 
-        result::{*, Error::*}, 
-        token::Token, 
-        value::{Value::{self, *}
-    }
-}};
+    result::{*, Error::*}, 
+    value::{Value::{self, *}},
+    token::Token
+};
 
 #[derive(Clone)]
 pub struct BuiltInFn {

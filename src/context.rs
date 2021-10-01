@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::evaluator::{token::Token, value::{Ident, Value}, result::*};
+use crate::{value::{Ident, Value}, result::*};
 
 use crate::builtin_fn::*;
 
@@ -13,9 +13,9 @@ pub struct Context {
 
 impl Context {
     pub fn new() -> Self {
-        fn make_builtin(s: &str, f: fn(&Context, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
-            (String::from(s), (BuiltInFn::new(s, f), None))
-        }
+        // fn make_builtin(s: &str, f: fn(&Context, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
+        //     (String::from(s), (BuiltInFn::new(s, f), None))
+        // }
         Self { data: 
             vec![]
                 // [ make_builtin("+", add)
