@@ -7,17 +7,23 @@ use crate::{value::{Ident, Value}, result::*};
 pub type CtxtMapValue = (Value, Option<FilePos>);
 pub type CtxtMap = HashMap<String, CtxtMapValue>;
 #[derive(Debug, Clone)]
-pub struct Context {
-    data: CtxtMap
+pub enum Context<'a> {
+    FnStack {
+        data: CtxtMap,
+        prev: &'a Context<'a>,
+    },
+    Base {
+        data: CtxtMap,
+    }
 }
 
-impl Context {
+impl<'a> Context<'a> {
     pub fn new() -> Self {
-        // fn make_builtin(s: &str, f: fn(&Context, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
+        // fn make_builtin(s: &str, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
         //     (String::from(s), (BuiltInFn::new(s, f), None))
         // }
-        Self { data: 
-            vec![]
+        Self::Base { data: 
+            vec![
                 // [ make_builtin("+", add)
                 // , make_builtin("-", sub)
                 // , make_builtin("=", eq)
@@ -32,21 +38,30 @@ impl Context {
                 // , make_builtin("assert", assert)
                 // , make_builtin("match", p_match)
                 // , make_builtin("dir", dir)
-                // ]
-                .into_iter().collect() 
+                ].into_iter().collect() 
             }
     }
 
     fn get_data(&self) -> &CtxtMap {
-        &self.data
+        match self {
+            Self::Base { data, .. } => data,
+            Self::FnStack { data, .. } => data,
+        }
     }
 
     fn get_data_mut(&mut self) -> &mut CtxtMap {
-        &mut self.data
+        match self {
+            Self::Base { data, .. } => data,
+            Self::FnStack { data, .. } => data,
+        }
     }
 
     fn get_prev(&self) -> Option<&Self> {
-        unimplemented!()
+        if let Self::FnStack { prev, .. } = self {
+            Some(*prev)
+        } else {
+            None
+        }
     }
 
     pub fn size(&self) -> usize {
@@ -88,15 +103,15 @@ impl Context {
         }
     }
 
-    pub fn chain(&self, _data: CtxtMap) -> Self {
-        unimplemented!()
+    pub fn chain(&'a self, data: CtxtMap) -> Self {
+        Self::FnStack { data, prev: &self }
     }
 
-    pub fn chain_new(&self, capacity: usize) -> Self {
+    pub fn chain_new(&'a self, capacity: usize) -> Self {
         self.chain(CtxtMap::with_capacity(capacity))
     }
 
-    pub fn dir(&self) -> Vec<&String> {
+    pub fn dir(&'a self) -> Vec<&'a String> {
         let d = self.get_data().keys();
         if let Some(prev) = self.get_prev() {
             d.chain(prev.dir()).collect()

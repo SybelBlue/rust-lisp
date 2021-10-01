@@ -1,4 +1,4 @@
-use crate::{lexer::LexError, value::{Value, Ident}};
+use crate::{lexer::LexError, parser::ParseError, value::{Value, Ident}};
 
 pub type EvalResult<T> = Result<T, Error>;
 
@@ -11,7 +11,7 @@ pub enum Error {
     NameError(Ident),
     RedefError(Ident, String),
     LexError(LexError),
-    ImportError(Ident, String),
+    ParseError(ParseError),
 }
 
 impl std::fmt::Display for Error {
@@ -27,7 +27,7 @@ impl std::fmt::Display for Error {
             Error::RedefError(orig, n) => 
                 write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
             Error::LexError(p) => write!(f, "LexError: {}", p),
-            Error::ImportError(n, msg) => write!(f, "ImportError({}): {}", n.name, msg),
+            Error::ParseError(p) => write!(f, "ParseError: {}", p),
         }
     }
 }
