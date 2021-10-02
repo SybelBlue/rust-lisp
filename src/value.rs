@@ -1,4 +1,4 @@
-use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*, token::Token};
+use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*};
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]

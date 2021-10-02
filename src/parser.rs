@@ -54,7 +54,7 @@ pub fn parse_type<'a>(tkn: Token, ctxt: &'a Context<'a>, allow_constraint: bool)
                 None => Ok(Type::Unit),
                 Some(t) if t.is_sym("=>") => {
                     if !allow_constraint {
-                        return Err(Error::name_error(format!("Constraint not allowed here"), *t.file_pos()));
+                        return Err(Error::type_error("Constraint not allowed here", *t.file_pos()));
                     }
                     let mut ts = ts.rev();
                     let res_tkn = ts.next().ok_or(Error::ArgError { f_name: format!("->"), recieved: 0, expected: 2})?;
