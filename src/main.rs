@@ -52,7 +52,13 @@ fn main() -> std::io::Result<()> {
         // }
         let mut cs = input.chars().peekable();
         let mut lexstream = rust_lisp::lexer::LexStream::new(&mut cs);
-        println!("{:?}", rust_lisp::lexer::lex_all(&mut lexstream));
+        let tkn_res = rust_lisp::lexer::lex_all(&mut lexstream);
+        for t in tkn_res {
+            match t {
+                Ok(tkn) => println!("{:?} => {:?}", tkn.clone(), rust_lisp::parser::parse_tkn(tkn, &ctxt)),
+                Err(e) => println!("Err: {}", e),
+            }
+        }
     }
     
     println!("Batch finished w/ {} symbols", ctxt.size());

@@ -68,28 +68,8 @@ impl<'a> Context<'a> {
         self.get_data().len() + if let Some(c) = &self.get_prev() { c.size() } else { 0 }
     }
 
-    fn get_ident(&self, k: &String) -> Option<Ident> {
-        if let Some((_, op_fp)) = self.get_data().get(k) {
-            op_fp.map(|fp| Ident::new(k.clone(), fp))
-        } else {
-            None
-        }
-    }
-
-    pub fn put(&mut self, k: Ident, v: Value, allow_overwrite: bool, namespace: &Option<String>) -> EvalResult<()> {
-        let key = if let Some(prefix) = namespace {
-            format!("{}.{}", prefix, k.name)
-        } else {
-            k.name
-        };
-
-        if !allow_overwrite {
-            if let Some(id) = self.get_ident(&key) {
-                return Err(Error::RedefError(id, key));
-            }
-        }
-
-        self.get_data_mut().insert(key, (v, Some(k.file_pos)));
+    pub fn put(&mut self, k: Ident, v: Value) -> EvalResult<()> {
+        self.get_data_mut().insert(k.name, (v, Some(k.file_pos)));
         Ok(())
     }
 

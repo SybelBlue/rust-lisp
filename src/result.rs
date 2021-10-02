@@ -9,9 +9,18 @@ pub enum Error {
     ArgError { f_name: String, recieved: usize, expected: usize },
     IllegalDefError(Ident),
     NameError(Ident),
-    RedefError(Ident, String),
     LexError(LexError),
-    ParseError(ParseError),
+    ParseError(ParseError)
+}
+
+impl Error {
+    pub fn name_error(s: String, fp: FilePos) -> Self {
+        Self::NameError(Ident::new(s, fp))
+    }
+
+    pub fn type_error(msg: &str, fp: FilePos) -> Self {
+        Self::ParseError(ParseError::TypeError(Ident::new(String::from(msg), fp)))
+    }
 }
 
 impl std::fmt::Display for Error {
@@ -24,8 +33,6 @@ impl std::fmt::Display for Error {
             Error::IllegalDefError(n) => 
                 write!(f, "IllegalDefError({}): cannot define in immutable scope at {}", n.name, n.file_pos),
             Error::NameError(n) => write!(f, "NameError({}): not defined in scope at {}", n.name, n.file_pos),
-            Error::RedefError(orig, n) => 
-                write!(f, "RedefError({}): cannot redefine {} at {}", n, orig.name, orig.file_pos),
             Error::LexError(p) => write!(f, "LexError: {}", p),
             Error::ParseError(p) => write!(f, "ParseError: {}", p),
         }

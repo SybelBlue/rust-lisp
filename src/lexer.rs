@@ -171,7 +171,7 @@ pub fn lex(chars: &mut LexStream<'_>, require_form: bool) -> LexResult<Token> {
                 Some(true) => { 
                     skip_whitespace(chars); 
                     // let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
-                    return Ok(Token::Form(v));
+                    return Ok(Token::Form(start, v));
                 },
                 Some(false) => {
                     match lex(chars, false) {
@@ -202,7 +202,7 @@ fn valid_ident_char(c: char) -> bool {
     !c.is_whitespace() 
         && c != '(' && c != ')' 
         && c != '[' && c != ']' 
-        && c != ';' 
+        && c != ';'
         && c != '\''
 }
 
