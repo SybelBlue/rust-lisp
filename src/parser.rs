@@ -23,23 +23,31 @@ pub fn parse<'a>(tkns: Vec<Token>, ctxt: &'a Context<'a>) -> EvalResult<Expr> {
         expr_tkns.push(parse_tkn(t, ctxt)?);
     }
     
-    if let Some(t) = tkns.next() {
+    let mut type_tkns = Vec::new();
+    let first = tkns.peek().cloned();
+    for t in tkns {
         if t.is_sym("::") {
             return Err(Error::NameError(Ident::new(format!("::"), *t.file_pos())));
         }
-        println!("type {:?}", parse_type(t, ctxt, true)?);
+        type_tkns.push(t);
+    }
+
+    if let Some(t) = first {
+        let tkn = if type_tkns.len() > 1 { 
+            Token::Form(*t.file_pos(), type_tkns) 
+        } else { 
+            t 
+        };
+        let t = parse_type(tkn, ctxt, true)?;
+        println!("type {}", t);
     }
     
-    if let Some(t) = tkns.next() {
-        Err(Error::type_error("Only one type may be provided", *t.file_pos()))
-    } else {
-        Ok(Expr::Form(expr_tkns))
-    }
+    Ok(Expr::Form(expr_tkns))
 }
 
 pub fn parse_type<'a>(tkn: Token, ctxt: &'a Context<'a>, allow_constraint: bool) -> EvalResult<Type> {
     match tkn {
-        Token::Lit(fp, _) => Err(Error::name_error(format!("Type must begin with letter"), fp)),
+        Token::Lit(fp, _) => Err(Error::name_error(format!("A Type must begin with letter"), fp)),
         Token::Form(_, tks) => {
             let mut ts = tks.into_iter().peekable();
             return match ts.next() {
@@ -61,7 +69,22 @@ pub fn parse_type<'a>(tkn: Token, ctxt: &'a Context<'a>, allow_constraint: bool)
                         Ok(Type::Arrow(Box::new(parse_type(tkn, ctxt, false)?), Box::new(acc)))
                     })
                 },
-                Some(Token::Sym(ident)) => Ok(Type::from_ident(ident)),
+                Some(Token::Sym(ident)) => {
+                    let mut rest = Vec::new();
+                    for t in ts {
+                        rest.push(parse_type(t, ctxt, false)?);
+                    }
+                    let fp = ident.file_pos.clone();
+                    let head = Type::from_ident(ident);
+                    if rest.is_empty() {
+                        return Ok(head);
+                    }
+                    if let Type::Data(ident, dat) = head {
+                        Ok(Type::Data(ident, dat.into_iter().chain(rest.into_iter()).collect()))
+                    } else {
+                        Err(Error::type_error("Data with Type Parameters must be a Symbol", fp))
+                    }
+                },
                 Some(t) => Err(Error::type_error("A Type must begin with a Symbol", *t.file_pos()))
             }
         }

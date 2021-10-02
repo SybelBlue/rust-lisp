@@ -1,11 +1,6 @@
 use crate::{builtin_fn::BuiltInFn, result::FilePos, value::Value::*, token::Token};
 
 
-pub fn form_string(_form: &[Token]) -> String {
-    // form.iter().map(|t| t.data.clone()).collect::<Vec<String>>().join(" ")
-    unimplemented!()
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ident {
     pub name: String,
@@ -55,6 +50,7 @@ impl std::fmt::Display for Type {
             Self::TVar(v) => write!(f, "{}", v),
             Self::Data(ident, ts) => {
                 if ts.is_empty() {
+                    println!("here!");
                     return write!(f, "{}", ident.name);
                 }
                 write!(f, "({}", ident.name)?;
@@ -67,13 +63,13 @@ impl std::fmt::Display for Type {
                 write!(f, "(-> {} {})", t0, t1),
             Self::Constraint(ident, ts, body) => {
                 if ts.is_empty() {
-                    return write!(f, "{} => {}", ident.name, body);
+                    return write!(f, "(=> {} {})", ident.name, body);
                 }
-                write!(f, "({}", ident.name)?;
+                write!(f, "(=> ({}", ident.name)?;
                 for t in ts {
                     write!(f, " {}", t)?;
                 }
-                write!(f, ") => {}", body)
+                write!(f, ") {})", body)
             }
         }
     }

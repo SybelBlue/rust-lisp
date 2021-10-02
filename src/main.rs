@@ -55,7 +55,7 @@ fn main() -> std::io::Result<()> {
         let tkn_res = rust_lisp::lexer::lex_all(&mut lexstream);
         for t in tkn_res {
             match t {
-                Ok(tkn) => println!("{:?} => {:?}", tkn.clone(), rust_lisp::parser::parse_tkn(tkn, &ctxt)),
+                Ok(tkn) => println!("{:?}", rust_lisp::parser::parse_tkn(tkn, &ctxt)),
                 Err(e) => println!("Err: {}", e),
             }
         }
