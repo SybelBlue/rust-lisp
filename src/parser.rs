@@ -1,4 +1,4 @@
-use crate::{value::*, token::Token, context::Context, result::*};
+use crate::{value::*, expr::Expr, token::Token, context::Context, rtype::Type, result::*};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ParseError {
