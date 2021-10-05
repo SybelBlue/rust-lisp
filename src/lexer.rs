@@ -145,7 +145,7 @@ pub fn lex_all(chars: &mut LexStream<'_>) -> Vec<LexResult<Token>> {
     skip_whitespace(chars);
     let mut last_loc = chars.file_pos;
     while chars.peek().is_some() {
-        let e = lex(chars, true);
+        let e = lex(chars);
         if last_loc == chars.file_pos {
             chars.next();
             skip_past_eol(chars);
@@ -156,7 +156,7 @@ pub fn lex_all(chars: &mut LexStream<'_>) -> Vec<LexResult<Token>> {
     v
 }
 
-pub fn lex(chars: &mut LexStream<'_>, require_form: bool) -> LexResult<Token> {
+pub fn lex(chars: &mut LexStream<'_>) -> LexResult<Token> {
     let eof_msg = Eof(format!("closing ')'"));
     let start = chars.file_pos;
 
@@ -174,7 +174,7 @@ pub fn lex(chars: &mut LexStream<'_>, require_form: bool) -> LexResult<Token> {
                     return Ok(Token::Form(start, v));
                 },
                 Some(false) => {
-                    match lex(chars, false) {
+                    match lex(chars) {
                         Ok(e) => v.push(e),
                         Err(e) =>
                             return Err(if !till_closing_paren(chars) {
@@ -186,13 +186,7 @@ pub fn lex(chars: &mut LexStream<'_>, require_form: bool) -> LexResult<Token> {
                 },
             }
         }
-    } else if require_form {
-        Err(Missing(format!("( looking for start of form"), start))
     } else {
-        // let t = match lex_ident_or_literal(chars)? {
-        //     Ok(v) => Token::Lit(start, v),
-        //     Err(ident) => Token::Str(ident),
-        // };
         // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
         lex_token(chars)
     }
