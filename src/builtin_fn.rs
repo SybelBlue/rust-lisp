@@ -212,7 +212,7 @@ pub fn assert(ctxt: &Context<'_>, tokens: Vec<Token>) -> EvalResult<Value> {
     }?;
 
     if !truthy {
-        panic!(format!("AssertError: falsy {}", first))
+        panic!("AssertError: falsy {}", first)
     }
 
     Ok(Unit)
