@@ -1,4 +1,4 @@
-use crate::value::*;
+use crate::{context::Context, expr::Expr, result::{Error, EvalResult}, value::*};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -21,6 +21,31 @@ impl Type {
             Self::TVar(ident.name)
         }
     }
+
+    pub fn depth(&self) -> usize {
+        if let Type::Arrow(_, t) = self {
+            1 + t.depth()
+        } else {
+            0
+        }
+    }
+}
+
+pub fn reify<'a>(e: &'a Expr, tctxt: &'a Context<'a>) -> EvalResult<&'a Type> {
+    match e {
+        Expr::Val(v) => Ok(v.get_type()),
+        Expr::Var(v) => tctxt.get_type(v),
+        Expr::Form(v) if v.len() == 1 => reify(&v[0], tctxt),
+        Expr::Form(v) => {
+            let mut es = v.iter();
+            if let Some(head) = es.next() {
+                let head_type = reify(head, tctxt)?;
+                Err(Error::InternalError(format!("todo: {} {:?}", head_type, es.collect::<Vec<&Expr>>())))
+            } else {
+                Ok(&Type::Unit)
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -31,7 +56,6 @@ impl std::fmt::Display for Type {
             Self::TVar(v) => write!(f, "{}", v),
             Self::Data(ident, ts) => {
                 if ts.is_empty() {
-                    println!("here!");
                     return write!(f, "{}", ident.name);
                 }
                 write!(f, "({}", ident.name)?;

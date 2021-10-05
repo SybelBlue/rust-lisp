@@ -1,6 +1,6 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{context::Context};
+use rust_lisp::{context::Context, rtype::reify};
 
 // todo:
 //      recur
@@ -55,7 +55,15 @@ fn main() -> std::io::Result<()> {
         let tkn_res = rust_lisp::lexer::lex_all(&mut lexstream);
         for t in tkn_res {
             match t {
-                Ok(tkn) => println!("{:?}", rust_lisp::parser::parse_tkn(tkn, &ctxt)),
+                Ok(tkn) => {
+                    match rust_lisp::parser::parse_tkn(tkn, &ctxt) {
+                        Ok(e) => {
+                            println!("{:?}", &e);
+                            println!("{:?}", reify(&e, &ctxt));
+                        },
+                        Err(e) => println!("Err: {}", e)
+                    }
+                },
                 Err(e) => println!("Err: {}", e),
             }
         }

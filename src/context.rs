@@ -1,14 +1,20 @@
 use std::collections::HashMap;
 
-use crate::{value::{Ident, Value}, result::*};
+use crate::{builtin_fn::{BuiltInFn, add}, expr::Expr, result::*, rtype::Type, value::{Ident, Value}};
 
 // use crate::builtin_fn::*;
 
-pub type CtxtMapValue = (Value, Option<FilePos>);
-pub type CtxtMap = HashMap<String, CtxtMapValue>;
+pub type GenCtxtMapVal<T> = (T, Option<FilePos>);
+pub type GenCtxtMap<T> = HashMap<String, GenCtxtMapVal<T>>;
+pub type CtxtMapVal = GenCtxtMapVal<Value>;
+pub type CtxtMap = GenCtxtMap<Value>;
+pub type TypeMapVal = GenCtxtMapVal<Type>;
+pub type TypeMap = GenCtxtMap<Type>;
+
 #[derive(Debug, Clone)]
 pub enum Context<'a> {
     FnStack {
+        deferred_types: GenCtxtMap<Type>,
         data: CtxtMap,
         prev: &'a Context<'a>,
     },
@@ -19,26 +25,15 @@ pub enum Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        // fn make_builtin(s: &str, f: fn(&Context<'_>, Vec<Token>) -> EvalResult<Value>) -> (String, CtxtMapValue) {
-        //     (String::from(s), (BuiltInFn::new(s, f), None))
-        // }
+        fn make_builtin(s: &str, tp: Type, f: fn(&Context<'_>, Vec<Expr>) -> EvalResult<Value>) -> (String, CtxtMapVal) {
+            (String::from(s), (BuiltInFn::new_val(s, tp, f), None))
+        }
         Self::Base { data: 
             vec![
-                // [ make_builtin("+", add)
-                // , make_builtin("-", sub)
-                // , make_builtin("=", eq)
-                // , make_builtin("ap", ap)
-                // , make_builtin("unpack", unpack)
-                // , make_builtin("cons", cons)
-                // , make_builtin("if", if_)
-                // , make_builtin("id", id)
-                // , make_builtin("quote", quote)
-                // , make_builtin("list", list)
-                // , make_builtin("append", append)
-                // , make_builtin("assert", assert)
-                // , make_builtin("match", p_match)
-                // , make_builtin("dir", dir)
-                ].into_iter().collect() 
+                make_builtin(
+                    "+", 
+                    Type::Arrow(Box::new(Type::Int), Box::new(Type::Arrow(Box::new(Type::Int), Box::new(Type::Int)))), 
+                    add)].into_iter().collect() 
             }
     }
 
@@ -73,18 +68,32 @@ impl<'a> Context<'a> {
         Ok(())
     }
 
-    pub fn get(&self, k: &Ident) -> EvalResult<Value> {
+    pub fn get(&'a self, k: &Ident) -> EvalResult<&'a Value> {
         if let Some((e,_)) = self.get_data().get(&k.name) {
-            Ok(e.clone())
+            Ok(e)
         } else if let Some(ctxt) = &self.get_prev() {
             ctxt.get(k)
         } else {
             Err(Error::NameError(k.clone()))
         }
     }
+    
+    pub fn get_type(&'a self, k: &Ident) -> EvalResult<&'a Type> {
+        if let Self::FnStack { deferred_types, .. } = self {
+            if let Some((t, _)) = deferred_types.get(&k.name) {
+                return Ok(t);
+            }
+        }
+        if let Some(other) = self.get_prev() {
+            if let Ok(x) = other.get_type(k) {
+                return Ok(x);
+            }
+        }
+        self.get(k).map(Value::get_type)
+    }
 
     pub fn chain(&'a self, data: CtxtMap) -> Self {
-        Self::FnStack { data, prev: &self }
+        Self::FnStack { data, deferred_types: HashMap::new(), prev: &self }
     }
 
     pub fn chain_new(&'a self, capacity: usize) -> Self {

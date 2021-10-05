@@ -12,5 +12,9 @@ pub(crate) mod builtin_fn;
 #[cfg(test)]
 mod tests {
     #[test]
-    fn success() {}
+    fn success() {
+        // z3 = {version="0.11.2", features = ["static-link-z3"]}
+        // use z3::*;
+        
+    }
 }

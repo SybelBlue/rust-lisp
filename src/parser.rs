@@ -115,6 +115,6 @@ pub fn parse_tkn<'a>(tkn: Token, ctxt: &'a Context<'a>) -> EvalResult<Expr> {
     match tkn {
         Token::Lit(_, x) => Ok(Expr::Val(Value::Int(x))),
         Token::Form(_, tkns) => parse(tkns, ctxt),
-        Token::Sym(ident) => Ok(Expr::Var(ident.name)),
+        Token::Sym(ident) => Ok(Expr::Var(ident)),
     }
 }

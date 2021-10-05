@@ -31,7 +31,7 @@ impl Value {
     pub fn depth(&self) -> usize {
         match self {
             Lambda(_, _, e) => e.depth() + 1,
-            BuiltIn(_bifn) => 0, // todo: fix this
+            BuiltIn(bifn) => bifn.tp.depth(),
             _ => 0,
         }
     }
@@ -41,7 +41,7 @@ impl Value {
             Self::Int(_) => &Type::Int,
             Self::Variant(t, _, _) => t,
             Self::Lambda(t, _, _) => t,
-            Self::BuiltIn(_bifn) => unimplemented!(),
+            Self::BuiltIn(bifn) => &bifn.tp,
         }
     }
 }
