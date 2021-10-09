@@ -117,25 +117,6 @@ fn skip_past_eol(chars: &mut LexStream<'_>) {
     skip_whitespace(chars);
 }
 
-fn till_closing_paren(chars: &mut LexStream<'_>) -> bool {
-    let mut n = 1u8;
-    while let Some(c) = chars.next() {
-        match c {
-            '(' => n += 1,
-            ')' => {
-                if n == 1 {
-                    skip_whitespace(chars);
-                    return true;
-                } else {
-                    n -= 1;
-                }
-            },
-            _ => {},
-        }
-    }
-    false
-}
-
 fn is_newline(c: char) -> bool {
     c == '\n' || c == '\r'
 }
@@ -145,7 +126,7 @@ pub fn lex_all(chars: &mut LexStream<'_>) -> Vec<LexResult<Token>> {
     skip_whitespace(chars);
     let mut last_loc = chars.file_pos;
     while chars.peek().is_some() {
-        let e = lex(chars);
+        let e = lex_form(chars).or_else(|_| lex_token(chars));
         if last_loc == chars.file_pos {
             chars.next();
             skip_past_eol(chars);
@@ -156,39 +137,53 @@ pub fn lex_all(chars: &mut LexStream<'_>) -> Vec<LexResult<Token>> {
     v
 }
 
-pub fn lex(chars: &mut LexStream<'_>) -> LexResult<Token> {
-    let eof_msg = Eof(format!("closing ')'"));
-    let start = chars.file_pos;
 
-    // let is_quote = chars.next_if_eq('\'') == Some(true);
-
-    if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
-        skip_whitespace(chars);
-        let mut v = Vec::new();
-        loop {
-            match chars.next_if_eq(')') {
-                None => return Err(eof_msg),
-                Some(true) => { 
-                    skip_whitespace(chars); 
-                    // let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
-                    return Ok(Token::Form(start, v));
-                },
-                Some(false) => {
-                    match lex(chars) {
-                        Ok(e) => v.push(e),
-                        Err(e) =>
-                            return Err(if !till_closing_paren(chars) {
-                                eof_msg
-                            } else {
-                                e
-                            }),
-                    }
-                },
+pub fn lex_form(chars: &mut LexStream<'_>) -> LexResult<Token> {
+    struct TokenBuilder(FilePos, Vec<(FilePos, Vec<Token>)>);
+    
+    impl TokenBuilder {
+        pub fn new(fp: FilePos) -> Self { Self(fp, Vec::new()) }
+        
+        pub fn open(&mut self, fp: FilePos) {
+            self.1.push((fp, Vec::new()));
+        }
+        
+        pub fn close(&mut self) -> Option<Token> {
+            let (fp, f) = self.1.pop().expect("closing with no open form");
+            
+            let new = Token::Form(fp, f);
+            if let Some((_, last)) = self.1.last_mut() {
+                last.push(new);
+                None
+            } else {
+                Some(new)
             }
         }
-    } else {
-        // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
-        lex_token(chars)
+    
+        pub fn push(&mut self, t: Token) {
+            self.1.last_mut().expect("pushing with no open form").1.push(t);
+        }
+    }
+    
+    let eof_msg = Eof(format!("closing ')'"));
+    let mut builder = TokenBuilder::new(chars.file_pos);    
+    loop {
+        let start = chars.file_pos;
+        // let is_quote = chars.next_if_eq('\'') == Some(true);
+
+        if chars.next_if_eq('(').ok_or_else(|| eof_msg.clone())? {
+            skip_whitespace(chars);
+            builder.open(start);
+        } else if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
+            skip_whitespace(chars); 
+            // let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
+            if let Some(t) = builder.close() {
+                return Ok(t);
+            }
+        } else {
+            // Ok(if is_quote { Token::from_value(Value::Quote(vec![t]), start) } else { t })
+            builder.push(lex_token(chars)?);
+        }
     }
 }
 
