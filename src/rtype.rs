@@ -1,4 +1,9 @@
-use crate::{context::Context, expr::Expr, result::{Error, EvalResult}, value::*};
+use crate::{
+    context::Context,
+    expr::Expr,
+    result::{Error, EvalResult},
+    value::*,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
@@ -40,7 +45,11 @@ pub fn reify<'a>(e: &'a Expr, tctxt: &'a Context<'a>) -> EvalResult<&'a Type> {
             let mut es = v.iter();
             if let Some(head) = es.next() {
                 let head_type = reify(head, tctxt)?;
-                Err(Error::InternalError(format!("todo: {} {:?}", head_type, es.collect::<Vec<&Expr>>())))
+                Err(Error::InternalError(format!(
+                    "todo: {} {:?}",
+                    head_type,
+                    es.collect::<Vec<&Expr>>()
+                )))
             } else {
                 Ok(&Type::Unit)
             }

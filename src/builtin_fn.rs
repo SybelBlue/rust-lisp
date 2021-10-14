@@ -1,8 +1,8 @@
-use crate::{context::{Context}, expr::Expr, result::*, rtype::Type, value::Value};
+use crate::{context::Context, expr::Expr, result::*, rtype::Type, value::Value};
 
 #[derive(Clone)]
 pub struct BuiltInFn {
-    pub name: String, 
+    pub name: String,
     pub f: fn(&Context, Vec<Expr>) -> EvalResult<Value>,
     pub tp: Type,
 }

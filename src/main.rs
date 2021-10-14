@@ -29,19 +29,19 @@ fn main() -> std::io::Result<()> {
 
                 // ctxt
                 unimplemented!()
-            },
+            }
             Err(e) => {
                 println!("Loading {} failed with\n{}", path, e);
-                
+
                 Context::new()
             }
         }
     });
 
     let reader = Interface::new("risp-repl")?;
-    
+
     reader.set_prompt(">> ")?;
-    
+
     while let ReadResult::Input(input) = reader.read_line()? {
         // let reses = exec_using(input, &mut ctxt, &None);
         // for r in reses {
@@ -55,20 +55,18 @@ fn main() -> std::io::Result<()> {
         let tkn_res = rust_lisp::lexer::lex_all(&mut lexstream);
         for t in tkn_res {
             match t {
-                Ok(tkn) => {
-                    match rust_lisp::parser::parse_tkn(tkn, &ctxt) {
-                        Ok(e) => {
-                            println!("{:?}", &e);
-                            println!("{:?}", reify(&e, &ctxt));
-                        },
-                        Err(e) => println!("Err: {}", e)
+                Ok(tkn) => match rust_lisp::parser::parse_tkn(tkn, &ctxt) {
+                    Ok(e) => {
+                        println!("{:?}", &e);
+                        println!("{:?}", reify(&e, &ctxt));
                     }
+                    Err(e) => println!("Err: {}", e),
                 },
                 Err(e) => println!("Err: {}", e),
             }
         }
     }
-    
+
     println!("Batch finished w/ {} symbols", ctxt.size());
 
     Ok(())

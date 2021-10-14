@@ -1,6 +1,6 @@
 use std::{iter::Peekable, str::Chars};
 
-use crate::{result::FilePos, value::Ident, token::Token};
+use crate::{result::FilePos, token::Token, value::Ident};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum LexError {
@@ -8,7 +8,11 @@ pub enum LexError {
     BadChar(String, FilePos, char),
     Missing(String, FilePos),
     BadQuote(String, FilePos),
-    DupArg { name: String, old: FilePos, new: FilePos },
+    DupArg {
+        name: String,
+        old: FilePos,
+        new: FilePos,
+    },
 }
 
 pub type LexResult<T> = Result<T, LexError>;
@@ -22,7 +26,9 @@ impl std::fmt::Display for LexError {
             BadChar(target, ls, c) => write!(f, "Invalid char '{}' for {} at {}", c, target, ls),
             Missing(x, ps) => write!(f, "Missing {} at {}", x, ps),
             BadQuote(x, ps) => write!(f, "Cannot quote before a {} at {}", x, ps),
-            DupArg { name, old, new } => write!(f, "Arg \"{}\" defined at {} and {}", name, old, new),
+            DupArg { name, old, new } => {
+                write!(f, "Arg \"{}\" defined at {} and {}", name, old, new)
+            }
         }
     }
 }
@@ -35,7 +41,10 @@ pub struct LexStream<'a> {
 
 impl<'a> LexStream<'a> {
     pub fn new(iter: &'a mut Peekable<Chars<'a>>) -> Self {
-        LexStream { file_pos: FilePos::new(), iter }
+        LexStream {
+            file_pos: FilePos::new(),
+            iter,
+        }
     }
 
     pub fn has_next(&mut self) -> bool {
@@ -58,7 +67,7 @@ impl<'a> LexStream<'a> {
         if let Some(&x) = self.peek() {
             if f(x) {
                 self.next();
-                return Some(x)
+                return Some(x);
             }
         }
         None
@@ -77,7 +86,7 @@ impl<'a> LexStream<'a> {
     }
 }
 
-fn take_while<F : Fn(char) -> bool>(chars: &mut LexStream<'_>, f: F) -> String {
+fn take_while<F: Fn(char) -> bool>(chars: &mut LexStream<'_>, f: F) -> String {
     let mut s = String::new();
     while let Some(&c) = chars.peek() {
         if f(c) {
@@ -90,7 +99,11 @@ fn take_while<F : Fn(char) -> bool>(chars: &mut LexStream<'_>, f: F) -> String {
     s
 }
 
-fn many1<F : Fn(char) -> bool>(chars: &mut LexStream<'_>, target: &'static str, f: F) -> LexResult<String> {
+fn many1<F: Fn(char) -> bool>(
+    chars: &mut LexStream<'_>,
+    target: &'static str,
+    f: F,
+) -> LexResult<String> {
     let s = take_while(chars, f);
     if s.len() == 0 {
         let ls = chars.file_pos;
@@ -106,7 +119,7 @@ fn many1<F : Fn(char) -> bool>(chars: &mut LexStream<'_>, target: &'static str, 
 
 fn skip_whitespace(chars: &mut LexStream<'_>) {
     take_while(chars, char::is_whitespace);
-    if Some(true) == chars.next_if_eq(';')  {
+    if Some(true) == chars.next_if_eq(';') {
         skip_past_eol(chars);
     }
 }
@@ -137,20 +150,21 @@ pub fn lex_all(chars: &mut LexStream<'_>) -> Vec<LexResult<Token>> {
     v
 }
 
-
 pub fn lex_form(chars: &mut LexStream<'_>) -> LexResult<Token> {
     struct TokenBuilder(FilePos, Vec<(FilePos, Vec<Token>)>);
-    
+
     impl TokenBuilder {
-        pub fn new(fp: FilePos) -> Self { Self(fp, Vec::new()) }
-        
+        pub fn new(fp: FilePos) -> Self {
+            Self(fp, Vec::new())
+        }
+
         pub fn open(&mut self, fp: FilePos) {
             self.1.push((fp, Vec::new()));
         }
-        
+
         pub fn close(&mut self) -> Option<Token> {
             let (fp, f) = self.1.pop().expect("closing with no open form");
-            
+
             let new = Token::Form(fp, f);
             if let Some((_, last)) = self.1.last_mut() {
                 last.push(new);
@@ -159,14 +173,18 @@ pub fn lex_form(chars: &mut LexStream<'_>) -> LexResult<Token> {
                 Some(new)
             }
         }
-    
+
         pub fn push(&mut self, t: Token) {
-            self.1.last_mut().expect("pushing with no open form").1.push(t);
+            self.1
+                .last_mut()
+                .expect("pushing with no open form")
+                .1
+                .push(t);
         }
     }
-    
+
     let eof_msg = Eof(format!("closing ')'"));
-    let mut builder = TokenBuilder::new(chars.file_pos);    
+    let mut builder = TokenBuilder::new(chars.file_pos);
     loop {
         let start = chars.file_pos;
         // let is_quote = chars.next_if_eq('\'') == Some(true);
@@ -175,7 +193,7 @@ pub fn lex_form(chars: &mut LexStream<'_>) -> LexResult<Token> {
             skip_whitespace(chars);
             builder.open(start);
         } else if chars.next_if_eq(')').ok_or_else(|| eof_msg.clone())? {
-            skip_whitespace(chars); 
+            skip_whitespace(chars);
             // let out = if is_quote { Lit(Value::Quote(v)) } else { Form(v) };
             if let Some(t) = builder.close() {
                 return Ok(t);
@@ -188,11 +206,7 @@ pub fn lex_form(chars: &mut LexStream<'_>) -> LexResult<Token> {
 }
 
 fn valid_ident_char(c: char) -> bool {
-    !c.is_whitespace() 
-        && c != '(' && c != ')' 
-        && c != '[' && c != ']' 
-        && c != ';'
-        && c != '\''
+    !c.is_whitespace() && c != '(' && c != ')' && c != '[' && c != ']' && c != ';' && c != '\''
 }
 
 fn lex_identifier(chars: &mut LexStream<'_>) -> LexResult<Ident> {
@@ -205,15 +219,13 @@ fn lex_identifier(chars: &mut LexStream<'_>) -> LexResult<Ident> {
 fn lex_token(chars: &mut LexStream<'_>) -> LexResult<Token> {
     match lex_identifier(chars) {
         Ok(ident) => Ok(Token::new(ident)),
-        Err(BadChar(_, fp, c)) => 
-            Err(BadChar(format!("identifier or literal"), fp, c)),
-        Err(BadQuote(_, fp)) => 
-            Err(BadQuote(format!("identifier or literal"), fp)),
-        Err(Eof(_)) => 
-            Err(Eof(format!("identifier or literal"))),
-        Err(Missing(s, fp)) => 
-            Err(Missing(format!("{} looking for identifier or literal", s), fp)),
-        Err(DupArg { name, old, new }) =>
-            Err(DupArg { name, old, new }),
+        Err(BadChar(_, fp, c)) => Err(BadChar(format!("identifier or literal"), fp, c)),
+        Err(BadQuote(_, fp)) => Err(BadQuote(format!("identifier or literal"), fp)),
+        Err(Eof(_)) => Err(Eof(format!("identifier or literal"))),
+        Err(Missing(s, fp)) => Err(Missing(
+            format!("{} looking for identifier or literal", s),
+            fp,
+        )),
+        Err(DupArg { name, old, new }) => Err(DupArg { name, old, new }),
     }
 }

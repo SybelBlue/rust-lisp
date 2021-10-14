@@ -1,4 +1,8 @@
-use crate::{context::Context, result::EvalResult, value::{Ident, Value}};
+use crate::{
+    context::Context,
+    result::EvalResult,
+    value::{Ident, Value},
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {

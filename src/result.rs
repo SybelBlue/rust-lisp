@@ -1,4 +1,8 @@
-use crate::{lexer::LexError, parser::ParseError, value::{Value, Ident}};
+use crate::{
+    lexer::LexError,
+    parser::ParseError,
+    value::{Ident, Value},
+};
 
 pub type EvalResult<T> = Result<T, Error>;
 
@@ -6,11 +10,15 @@ pub type EvalResult<T> = Result<T, Error>;
 pub enum Error {
     InternalError(String),
     ValueError(Value, String),
-    ArgError { f_name: String, recieved: usize, expected: usize },
+    ArgError {
+        f_name: String,
+        recieved: usize,
+        expected: usize,
+    },
     IllegalDefError(Ident),
     NameError(Ident),
     LexError(LexError),
-    ParseError(ParseError)
+    ParseError(ParseError),
 }
 
 impl Error {
@@ -28,11 +36,25 @@ impl std::fmt::Display for Error {
         match self {
             Error::InternalError(s) => write!(f, "InternalError: {}", s),
             Error::ValueError(v, s) => write!(f, "ValueError({}): {}", v, s),
-            Error::ArgError { f_name, recieved, expected } => 
-                write!(f, "ArgError({}): recieved {} arguments, expected {}", f_name, recieved, expected),
-            Error::IllegalDefError(n) => 
-                write!(f, "IllegalDefError({}): cannot define in immutable scope at {}", n.name, n.file_pos),
-            Error::NameError(n) => write!(f, "NameError({}): not defined in scope at {}", n.name, n.file_pos),
+            Error::ArgError {
+                f_name,
+                recieved,
+                expected,
+            } => write!(
+                f,
+                "ArgError({}): recieved {} arguments, expected {}",
+                f_name, recieved, expected
+            ),
+            Error::IllegalDefError(n) => write!(
+                f,
+                "IllegalDefError({}): cannot define in immutable scope at {}",
+                n.name, n.file_pos
+            ),
+            Error::NameError(n) => write!(
+                f,
+                "NameError({}): not defined in scope at {}",
+                n.name, n.file_pos
+            ),
             Error::LexError(p) => write!(f, "LexError: {}", p),
             Error::ParseError(p) => write!(f, "ParseError: {}", p),
         }
