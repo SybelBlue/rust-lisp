@@ -1,9 +1,6 @@
-use std::fmt::Display;
-
 pub mod lex;
 
-
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct FilePos<'a> {
     pub name: Option<&'a String>,
     row: usize,
@@ -27,9 +24,9 @@ impl<'a> FilePos<'a> {
     }
 }
 
-impl<'a> Display for FilePos<'a> {
+impl<'a> std::fmt::Display for FilePos<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}", 
+        write!(f, "./{}:{}:{}", 
             self.name.map(|n| n.as_str()).unwrap_or("anon"), 
             self.row,
             self.col)

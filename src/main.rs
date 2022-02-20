@@ -10,7 +10,7 @@ fn main() -> std::io::Result<()> {
     while let ReadResult::Input(input) = reader.read_line()? {
         match Source::new(&input, Some(name)).lex() {
             Ok(v) => println!("{:?}", v),
-            Err(e) => println!("** {:?}", e)
+            Err(e) => println!("** {}", e)
         }
     }
     

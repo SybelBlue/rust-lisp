@@ -4,6 +4,7 @@ use super::FilePos;
 
 #[derive(Debug)]
 pub struct Source<'a> {
+    src: &'a String,
     txt: Chars<'a>,
     pos: FilePos<'a>,
 }
@@ -16,28 +17,57 @@ pub enum Token {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LexErrorType {
+enum LexErrorType<'a> {
     TooManyClosing,
-    Unclosed
+    Unclosed(FilePos<'a>),
+}
+
+impl<'a> LexErrorType<'a> {
+    pub fn col_arrow(&self, file_pos: &FilePos) -> String {
+        let file_pos = match &self {
+            Self::TooManyClosing => file_pos,
+            Self::Unclosed(file_pos) => file_pos
+        };
+
+        let mut out = String::new();
+        out.extend((0..(file_pos.col - 2)).map(|_| ' '));
+        out.push('^');
+        out
+    }
+
+    pub fn name(&self) -> String {
+        match self {
+            Self::TooManyClosing => format!("Extra Closing Parenthesis"),
+            Self::Unclosed(_) => format!("Unclosed S-Expression")
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct LexError<'a> {
-    pos: FilePos<'a>,
-    tipe: LexErrorType,
+    src: Source<'a>,
+    tipe: LexErrorType<'a>,
 }
 
 impl<'a> Display for LexError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "error: {:?} at {}", self.tipe, self.pos)
+        let line_indicator = format!(" {} ", self.src.pos.row);
+        let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
+        write!(f, "error: {} at {}\n{}| {}\n{}  {}", 
+            self.tipe.name(), 
+            self.src.pos, 
+            line_indicator, 
+            self.src.current_line(),
+            margin,
+            self.tipe.col_arrow(&self.src.pos))
     }
 }
 
 pub type LexResult<'a, T> = Result<T, LexError<'a>>;
 
 impl<'a> Source<'a> {
-    pub fn new(source: &'a String, name: Option<&'a String>) -> Self {
-        Self { txt: source.chars(), pos: FilePos::new(name) }
+    pub fn new(src: &'a String, name: Option<&'a String>) -> Self {
+        Self { src, txt: src.chars(), pos: FilePos::new(name) }
     }
 
     pub fn lex(mut self) -> LexResult<'a, Vec<Token>> {
@@ -52,10 +82,11 @@ impl<'a> Source<'a> {
             
             match next {
                 None => break,
-                Some('(') => stack.open_sexp(),
+                Some('(') => stack.open_sexp(self.pos.clone()),
                 Some(')') => 
-                    if let Err(tipe) = stack.close_sexp() {
-                        return Err(LexError { tipe, pos: self.pos });
+                    match stack.close_sexp() {
+                        Ok(st) => stack = st,
+                        Err(tipe) => return Err(LexError { tipe, src: self })
                     },
                 Some('\'') => stack.push_token(Token::Quote),
                 Some(ch) => stack.push_char(ch),
@@ -65,7 +96,7 @@ impl<'a> Source<'a> {
         stack.try_push_word();
 
         stack.finish()
-            .map_err(|tipe| LexError { tipe, pos: self.pos })
+            .map_err(|tipe| LexError { tipe, src: self })
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
@@ -82,15 +113,19 @@ impl<'a> Source<'a> {
             }
         }
     }
+
+    fn current_line(&self) -> String {
+        String::from(self.src.lines().nth(self.pos.row - 1).unwrap())
+    }
 }
 
-struct LexStack {
-    sexp_stack: Vec<Vec<Token>>,
+struct LexStack<'a> {
+    sexp_stack: Vec<(FilePos<'a>, Vec<Token>)>,
     finished: Vec<Token>,
     curr_word: String,
 }
 
-impl LexStack {
+impl<'a> LexStack<'a> {
     fn new() -> Self {
         Self {
             sexp_stack: Vec::with_capacity(8),      // 8 deep nested sexp
@@ -99,27 +134,28 @@ impl LexStack {
         }
     }
 
-    fn open_sexp(&mut self) {
+    fn open_sexp(&mut self, file_pos: FilePos<'a>) {
         self.try_push_word();
-        self.sexp_stack.push(Vec::with_capacity(4)) // 4 long sexp
+        self.sexp_stack.push((file_pos, Vec::with_capacity(4))) // 4 long sexp
     }
 
-    fn close_sexp(&mut self) -> Result<(), LexErrorType> {
+    fn close_sexp(mut self) -> Result<Self, LexErrorType<'a>> {
         let last_sexp = self.sexp_stack.pop();
-        let mut finished = last_sexp.ok_or(LexErrorType::TooManyClosing)?;
+        let mut finished = last_sexp.ok_or(LexErrorType::TooManyClosing)?.1;
 
         if self.curr_word.len() > 0 {
             finished.push(self.dump_curr());
         }
 
         self.push_token(Token::SExp(finished));
-        Ok(())
+        Ok(self)
     }
 
     fn push_token(&mut self, t: Token) {
         self.try_push_word();
         self.sexp_stack
             .last_mut()
+            .map(|(_, v)| v)
             .unwrap_or(&mut self.finished)
             .push(t)
     }
@@ -139,11 +175,11 @@ impl LexStack {
         }
     }
 
-    fn finish(self) -> Result<Vec<Token>, LexErrorType> {
-        if self.sexp_stack.is_empty() {
-            Ok(self.finished)
+    fn finish(mut self) -> Result<Vec<Token>, LexErrorType<'a>> {
+        if let Some((file_pos, _)) = self.sexp_stack.pop() {
+            Err(LexErrorType::Unclosed(file_pos))
         } else {
-            Err(LexErrorType::Unclosed)
+            Ok(self.finished)
         }
     }
 }
