@@ -6,6 +6,7 @@ pub struct Source<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token {
+    Quote,
     Word(String),
     SExp(Vec<Token>),
 }
@@ -23,7 +24,7 @@ impl<'a> Source<'a> {
         Self { txt: source.chars(), name }
     }
 
-    pub fn lex(&mut self) -> LexResult<Vec<Token>> {        
+    pub fn lex(&mut self) -> LexResult<Vec<Token>> {
         let mut stack = LexStack::new();
 
         loop {
@@ -36,10 +37,8 @@ impl<'a> Source<'a> {
             match next {
                 None => break,
                 Some('(') => stack.open_sexp(),
-                Some(')') => {
-                    let sexp = stack.close_sexp()?;
-                    stack.push_token(Token::SExp(sexp));
-                },
+                Some(')') => stack.close_sexp()?,
+                Some('\'') => stack.push_token(Token::Quote),
                 Some(ch) => stack.push_char(ch),
             }
         }
@@ -63,7 +62,6 @@ impl<'a> Source<'a> {
     }
 }
 
-/// Used to store 
 #[derive(Debug)]
 struct LexStack {
     sexp_stack: Vec<Vec<Token>>,
@@ -84,7 +82,7 @@ impl LexStack {
         self.sexp_stack.push(Vec::with_capacity(4)) // 4 long sexp
     }
 
-    fn close_sexp(&mut self) -> LexResult<Vec<Token>> {
+    fn close_sexp(&mut self) -> LexResult<()> {
         let last_sexp = self.sexp_stack.pop();
         let mut finished = last_sexp.ok_or(LexError::TooManyClosing)?;
 
@@ -92,7 +90,8 @@ impl LexStack {
             finished.push(self.dump_curr());
         }
 
-        Ok(finished)
+        self.push_token(Token::SExp(finished));
+        Ok(())
     }
 
     fn push_token(&mut self, t: Token) {
