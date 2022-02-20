@@ -1,7 +1,8 @@
 pub mod lex;
+pub(crate) mod lex_error;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct FilePos<'a> {
+pub(crate) struct FilePos<'a> {
     pub name: Option<&'a String>,
     row: usize,
     col: usize,
