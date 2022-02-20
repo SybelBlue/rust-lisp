@@ -50,13 +50,14 @@ impl<'a> Source<'a> {
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
-        let mut skipped = false;
+        let n = self.txt.next();
+        if !matches!(n, Some(c) if c.is_whitespace()) {
+            return (false, n);
+        }
         loop {
             let n = self.txt.next();
             if !matches!(n, Some(c) if c.is_whitespace()) {
-                return (skipped, n);
-            } else {
-                skipped = true;
+                return (true, n);
             }
         }
     }
