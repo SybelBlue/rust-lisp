@@ -1,4 +1,4 @@
-use std::str::Chars;
+use std::{str::Chars, fmt::Display};
 
 use super::FilePos;
 
@@ -27,6 +27,12 @@ pub struct LexError<'a> {
     tipe: LexErrorType,
 }
 
+impl<'a> Display for LexError<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "error: {:?} at {}", self.tipe, self.pos)
+    }
+}
+
 pub type LexResult<'a, T> = Result<T, LexError<'a>>;
 
 impl<'a> Source<'a> {
@@ -47,12 +53,10 @@ impl<'a> Source<'a> {
             match next {
                 None => break,
                 Some('(') => stack.open_sexp(),
-                Some(')') => {
-                    match stack.close_sexp() {
-                        Ok(()) => {},
-                        Err(tipe) => return Err(LexError { tipe, pos: self.pos }),
-                    }
-                },
+                Some(')') => 
+                    if let Err(tipe) = stack.close_sexp() {
+                        return Err(LexError { tipe, pos: self.pos });
+                    },
                 Some('\'') => stack.push_token(Token::Quote),
                 Some(ch) => stack.push_char(ch),
             }
@@ -60,7 +64,8 @@ impl<'a> Source<'a> {
 
         stack.try_push_word();
 
-        stack.finish().map_err(|tipe| LexError { tipe, pos: self.pos })
+        stack.finish()
+            .map_err(|tipe| LexError { tipe, pos: self.pos })
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
