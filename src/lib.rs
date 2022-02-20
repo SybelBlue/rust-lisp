@@ -24,7 +24,7 @@ mod tests {
                 , word("6")])];
         
         
-        let mut source = Source::new(&src, None);
+        let source = Source::new(&src, None);
         let ts = source.lex()
             .map_err(|e| format!("lexing failed with Error {:?}", e))
             .unwrap();

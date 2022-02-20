@@ -1,7 +1,11 @@
+use std::str::Chars;
+
+use super::FilePos;
+
 #[derive(Debug)]
 pub struct Source<'a> {
-    txt: std::str::Chars<'a>,
-    pub name: Option<&'a String>
+    txt: Chars<'a>,
+    pos: FilePos<'a>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -12,19 +16,25 @@ pub enum Token {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum LexError {
+pub enum LexErrorType {
     TooManyClosing,
     Unclosed
 }
 
-pub type LexResult<T> = Result<T, LexError>;
+#[derive(Debug)]
+pub struct LexError<'a> {
+    pos: FilePos<'a>,
+    tipe: LexErrorType,
+}
+
+pub type LexResult<'a, T> = Result<T, LexError<'a>>;
 
 impl<'a> Source<'a> {
     pub fn new(source: &'a String, name: Option<&'a String>) -> Self {
-        Self { txt: source.chars(), name }
+        Self { txt: source.chars(), pos: FilePos::new(name) }
     }
 
-    pub fn lex(&mut self) -> LexResult<Vec<Token>> {
+    pub fn lex(mut self) -> LexResult<'a, Vec<Token>> {
         let mut stack = LexStack::new();
 
         loop {
@@ -37,7 +47,12 @@ impl<'a> Source<'a> {
             match next {
                 None => break,
                 Some('(') => stack.open_sexp(),
-                Some(')') => stack.close_sexp()?,
+                Some(')') => {
+                    match stack.close_sexp() {
+                        Ok(()) => {},
+                        Err(tipe) => return Err(LexError { tipe, pos: self.pos }),
+                    }
+                },
                 Some('\'') => stack.push_token(Token::Quote),
                 Some(ch) => stack.push_char(ch),
             }
@@ -45,16 +60,18 @@ impl<'a> Source<'a> {
 
         stack.try_push_word();
 
-        stack.finish()
+        stack.finish().map_err(|tipe| LexError { tipe, pos: self.pos })
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
         let n = self.txt.next();
+        self.pos.advance(&n);
         if !matches!(n, Some(c) if c.is_whitespace()) {
             return (false, n);
         }
         loop {
             let n = self.txt.next();
+            self.pos.advance(&n);
             if !matches!(n, Some(c) if c.is_whitespace()) {
                 return (true, n);
             }
@@ -82,9 +99,9 @@ impl LexStack {
         self.sexp_stack.push(Vec::with_capacity(4)) // 4 long sexp
     }
 
-    fn close_sexp(&mut self) -> LexResult<()> {
+    fn close_sexp(&mut self) -> Result<(), LexErrorType> {
         let last_sexp = self.sexp_stack.pop();
-        let mut finished = last_sexp.ok_or(LexError::TooManyClosing)?;
+        let mut finished = last_sexp.ok_or(LexErrorType::TooManyClosing)?;
 
         if self.curr_word.len() > 0 {
             finished.push(self.dump_curr());
@@ -117,11 +134,11 @@ impl LexStack {
         }
     }
 
-    fn finish(self) -> LexResult<Vec<Token>> {
+    fn finish(self) -> Result<Vec<Token>, LexErrorType> {
         if self.sexp_stack.is_empty() {
             Ok(self.finished)
         } else {
-            Err(LexError::Unclosed)
+            Err(LexErrorType::Unclosed)
         }
     }
 }
