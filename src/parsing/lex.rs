@@ -1,19 +1,17 @@
-use std::str::Chars;
-
 use super::{FilePos, lex_error::*};
 
 #[derive(Debug)]
 pub struct Source<'a> {
     pub src: &'a String,
-    txt: Chars<'a>,
+    txt: std::str::Chars<'a>,
     pub(crate) pos: FilePos<'a>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Token {
+pub enum Token<'a> {
     Quote,
     Word(String),
-    SExp(Vec<Token>),
+    SExp(FilePos<'a>, Vec<Token<'a>>),
 }
 
 pub type LexResult<'a, T> = Result<T, LexError<'a>>;
@@ -23,7 +21,7 @@ impl<'a> Source<'a> {
         Self { src, txt: src.chars(), pos: FilePos::new(name) }
     }
 
-    pub fn lex(mut self) -> LexResult<'a, Vec<Token>> {
+    pub fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
         let mut stack = LexStack::new();
 
         loop {
@@ -73,8 +71,8 @@ impl<'a> Source<'a> {
 }
 
 struct LexStack<'a> {
-    sexp_stack: Vec<(FilePos<'a>, Vec<Token>)>,
-    finished: Vec<Token>,
+    sexp_stack: Vec<(FilePos<'a>, Vec<Token<'a>>)>,
+    finished: Vec<Token<'a>>,
     curr_word: String,
 }
 
@@ -94,17 +92,17 @@ impl<'a> LexStack<'a> {
 
     fn close_sexp(mut self) -> Result<Self, LexErrorType<'a>> {
         let last_sexp = self.sexp_stack.pop();
-        let mut finished = last_sexp.ok_or(LexErrorType::TooManyClosing)?.1;
+        let (file_pos, mut finished) = last_sexp.ok_or(LexErrorType::TooManyClosing)?;
 
         if self.curr_word.len() > 0 {
             finished.push(self.dump_curr());
         }
 
-        self.push_token(Token::SExp(finished));
+        self.push_token(Token::SExp(file_pos, finished));
         Ok(self)
     }
 
-    fn push_token(&mut self, t: Token) {
+    fn push_token(&mut self, t: Token<'a>) {
         self.try_push_word();
         self.sexp_stack
             .last_mut()
@@ -113,7 +111,7 @@ impl<'a> LexStack<'a> {
             .push(t)
     }
 
-    fn dump_curr(&mut self) -> Token {
+    fn dump_curr(&mut self) -> Token<'a> {
         let out = Token::Word(self.curr_word.clone());
         self.curr_word.clear();
         out
@@ -128,7 +126,7 @@ impl<'a> LexStack<'a> {
         }
     }
 
-    fn finish(mut self) -> Result<Vec<Token>, LexErrorType<'a>> {
+    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorType<'a>> {
         if let Some((file_pos, _)) = self.sexp_stack.pop() {
             Err(LexErrorType::Unclosed(file_pos))
         } else {
