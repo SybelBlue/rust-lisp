@@ -1,24 +1,23 @@
-use std::iter::Peekable;
-
 mod parsing;
-
-pub(crate) fn take_while<T, I>(it: &mut Peekable<I>, p: fn(&T) -> bool) -> Vec<T> 
-        where I: Iterator<Item = T> {
-    let mut out = Vec::new();
-    while let Some(t) = it.next_if(p) {
-        out.push(t);
-    }
-    out
-}
-
-pub(crate) fn skip_while<T, I>(it: &mut Peekable<I>, p: fn(&T) -> bool)
-        where I: Iterator<Item = T> {
-    while it.next_if(p).is_some() {}
-}
 
 #[cfg(test)]
 mod tests {
     #[test]
-    fn success() {
+    fn basic() {
+        use crate::parsing::lex::{Token::{self, *}, Source};
+
+        let src = format!("()\nhello\n(+ 12 34 53) (    test\n\t\n\n 2 )");
+        let mut source = Source::new(&src, None);
+
+        fn word(s: &str) -> Token { Word(String::from(s)) }
+
+        assert_eq!(
+            source.lex(), 
+            Ok(vec!
+                [ SExp(vec![])
+                , word("hello")
+                , SExp(vec![word("+"), word("12"), word("34"), word("53")])
+                , SExp(vec![word("test"), word("2")])
+                ]))
     }
 }
