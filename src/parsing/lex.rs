@@ -62,7 +62,6 @@ impl<'a> Source<'a> {
     }
 }
 
-#[derive(Debug)]
 struct LexStack {
     sexp_stack: Vec<Vec<Token>>,
     finished: Vec<Token>,
@@ -79,6 +78,7 @@ impl LexStack {
     }
 
     fn open_sexp(&mut self) {
+        self.try_push_word();
         self.sexp_stack.push(Vec::with_capacity(4)) // 4 long sexp
     }
 
@@ -86,7 +86,7 @@ impl LexStack {
         let last_sexp = self.sexp_stack.pop();
         let mut finished = last_sexp.ok_or(LexError::TooManyClosing)?;
 
-        if self.mid_word() {
+        if self.curr_word.len() > 0 {
             finished.push(self.dump_curr());
         }
 
@@ -95,6 +95,7 @@ impl LexStack {
     }
 
     fn push_token(&mut self, t: Token) {
+        self.try_push_word();
         self.sexp_stack
             .last_mut()
             .unwrap_or(&mut self.finished)
@@ -107,19 +108,13 @@ impl LexStack {
         out
     }
 
-    fn push_char(&mut self, ch: char) {
-        self.curr_word.push(ch)
-    }
+    fn push_char(&mut self, ch: char) { self.curr_word.push(ch) }
 
     fn try_push_word(&mut self) {
-        if self.mid_word() {
+        if self.curr_word.len() > 0 {
             let t = self.dump_curr();
             self.push_token(t);
         }
-    }
-
-    fn mid_word(&self) -> bool {
-        !self.curr_word.is_empty()
     }
 
     fn finish(self) -> LexResult<Vec<Token>> {
