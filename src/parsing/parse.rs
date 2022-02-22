@@ -8,7 +8,7 @@ pub type ParseError = ();
 
 pub struct Context<'a> {
     prev: Option<&'a Context<'a>>,
-    symbols: HashMap<String, crate::types::Type>,
+    symbols: HashMap<String, crate::types::Type<'a>>,
 }
 
 impl<'a> Context<'a> {

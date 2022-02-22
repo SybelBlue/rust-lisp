@@ -1,8 +1,16 @@
 pub mod parsing;
+#[allow(dead_code, unused_variables)]
 pub mod types;
 
 #[cfg(test)]
 mod tests {
+    mod types {
+        use crate::types::*;
+        #[test]
+        fn basic() {
+            let mut ctxt = TypeContext::new();
+        }
+    }
 
     mod lexing {
         #[test]
