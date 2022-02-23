@@ -1,14 +1,68 @@
 use std::collections::HashMap;
 
-use super::lex::Token;
+use crate::types::Type;
 
-pub type ParseResult<T> = Result<T, ParseError>;
+use super::{lex::Token, FilePos};
 
-pub type ParseError = ();
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum ParseError<'a> {
+    EndOnQuote,
+    InSExp(FilePos<'a>, Box<ParseError<'a>>),
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum Value {
+    Int(usize),
+    Sym(String),
+    Quot(Box<Expr>),
+    Type(Type)
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum Expr {
+    Val(Value),
+    SExp(Vec<Expr>),
+}
+
+pub fn parse_token<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr>, ParseError<'a>> {
+    let mut ts = ts.into_iter();
+    let mut vals = Vec::new();
+    let mut quot_count = 0;
+
+    while let Some(t) = ts.next() {
+        let val = match t {
+            Token::Quote => {
+                quot_count += 1;
+                None
+            },
+            Token::Word(w) =>
+                Some(if let Ok(n) = w.parse::<usize>() {
+                    Expr::Val(Value::Int(n))
+                } else {
+                    Expr::Val(Value::Sym(w))
+                }),
+            Token::SExp(fp, ts) => {
+                let sexp = parse_token(ts).map_err(|e| ParseError::InSExp(fp, Box::new(e)))?;
+                Some(Expr::SExp(sexp))
+            },
+        };
+        if let Some(val) = val {
+            vals.push((0..quot_count).fold(val, |acc, _| Expr::Val(Value::Quot(Box::new(acc)))));
+            quot_count = 0;
+        }
+    }
+
+    if quot_count > 0 {
+        Err(ParseError::EndOnQuote)
+    } else {
+        Ok(vals)
+    }
+
+}
 
 pub struct Context<'a> {
     prev: Option<&'a Context<'a>>,
-    symbols: HashMap<String, crate::types::Type<'a>>,
+    symbols: HashMap<String, crate::types::Type>,
 }
 
 impl<'a> Context<'a> {
@@ -22,12 +76,4 @@ impl<'a> Context<'a> {
                 ].into_iter().collect(),
         }
     }
-}
-
-pub fn parse_all<'a>(ts: Vec<Token<'a>>, ctxt: &mut Context<'a>) -> ParseResult<()> {
-    ts.into_iter().try_for_each(|t| parse(t, ctxt))
-}
-
-pub fn parse<'a>(t: Token<'a>, ctxt: &mut Context<'a>) -> ParseResult<()> {
-    todo!()
 }

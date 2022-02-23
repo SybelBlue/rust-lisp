@@ -5,10 +5,16 @@ pub mod types;
 #[cfg(test)]
 mod tests {
     mod types {
-        use crate::types::*;
+        // use crate::types::*;
         #[test]
         fn basic() {
-            let mut ctxt = TypeContext::new();
+            // let mut ctxt = TypeContext::new();
+            // let a = ctxt.new_var();
+            // let b = ctxt.new_var();
+            // let c = ctxt.new_var();
+            // ctxt.test_mut();
+            // ctxt.test();
+            // ctxt.test_mut();
         }
     }
 

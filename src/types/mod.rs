@@ -1,34 +1,40 @@
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 
-pub type TVar<'a> = &'a String;
+use crate::parsing::lex::Token;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Type<'a> {
+pub type TVar = String;
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+pub enum Type {
     Unit,
     Int,
     Str,
     Type,
-    Var(TVar<'a>),
-    Fun(Box<Type<'a>>, Box<Type<'a>>)
+    Data(String),
+    Fun(Box<Type>, Box<Type>)
 }
 
+// pub enum PolyTypeBody {
+//     Con(ConcType),
+//     Var(TVar),
+//     Fun(Box<Type>, Box<Type>),
+// }
+
+// pub enum Type {
+    // C(ConcType),
+    // P(Vec<Constraint>, PolyTypeBody),
+// }
+
 #[derive(Debug, Clone)]
-pub enum Constraint<'a> {
-    Is(TVar<'a>, Type<'a>),
+pub enum Constraint {
+    Eq(HashSet<TVar>),
     // Trait(TVar, Vec<Type>),
 }
 
-pub struct TypeContext<'a> {
-    known: HashMap<String, Type<'a>>,
-    constraints: Vec<Constraint<'a>>
+pub struct TypeContext {
+    symbols: HashMap<String, Type>
 }
 
-impl<'a> TypeContext<'a> {
-    pub fn new() -> Self {
-        Self { known: HashMap::new(), constraints: Vec::new() }
-    }
-
-    pub fn update<F>(&'a mut self, name: String, default: Type<'a>, f: F) -> &'a mut Type where F: FnOnce(&mut Type) {
-        self.known.entry(name).and_modify(f).or_insert(default)
-    }
+pub fn type_token<'a>(t: &Token, ctxt: &'a mut TypeContext) -> &'a Type {
+    todo!()
 }
