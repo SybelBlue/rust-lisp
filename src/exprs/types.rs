@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::Write};
 
-use super::{values::Value, Expr, contexts::TypeContext};
+use super::{values::Value, Expr, contexts::Context};
 
 pub type TVar = String;
 
@@ -72,7 +72,7 @@ pub enum TypeError<'a> {
     TypeMismatch { got: Type, expected: Type }
 }
 
-pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut TypeContext) -> Result<Type, TypeError<'a>> {
+pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<'a>> {
     match e {
         Expr::Val(v) => Ok(match v {
             Value::Int(_) => Type::Int,

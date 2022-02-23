@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
-use super::types::Type;
+use super::{types::Type, Expr};
 
-pub struct TypeContext {
+
+pub struct Context {
     symbols: HashMap<String, Type>
 }
 
-impl TypeContext {
+impl Context {
     pub fn new() -> Self {
         use super::types::Type::*;
         Self { symbols: vec!
