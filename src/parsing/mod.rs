@@ -1,6 +1,4 @@
 pub mod lex;
-#[allow(dead_code, unused_variables)]
-pub mod parse;
 pub(crate) mod lex_error;
 
 
