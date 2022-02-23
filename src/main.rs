@@ -9,7 +9,24 @@ fn main() -> std::io::Result<()> {
     
     while let ReadResult::Input(input) = reader.read_line()? {
         match Source::new(&input, Some(name)).lex() {
-            Ok(v) => println!("{:?}", v),
+            Ok(ts) => {
+                println!("tokens {:?}", &ts);
+                match rust_lisp::parsing::parse_tokens(ts) {
+                    Ok(es) => {
+                        println!("parsed {:?}", &es);
+                        let mut ctxt = rust_lisp::types::TypeContext::new();
+                        for e in &es {
+                            match rust_lisp::types::type_expr(e, &mut ctxt) {
+                                Ok(t) => {
+                                    println!("type {:?}", t);
+                                },
+                                Err(e) => println!("** {:?}", e),
+                            }
+                        }
+                    },
+                    Err(e) => println!("** {:?}", e),
+                }
+            },
             Err(e) => println!("** {}", e)
         }
     }

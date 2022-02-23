@@ -1,6 +1,6 @@
 use std::collections::{HashSet, HashMap};
 
-use crate::parsing::parse::{Value, Expr};
+use crate::parsing::{Value, Expr};
 
 pub type TVar = String;
 
@@ -80,7 +80,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut TypeContext) -> Result<Type, TypeEr
                         return Err(TypeError::TooManyArgs(f));
                     }
                 }
-                todo!()
+                Ok(f_type)
             } else {
                 Ok(Type::Unit)
             }

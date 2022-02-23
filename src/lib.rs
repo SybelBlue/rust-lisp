@@ -8,13 +8,16 @@ mod tests {
         // use crate::types::*;
         #[test]
         fn basic() {
-            // let mut ctxt = TypeContext::new();
-            // let a = ctxt.new_var();
-            // let b = ctxt.new_var();
-            // let c = ctxt.new_var();
-            // ctxt.test_mut();
-            // ctxt.test();
-            // ctxt.test_mut();
+            // let src = format!("()\nhello\n(+ 12 34 53) (    test\n\t\n\n 2 ' hi) (test0(test1)test-2'(test3)) (0 (1 (2 (3)) ((4) 5)) 6)");
+            // let source = crate::parsing::lex::Source::new(&src, None);
+            // let ts = source.lex()
+            //     .map_err(|e| println!("lexing failed with Error {}", e))
+            //     .unwrap();
+            // let es = crate::parsing::parse::parse_tokens(ts)
+            //     .map_err(|e| println!("parsing failed with Error {:?}", e))
+            //     .unwrap();
+            // let mut ctxt = crate::types::TypeContext::new();
+            // let t = crate::types::type_expr(e, &mut ctxt)
         }
     }
 
