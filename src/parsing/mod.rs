@@ -1,10 +1,7 @@
 pub mod lex;
 pub(crate) mod lex_error;
 
-
-use std::fmt::Write;
-
-use crate::exprs::types::Type;
+use crate::exprs::{Expr, values::Value};
 
 use self::lex::Token;
 
@@ -46,49 +43,6 @@ impl<'a> std::fmt::Display for FilePos<'a> {
 pub enum ParseError<'a> {
     EndOnQuote,
     InSExp(FilePos<'a>, Box<ParseError<'a>>),
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum Value<'a> {
-    Int(usize),
-    Sym(String),
-    Quot(Box<Expr<'a>>),
-    Type(Type)
-}
-
-impl<'a> std::fmt::Display for Value<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Int(n) => write!(f, "{}", n),
-            Value::Sym(s) => write!(f, "{}", s),
-            Value::Quot(q) => write!(f, "'{}", q),
-            Value::Type(t) => write!(f, "{}", t),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum Expr<'a> {
-    Val(Value<'a>),
-    SExp(FilePos<'a>, Vec<Expr<'a>>),
-}
-
-impl<'a> std::fmt::Display for Expr<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expr::Val(v) => write!(f, "{}", v),
-            Expr::SExp(_, es) => {
-                f.write_char('(')?;
-                if !es.is_empty() {
-                    write!(f, "{}", es[0])?;
-                    for e in &es[1..] {
-                        write!(f, " {}", e)?;
-                    }
-                }
-                f.write_char(')')
-            },
-        }
-    }
 }
 
 pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<'a>> {

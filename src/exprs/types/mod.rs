@@ -1,6 +1,6 @@
 use std::{collections::{HashSet, HashMap}, fmt::Write};
 
-use crate::parsing::{Value, Expr};
+use super::{values::Value, Expr};
 
 pub type TVar = String;
 
