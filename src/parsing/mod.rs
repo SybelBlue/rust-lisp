@@ -2,6 +2,8 @@ pub mod lex;
 pub(crate) mod lex_error;
 
 
+use std::fmt::Write;
+
 use crate::types::Type;
 
 use self::lex::Token;
@@ -54,10 +56,39 @@ pub enum Value {
     Type(Type)
 }
 
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Int(n) => write!(f, "{}", n),
+            Value::Sym(s) => write!(f, "{}", s),
+            Value::Quot(q) => write!(f, "'{}", q),
+            Value::Type(t) => write!(f, "{}", t),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Expr {
     Val(Value),
     SExp(Vec<Expr>),
+}
+
+impl std::fmt::Display for Expr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Expr::Val(v) => write!(f, "{}", v),
+            Expr::SExp(es) => {
+                f.write_char('(')?;
+                if !es.is_empty() {
+                    write!(f, "{}", es[0])?;
+                    for e in &es[1..] {
+                        write!(f, " {}", e)?;
+                    }
+                }
+                f.write_char(')')
+            },
+        }
+    }
 }
 
 pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr>, ParseError<'a>> {

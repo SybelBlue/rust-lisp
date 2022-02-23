@@ -1,4 +1,4 @@
-use std::collections::{HashSet, HashMap};
+use std::{collections::{HashSet, HashMap}, fmt::Write};
 
 use crate::parsing::{Value, Expr};
 
@@ -14,9 +14,38 @@ pub enum Type {
     Fun(Box<Type>, Box<Type>)
 }
 
+impl std::fmt::Display for Type {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Type::Unit => write!(f, "Unit"),
+            Type::Int => write!(f, "Int"),
+            Type::Str => write!(f, "String"),
+            Type::Type => write!(f, "Type"),
+            Type::Data(s) => write!(f, "{}", s),
+            Type::Fun(pt, rt) => {
+                write!(f, "(-> {}", pt.as_ref())?;
+                for t in rt.as_ref().unpack() {
+                    write!(f, " {}", t)?;
+                }
+                f.write_char(')')
+            },
+        }
+    }
+}
+
 impl Type {
     pub fn fun(par: Self, ret: Self) -> Self {
         Self::Fun(Box::new(par), Box::new(ret))
+    }
+    
+    fn unpack<'a>(&'a self) -> Vec<&'a Self> {
+        if let Self::Fun(pt, rt) = self {
+            let mut out = vec![pt.as_ref()];
+            out.extend(rt.as_ref().unpack());
+            out
+        } else {
+            vec![&self]
+        }
     }
 }
 

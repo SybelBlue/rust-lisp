@@ -13,12 +13,11 @@ fn main() -> std::io::Result<()> {
                 println!("tokens {:?}", &ts);
                 match rust_lisp::parsing::parse_tokens(ts) {
                     Ok(es) => {
-                        println!("parsed {:?}", &es);
                         let mut ctxt = rust_lisp::types::TypeContext::new();
                         for e in &es {
                             match rust_lisp::types::type_expr(e, &mut ctxt) {
                                 Ok(t) => {
-                                    println!("type {:?}", t);
+                                    println!("(:: {} {})", e, t);
                                 },
                                 Err(e) => println!("** {:?}", e),
                             }
