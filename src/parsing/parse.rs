@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crate::types::Type;
 
 use super::{lex::Token, FilePos};
@@ -60,20 +58,20 @@ pub fn parse_token<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr>, ParseError<'a>> 
 
 }
 
-pub struct Context<'a> {
-    prev: Option<&'a Context<'a>>,
-    symbols: HashMap<String, crate::types::Type>,
-}
+// pub struct Context<'a> {
+//     prev: Option<&'a Context<'a>>,
+//     symbols: HashMap<String, crate::types::Type>,
+// }
 
-impl<'a> Context<'a> {
-    pub fn new() -> Self {
-        use crate::types::Type::*;
-        Self {
-            prev: None,
-            symbols: vec!
-                [ (format!("def"), Fun(Box::new(Str), Box::new(Type)))
-                , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
-                ].into_iter().collect(),
-        }
-    }
-}
+// impl<'a> Context<'a> {
+//     pub fn new() -> Self {
+//         use crate::types::Type::*;
+//         Self {
+//             prev: None,
+//             symbols: vec!
+//                 [ (format!("def"), Fun(Box::new(Str), Box::new(Type)))
+//                 , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
+//                 ].into_iter().collect(),
+//         }
+//     }
+// }
