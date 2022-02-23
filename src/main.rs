@@ -10,7 +10,7 @@ fn main() -> std::io::Result<()> {
     while let ReadResult::Input(input) = reader.read_line()? {
         match Source::new(&input, Some(name)).lex() {
             Ok(ts) => {
-                println!("tokens {:?}", &ts);
+                // println!("tokens {:?}", &ts);
                 match rust_lisp::parsing::parse_tokens(ts) {
                     Ok(es) => {
                         let mut ctxt = rust_lisp::types::TypeContext::new();

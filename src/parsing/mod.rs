@@ -49,14 +49,14 @@ pub enum ParseError<'a> {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum Value {
+pub enum Value<'a> {
     Int(usize),
     Sym(String),
-    Quot(Box<Expr>),
+    Quot(Box<Expr<'a>>),
     Type(Type)
 }
 
-impl std::fmt::Display for Value {
+impl<'a> std::fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Value::Int(n) => write!(f, "{}", n),
@@ -68,16 +68,16 @@ impl std::fmt::Display for Value {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum Expr {
-    Val(Value),
-    SExp(Vec<Expr>),
+pub enum Expr<'a> {
+    Val(Value<'a>),
+    SExp(FilePos<'a>, Vec<Expr<'a>>),
 }
 
-impl std::fmt::Display for Expr {
+impl<'a> std::fmt::Display for Expr<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Expr::Val(v) => write!(f, "{}", v),
-            Expr::SExp(es) => {
+            Expr::SExp(_, es) => {
                 f.write_char('(')?;
                 if !es.is_empty() {
                     write!(f, "{}", es[0])?;
@@ -91,7 +91,7 @@ impl std::fmt::Display for Expr {
     }
 }
 
-pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr>, ParseError<'a>> {
+pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<'a>> {
     let mut ts = ts.into_iter();
     let mut vals = Vec::new();
     let mut quot_count = 0;
@@ -109,8 +109,9 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr>, ParseError<'a>>
                     Expr::Val(Value::Sym(w))
                 }),
             Token::SExp(fp, ts) => {
-                let sexp = parse_tokens(ts).map_err(|e| ParseError::InSExp(fp, Box::new(e)))?;
-                Some(Expr::SExp(sexp))
+                let sexp = parse_tokens(ts)
+                    .map_err(|e| ParseError::InSExp(fp.clone(), Box::new(e)))?;
+                Some(Expr::SExp(fp, sexp))
             },
         };
         if let Some(val) = val {

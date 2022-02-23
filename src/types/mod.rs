@@ -72,7 +72,12 @@ pub struct TypeContext {
 
 impl TypeContext {
     pub fn new() -> Self {
-        Self { symbols: HashMap::new() }
+        use crate::types::Type::*;
+        Self { symbols: vec!
+                [ (format!("def"), Fun(Box::new(Str), Box::new(Type)))
+                , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
+                ].into_iter().collect(),
+        }
     }
 
     pub fn get_or_decl(&mut self, key: &String) -> &Type {
@@ -82,7 +87,7 @@ impl TypeContext {
 
 #[derive(Debug)]
 pub enum TypeError<'a> {
-    TooManyArgs(&'a Expr),
+    TooManyArgs(&'a Expr<'a>),
     TypeMismatch { got: Type, expected: Type }
 }
 
@@ -94,7 +99,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut TypeContext) -> Result<Type, TypeEr
             Value::Sym(k) => ctxt.get_or_decl(k).clone(),
             Value::Quot(e) => Type::fun(Type::Unit, type_expr(e.as_ref(), ctxt)?),
         }),
-        Expr::SExp(es) => {
+        Expr::SExp(_, es) => {
             if let Some(f) = es.first() {
                 let mut f_type = type_expr(f, ctxt)?;
                 for e in &es[1..] {
