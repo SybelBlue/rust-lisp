@@ -74,7 +74,7 @@ impl TypeContext {
     pub fn new() -> Self {
         use self::Type::*;
         Self { symbols: vec!
-                [ (format!("def"), Fun(Box::new(Str), Box::new(Type)))
+                [ (format!("let"), Fun(Box::new(Str), Box::new(Type)))
                 , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
                 ].into_iter().collect(),
         }
