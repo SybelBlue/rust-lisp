@@ -1,4 +1,5 @@
 pub mod parsing;
+pub mod interpreting;
 pub mod exprs;
 
 #[cfg(test)]
