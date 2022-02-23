@@ -1,6 +1,6 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::parsing::lex::Source;
+use rust_lisp::{parsing::{lex::Source, parse_tokens}, exprs::types::{type_expr, TypeContext}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
@@ -11,11 +11,11 @@ fn main() -> std::io::Result<()> {
         match Source::new(&input, Some(name)).lex() {
             Ok(ts) => {
                 // println!("tokens {:?}", &ts);
-                match rust_lisp::parsing::parse_tokens(ts) {
+                match parse_tokens(ts) {
                     Ok(es) => {
-                        let mut ctxt = rust_lisp::types::TypeContext::new();
+                        let mut ctxt = TypeContext::new();
                         for e in &es {
-                            match rust_lisp::types::type_expr(e, &mut ctxt) {
+                            match type_expr(e, &mut ctxt) {
                                 Ok(t) => {
                                     println!("(:: {} {})", e, t);
                                 },

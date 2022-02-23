@@ -4,7 +4,7 @@ pub(crate) mod lex_error;
 
 use std::fmt::Write;
 
-use crate::types::Type;
+use crate::exprs::types::Type;
 
 use self::lex::Token;
 

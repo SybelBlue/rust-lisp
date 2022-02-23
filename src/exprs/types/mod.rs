@@ -72,7 +72,7 @@ pub struct TypeContext {
 
 impl TypeContext {
     pub fn new() -> Self {
-        use crate::types::Type::*;
+        use self::Type::*;
         Self { symbols: vec!
                 [ (format!("def"), Fun(Box::new(Str), Box::new(Type)))
                 , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
