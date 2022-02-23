@@ -1,6 +1,6 @@
-use std::{collections::{HashSet, HashMap}, fmt::Write};
+use std::{collections::HashSet, fmt::Write};
 
-use super::{values::Value, Expr};
+use super::{values::Value, Expr, contexts::TypeContext};
 
 pub type TVar = String;
 
@@ -64,25 +64,6 @@ impl Type {
 pub enum Constraint {
     Eq(HashSet<TVar>),
     // Trait(TVar, Vec<Type>),
-}
-
-pub struct TypeContext {
-    symbols: HashMap<String, Type>
-}
-
-impl TypeContext {
-    pub fn new() -> Self {
-        use self::Type::*;
-        Self { symbols: vec!
-                [ (format!("let"), Fun(Box::new(Str), Box::new(Type)))
-                , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
-                ].into_iter().collect(),
-        }
-    }
-
-    pub fn get_or_decl(&mut self, key: &String) -> &Type {
-        self.symbols.get(key).expect("make polymorphic type vars")
-    }
 }
 
 #[derive(Debug)]

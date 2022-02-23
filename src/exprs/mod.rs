@@ -1,12 +1,12 @@
 use std::fmt::{Display, Formatter, Result, Write};
 
+pub mod types;
+pub mod values;
+pub mod contexts;
+
 use crate::parsing::FilePos;
 
 use self::values::Value;
-
-pub mod types;
-pub mod values;
-
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Expr<'a> {
