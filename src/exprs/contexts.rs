@@ -16,35 +16,23 @@ impl<'a> Implemented<'a> for &Expr<'a> {
     fn eval(&'a self, ctxt: &mut Context<'a>) -> Value<'a> { interpret(self, ctxt) }
 }
 
-impl<'a> Implemented<'a> for &str {
-    fn eval(&'a self, _: &mut Context<'a>) -> Value<'a> { todo!("Tried to exec {}", self) }
-}
+struct BuiltInTodo(&'static str);
 
-enum CEBody<'a> {
-    BuiltInTodo(&'a str),
-    Expr(&'a Expr<'a>)
-}
-
-impl<'a> CEBody<'a> {
-    pub fn into_impl(&'a self) -> Box<(dyn Implemented<'a> + 'a)> {
-        match self {
-            Self::BuiltInTodo(s) => Box::new(*s),
-            Self::Expr(e) => Box::new(*e),
-        }
-    }
+impl<'a> Implemented<'a> for BuiltInTodo {
+    fn eval(&'a self, _: &mut Context<'a>) -> Value<'a> { todo!("Tried to exec {}", self.0) }
 }
 
 struct ContextEntry<'a> {
     tipe: Type,
-    body: CEBody<'a>,
+    body: Box<(dyn Implemented<'a> + 'a)>,
 }
 
 impl<'a> ContextEntry<'a> {
     pub fn new(tipe: Type, body: &'a Expr<'a>) -> Self {
-        Self { tipe, body: CEBody::Expr(body) }
+        Self { tipe, body: Box::new(body) }
     }
     pub fn todo(tipe: Type, name: &'static str) -> (String, Self) {
-        (String::from(name), Self { tipe, body: CEBody::BuiltInTodo(name)} )
+        (String::from(name), Self { tipe, body: Box::new(BuiltInTodo(name)) } )
     }
 }
 
@@ -78,8 +66,8 @@ impl<'a> Context<'a> {
         self.get(key).map(|entry| &entry.tipe)
     }
 
-    pub fn get_impl(&'a self, key: &String) -> Option<Box<(dyn Implemented<'a> + 'a)>> {
-        self.get(key).map(|entry| entry.body.into_impl())
+    pub fn get_impl(&'a self, key: &String) -> Option<&'a dyn Implemented<'a>> {
+        self.get(key).map(|entry| entry.body.as_ref())
     }
 
     pub fn define(&mut self, key: String, empl: &'a Expr<'a>) -> Result<(), TypeError> {
