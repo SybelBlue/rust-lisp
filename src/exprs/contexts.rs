@@ -31,7 +31,7 @@ impl<'a> ContextEntry<'a> {
     pub fn new(tipe: Type, body: &'a Expr<'a>) -> Self {
         Self { tipe, body: Box::new(body) }
     }
-    pub fn todo(tipe: Type, name: &'static str) -> (String, Self) {
+    pub fn todo(name: &'static str, tipe: Type) -> (String, Self) {
         (String::from(name), Self { tipe, body: Box::new(BuiltInTodo(name)) } )
     }
 }
@@ -48,8 +48,8 @@ impl Context<'static> {
         use super::types::Type::*;
         Self { 
             symbols: vec!
-                [ ContextEntry::todo(Fun(Box::new(Str), Box::new(Type)), "let")
-                , ContextEntry::todo(Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))), "+")
+                [ ContextEntry::todo("let", Fun(Box::new(Str), Box::new(Type)))
+                , ContextEntry::todo("+", Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
                 ].into_iter().collect(),
             imported: HashMap::new(),
         }
