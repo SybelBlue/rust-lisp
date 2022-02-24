@@ -77,7 +77,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<
         Expr::Val(v) => Ok(match v {
             Value::Int(_) => Type::Int,
             Value::Type(_) => Type::Type,
-            Value::Sym(k) => ctxt.get_type(k).clone(),
+            Value::Sym(k) => ctxt.get_type(k).expect("undefined symbol").clone(),
             Value::Quot(e) => Type::fun(Type::Unit, type_expr(e.as_ref(), ctxt)?),
         }),
         Expr::SExp(_, es) => {
