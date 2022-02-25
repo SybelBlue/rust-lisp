@@ -2,13 +2,6 @@ use crate::exprs::SBody;
 
 use super::{FilePos, lex_error::*};
 
-#[derive(Debug)]
-pub struct Source<'a> {
-    pub src: &'a String,
-    txt: std::str::Chars<'a>,
-    pub(crate) pos: FilePos<'a>,
-}
-
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Token<'a> {
     LamSlash(FilePos<'a>),
@@ -16,7 +9,29 @@ pub enum Token<'a> {
     SExp(SBody<'a, Token<'a>>),
 }
 
+impl<'a> Token<'a> {
+    pub fn get_symbols(&'a self) -> Vec<String> {
+        let mut symbols = Vec::new();
+        let mut to_check = vec![self];
+        while let Some(next) = to_check.pop() {
+            match next {
+                Token::LamSlash(_) => {},
+                Token::Word(w) => symbols.push(w.clone()),
+                Token::SExp(sbody) => to_check.extend(&sbody.body),
+            }
+        }
+        symbols
+    }
+}
+
 pub type LexResult<'a, T> = Result<T, LexError<'a>>;
+
+#[derive(Debug)]
+pub struct Source<'a> {
+    pub src: &'a String,
+    txt: std::str::Chars<'a>,
+    pub(crate) pos: FilePos<'a>,
+}
 
 impl<'a> Source<'a> {
     pub fn new(src: &'a String, name: Option<&'a String>) -> Self {
