@@ -13,7 +13,7 @@ fn main() -> std::io::Result<()> {
                 // println!("tokens {:?}", &ts);
                 match parse_tokens(ts) {
                     Ok(es) => {
-                        let mut ctxt = TypeContext::Empty;
+                        let mut ctxt = TypeContext::new();
                         for e in &es {
                             match type_expr(e, ctxt.clone()) {
                                 Ok((t, new)) => {
