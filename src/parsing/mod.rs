@@ -1,6 +1,8 @@
 pub mod lex;
 pub(crate) mod lex_error;
 
+use std::{collections::HashSet};
+
 use crate::exprs::{Expr, values::Value, SBody};
 
 use self::lex::Token;
@@ -44,7 +46,8 @@ pub enum ParseError<'a> {
     MisplacedLambda(FilePos<'a>),
     MissingLambdaParams(FilePos<'a>),
     MissingLambdaBody(FilePos<'a>),
-    ExtraLamBody(FilePos<'a>),
+    ExtraLambdaBody(FilePos<'a>),
+    DuplicateLambdaArg(String),
     InSExp(FilePos<'a>, Box<ParseError<'a>>),
 }
 
@@ -57,11 +60,11 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<
             Err(lam_fp) => {
                 exprs.push(Expr::Val(Value::Sym(String::from("\\"))));
                 let t = ts.next().ok_or(ParseError::MissingLambdaParams(lam_fp.clone()))?;
-                exprs.push(parse_rest(t)?);
+                exprs.push(parse_rest(check_params(t)?)?);
                 let t = ts.next().ok_or(ParseError::MissingLambdaBody(lam_fp.clone()))?;
                 exprs.push(parse_rest(t)?);
                 return if ts.next().is_some() {
-                    Err(ParseError::ExtraLamBody(lam_fp))
+                    Err(ParseError::ExtraLambdaBody(lam_fp))
                 } else {
                     Ok(exprs)
                 };
@@ -98,4 +101,20 @@ fn parse_first<'a>(t: Token<'a>) -> Result<Result<Expr<'a>, FilePos<'a>>, ParseE
             Ok(Expr::SExp(SBody { start, body }))
         },
     })
+}
+
+fn check_params<'a>(t: Token<'a>) -> Result<Token<'a>, ParseError<'a>> {
+    let mut used = HashSet::new();
+    let mut to_check = vec![&t];
+    while let Some(next) = to_check.pop() {
+        match next {
+            Token::LamSlash(fp) => return Err(ParseError::MisplacedLambda(fp.clone())),
+            Token::Word(w) =>
+                if !used.insert(w.clone()) {
+                    return Err(ParseError::DuplicateLambdaArg(w.clone()))
+                },
+            Token::SExp(sbody) => to_check.extend(&sbody.body),
+        }
+    }
+    Ok(t)
 }
