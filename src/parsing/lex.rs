@@ -11,7 +11,7 @@ pub struct Source<'a> {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Token<'a> {
-    Quote,
+    Quote(FilePos<'a>),
     Word(String),
     SExp(SBody<'a, Token<'a>>),
 }
@@ -41,7 +41,7 @@ impl<'a> Source<'a> {
                         Ok(st) => stack = st,
                         Err(tipe) => return Err(LexError { tipe, src: self })
                     },
-                Some('\'') => stack.push_token(Token::Quote),
+                Some('\'') => stack.push_token(Token::Quote(self.pos.clone())),
                 Some(ch) => stack.push_char(ch),
             }
         }

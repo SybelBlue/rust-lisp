@@ -41,19 +41,23 @@ impl<'a> std::fmt::Display for FilePos<'a> {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum ParseError<'a> {
-    EndOnQuote,
+    MisplacedQuote(FilePos<'a>),
     InSExp(FilePos<'a>, Box<ParseError<'a>>),
 }
 
 pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<'a>> {
     let mut ts = ts.into_iter();
     let mut vals = Vec::new();
-    let mut quot_count = 0;
+    let mut quoted = None;
 
     while let Some(t) = ts.next() {
         let val = match t {
-            Token::Quote => {
-                quot_count += 1;
+            Token::Quote(fp) => {
+                if quoted.is_some() {
+                    return Err(ParseError::MisplacedQuote(fp));
+                } else {
+                    quoted = Some(fp);
+                }
                 None
             },
             Token::Word(w) =>
@@ -69,13 +73,13 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<
             },
         };
         if let Some(val) = val {
-            vals.push((0..quot_count).fold(val, |acc, _| Expr::Val(Value::Quot(Box::new(acc)))));
-            quot_count = 0;
+            vals.push(Expr::Val(Value::Quot(Box::new(val))));
+            quoted = None;
         }
     }
 
-    if quot_count > 0 {
-        Err(ParseError::EndOnQuote)
+    if let Some(fp) = quoted {
+        Err(ParseError::MisplacedQuote(fp))
     } else {
         Ok(vals)
     }

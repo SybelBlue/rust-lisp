@@ -38,7 +38,7 @@ mod tests {
             impl<'a> From<&'a Token<'a>> for QSW<'a> {
                 fn from(t: &'a Token<'a>) -> Self {
                     match t {
-                        Token::Quote => Q,
+                        Token::Quote(_) => Q,
                         Token::Word(s) => W(s.as_str()),
                         Token::SExp(SBody { body, ..}) => S(body.into_iter().map(QSW::from).collect()),
                     }
