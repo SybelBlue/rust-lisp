@@ -38,7 +38,7 @@ impl Type {
         Self::Fun(Box::new(par), Box::new(ret))
     }
     
-    fn unpack<'a>(&'a self) -> Vec<&'a Self> {
+    fn unpack(&self) -> Vec<&Self> {
         if let Self::Fun(pt, rt) = self {
             let mut out = vec![pt.as_ref()];
             out.extend(rt.as_ref().unpack());
@@ -49,17 +49,6 @@ impl Type {
     }
 }
 
-// pub enum PolyTypeBody {
-//     Con(ConcType),
-//     Var(TVar),
-//     Fun(Box<Type>, Box<Type>),
-// }
-
-// pub enum Type {
-    // C(ConcType),
-    // P(Vec<Constraint>, PolyTypeBody),
-// }
-
 #[derive(Debug, Clone)]
 pub enum Constraint {
     Eq(HashSet<TVar>),
@@ -69,21 +58,26 @@ pub enum Constraint {
 #[derive(Debug)]
 pub enum TypeError<'a> {
     TooManyArgs(&'a Expr<'a>),
-    TypeMismatch { got: Type, expected: Type }
+    TypeMismatch { got: Type, expected: Type },
+    UndefinedSymbol(&'a String),
 }
 
 pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<'a>> {
+    type_expr_helper(e, ctxt)
+}
+
+fn type_expr_helper<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<'a>> {
     match e {
         Expr::Val(v) => Ok(match v {
             Value::Int(_) => Type::Int,
             Value::Type(_) => Type::Type,
-            Value::Sym(k) => ctxt.get_type(k).expect("undefined symbol").clone(),
+            Value::Sym(k) => ctxt.get_type(k).ok_or(TypeError::UndefinedSymbol(k))?.clone(),
             Value::Quot(e) => Type::fun(Type::Unit, type_expr(e.as_ref(), ctxt)?),
         }),
         Expr::SExp(_, es) => {
-            if let Some(f) = es.first() {
-                let mut f_type = type_expr(f, ctxt)?;
-                for e in &es[1..] {
+            if let Some((fst, rst)) = es.split_first() {
+                let mut f_type = type_expr(fst, ctxt)?;
+                for e in rst {
                     let e_type = type_expr(e, ctxt)?;
                     if let Type::Fun(pt, rt) = f_type.clone() {
                         if *pt != e_type {
@@ -92,7 +86,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<
                             f_type = *rt;
                         }
                     } else {
-                        return Err(TypeError::TooManyArgs(f));
+                        return Err(TypeError::TooManyArgs(fst));
                     }
                 }
                 Ok(f_type)

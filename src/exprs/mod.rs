@@ -20,9 +20,9 @@ impl<'a> Display for Expr<'a> {
             Expr::Val(v) => write!(f, "{}", v),
             Expr::SExp(_, es) => {
                 f.write_char('(')?;
-                if !es.is_empty() {
-                    write!(f, "{}", es[0])?;
-                    for e in &es[1..] {
+                if let Some((fst, rst)) = es.split_first() {
+                    write!(f, "{}", fst)?;
+                    for e in rst {
                         write!(f, " {}", e)?;
                     }
                 }
