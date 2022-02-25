@@ -12,7 +12,7 @@ impl<'a> Implemented<'a> for Value<'a> {
     fn eval(&'a self, _: &mut Context<'a>) -> Value<'a> { self.clone() }
 }
 
-impl<'a> Implemented<'a> for &Expr<'a> {
+impl<'a> Implemented<'a> for Expr<'a> {
     fn eval(&'a self, ctxt: &mut Context<'a>) -> Value<'a> { interpret(self, ctxt) }
 }
 
@@ -28,7 +28,7 @@ struct ContextEntry<'a> {
 }
 
 impl<'a> ContextEntry<'a> {
-    pub fn new(tipe: Type, body: &'a Expr<'a>) -> Self {
+    pub fn new(tipe: Type, body: Expr<'a>) -> Self {
         Self { tipe, body: Box::new(body) }
     }
     pub fn todo(name: &'static str, tipe: Type) -> (String, Self) {
@@ -70,9 +70,9 @@ impl<'a> Context<'a> {
         self.get(key).map(|entry| entry.body.as_ref())
     }
 
-    pub fn define(&mut self, key: String, empl: &'a Expr<'a>) -> Result<(), TypeError> {
+    pub fn define(&'a mut self, key: String, empl: &'a Expr<'a>) -> Result<(), TypeError> {
         let tipe = type_expr(empl, self)?;
-        self.symbols.insert(key, ContextEntry::new(tipe, empl));
+        self.symbols.insert(key, ContextEntry::new(tipe, empl.clone()));
         Ok(())
     }
 }
