@@ -58,15 +58,14 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<
     if let Some(t) = ts.next() {
         match parse_first(t)? {
             Err(lam_fp) => {
-                exprs.push(Expr::Val(Value::Sym(String::from("\\"))));
                 let t = ts.next().ok_or(ParseError::MissingLambdaParams(lam_fp.clone()))?;
-                exprs.push(parse_rest(check_params(t)?)?);
+                let p = parse_rest(check_params(t)?)?;
                 let t = ts.next().ok_or(ParseError::MissingLambdaBody(lam_fp.clone()))?;
-                exprs.push(parse_rest(t)?);
+                let b = parse_rest(t)?;
                 return if ts.next().is_some() {
                     Err(ParseError::ExtraLambdaBody(lam_fp))
                 } else {
-                    Ok(exprs)
+                    Ok(vec![Expr::Val(Value::Lam(Box::new(p), Box::new(b)))])
                 };
             },
             Ok(e) => exprs.push(e)
