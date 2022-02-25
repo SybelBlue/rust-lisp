@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::parsing::FilePos;
 
-use super::{contexts::Context, values::Value, Expr, SBody};
+use super::{contexts::TypeContext, values::Value, Expr, SBody};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Type {
@@ -12,6 +12,7 @@ pub enum Type {
     Type,
     Data(String),
     Fun(Box<Type>, Box<Type>),
+    Var(String),
 }
 
 impl std::fmt::Display for Type {
@@ -28,7 +29,8 @@ impl std::fmt::Display for Type {
                     write!(f, " {}", t)?;
                 }
                 f.write_char(')')
-            }
+            },
+            Type::Var(s) => write!(f, "t_{}", s),
         }
     }
 }
@@ -60,26 +62,35 @@ pub enum TypeError<'a> {
     UndefinedSymbol(&'a String),
 }
 
-pub fn type_expr<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<'a>> {
-    type_expr_helper(e, ctxt)
-}
-
-fn type_expr_helper<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeError<'a>> {
+pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContext), TypeError<'a>> {
     match e {
         Expr::Val(v) => Ok(match v {
-            Value::Int(_) => Type::Int,
-            Value::Type(_) => Type::Type,
-            Value::Sym(k) => ctxt
-                .get_type(k)
+            Value::Int(_) => (Type::Int, ctxt),
+            Value::Type(_) => (Type::Type, ctxt),
+            Value::Sym(k) => (ctxt
+                .get(k)
                 .ok_or(TypeError::UndefinedSymbol(k))?
-                .clone(),
-            Value::Lam(_p, _b) => todo!("impl lam typing"),
+                .clone(), ctxt),
+            Value::Lam(ps, b) => {
+                let mut ctxt = ctxt.clone();
+                let mut expr_type = Vec::new();
+                for p in ps.as_ref().get_symbols() {
+                    let (new, var) = ctxt.put_new_tvar(p);
+                    ctxt = new;
+                    expr_type.push(var);
+                }
+                let (ctxt, _ret_type) = ctxt.put_new_tvar(String::from("lam"));
+                // let lam_type = expr_type.into_iter().rev().fold(ret_type, |arr, curr| Type::fun(curr, arr));
+                // lam_type
+                type_expr(b, ctxt)?
+            },
         }),
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
-                let mut f_type = type_expr(fst, ctxt)?;
+                let (mut f_type, mut ctxt) = type_expr(fst, ctxt)?;
                 for e in rst {
-                    let e_type = type_expr(e, ctxt)?;
+                    let (e_type, new) = type_expr(e, ctxt)?;
+                    ctxt = new;
                     if let Type::Fun(param_type, ret_type) = f_type.clone() {
                         if *param_type != e_type {
                             return Err(TypeError::TypeMismatch {
@@ -94,9 +105,9 @@ fn type_expr_helper<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeErr
                         return Err(TypeError::TooManyArgs(start, fst));
                     }
                 }
-                Ok(f_type)
+                Ok((f_type, ctxt))
             } else {
-                Ok(Type::Unit)
+                Ok((Type::Unit, ctxt))
             }
         }
     }

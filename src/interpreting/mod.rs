@@ -1,6 +1,5 @@
-use crate::exprs::{Expr, values::Value, contexts::Context};
+// use crate::exprs::{Expr, values::Value, contexts::GenContext};
 
-#[allow(unused_variables)]
-pub fn interpret<'a>(e: &'a Expr, ctxt: &mut Context) -> Value<'a> {
-    todo!()
-}
+// pub fn interpret<'a>(e: &'a Expr, ctxt: &mut GenContext) -> Value<'a> {
+//     todo!()
+// }

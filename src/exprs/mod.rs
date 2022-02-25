@@ -33,6 +33,21 @@ pub enum Expr<'a> {
     SExp(SBody<'a, Expr<'a>>),
 }
 
+impl<'a> Expr<'a> {
+    pub fn get_symbols(&'a self) -> Vec<String> {
+        let mut symbols = Vec::new();
+        let mut to_check = vec![self];
+        while let Some(next) = to_check.pop() {
+            match next {
+                Expr::Val(Value::Sym(w)) => symbols.push(w.clone()),
+                Expr::Val(_) => {},
+                Expr::SExp(sbody) => to_check.extend(&sbody.body),
+            }
+        }
+        symbols
+    }
+}
+
 impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
