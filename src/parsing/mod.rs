@@ -1,7 +1,7 @@
 pub mod lex;
 pub(crate) mod lex_error;
 
-use crate::exprs::{Expr, values::Value};
+use crate::exprs::{Expr, values::Value, SBody};
 
 use self::lex::Token;
 
@@ -62,10 +62,10 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<
                 } else {
                     Expr::Val(Value::Sym(w))
                 }),
-            Token::SExp(fp, ts) => {
-                let sexp = parse_tokens(ts)
-                    .map_err(|e| ParseError::InSExp(fp.clone(), Box::new(e)))?;
-                Some(Expr::SExp(fp, sexp))
+            Token::SExp(SBody { start, body }) => {
+                let body = parse_tokens(body)
+                    .map_err(|e| ParseError::InSExp(start.clone(), Box::new(e)))?;
+                Some(Expr::SExp(SBody { start, body }))
             },
         };
         if let Some(val) = val {

@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use crate::parsing::FilePos;
 
-use super::{contexts::Context, values::Value, Expr};
+use super::{contexts::Context, values::Value, Expr, SBody};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Type {
@@ -75,8 +75,8 @@ fn type_expr_helper<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeErr
                 .clone(),
             Value::Quot(e) => Type::fun(Type::Unit, type_expr(e.as_ref(), ctxt)?),
         }),
-        Expr::SExp(at, es) => {
-            if let Some((fst, rst)) = es.split_first() {
+        Expr::SExp(SBody { start, body }) => {
+            if let Some((fst, rst)) = body.split_first() {
                 let mut f_type = type_expr(fst, ctxt)?;
                 for e in rst {
                     let e_type = type_expr(e, ctxt)?;
@@ -85,13 +85,13 @@ fn type_expr_helper<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeErr
                             return Err(TypeError::TypeMismatch {
                                 got: e_type,
                                 expected: *param_type,
-                                at,
+                                at: start,
                             });
                         } else {
                             f_type = *ret_type;
                         }
                     } else {
-                        return Err(TypeError::TooManyArgs(at, fst));
+                        return Err(TypeError::TooManyArgs(start, fst));
                     }
                 }
                 Ok(f_type)

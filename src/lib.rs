@@ -22,6 +22,8 @@ mod tests {
     }
 
     mod lexing {
+        use crate::exprs::SBody;
+
         #[test]
         fn basic() {
             use crate::parsing::lex::{Token, Source};
@@ -38,7 +40,7 @@ mod tests {
                     match t {
                         Token::Quote => Q,
                         Token::Word(s) => W(s.as_str()),
-                        Token::SExp(_, v) => S(v.into_iter().map(QSW::from).collect()),
+                        Token::SExp(SBody { body, ..}) => S(body.into_iter().map(QSW::from).collect()),
                     }
                 }
             }

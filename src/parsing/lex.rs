@@ -1,3 +1,5 @@
+use crate::exprs::SBody;
+
 use super::{FilePos, lex_error::*};
 
 #[derive(Debug)]
@@ -7,11 +9,11 @@ pub struct Source<'a> {
     pub(crate) pos: FilePos<'a>,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Token<'a> {
     Quote,
     Word(String),
-    SExp(FilePos<'a>, Vec<Token<'a>>),
+    SExp(SBody<'a, Token<'a>>),
 }
 
 pub type LexResult<'a, T> = Result<T, LexError<'a>>;
@@ -92,13 +94,13 @@ impl<'a> LexStack<'a> {
 
     fn close_sexp(mut self) -> Result<Self, LexErrorType<'a>> {
         let last_sexp = self.sexp_stack.pop();
-        let (file_pos, mut finished) = last_sexp.ok_or(LexErrorType::TooManyClosing)?;
+        let (start, mut body) = last_sexp.ok_or(LexErrorType::TooManyClosing)?;
 
         if self.curr_word.len() > 0 {
-            finished.push(self.dump_curr());
+            body.push(self.dump_curr());
         }
 
-        self.push_token(Token::SExp(file_pos, finished));
+        self.push_token(Token::SExp(SBody { start, body }));
         Ok(self)
     }
 
