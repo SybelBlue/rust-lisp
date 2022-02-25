@@ -37,9 +37,10 @@ impl<'a> std::fmt::Display for LexError<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let line_indicator = format!(" {} ", self.src.pos.row);
         let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
-        write!(f, "error: {} at {}\n{}| {}\n{}  {}", 
+        write!(f, "error: {} at {}\n{}|\n{}| {}\n{}| {}", 
             self.tipe.name(), 
             self.src.pos, 
+            margin,
             line_indicator, 
             self.src.current_line(),
             margin,
