@@ -4,7 +4,7 @@ use super::{Expr, types::Type};
 pub enum Value<'a> {
     Int(usize),
     Sym(String),
-    Quot(Box<Expr<'a>>),
+    Lam(Box<Expr<'a>>, Box<Expr<'a>>),
     Type(Type)
 }
 
@@ -13,7 +13,7 @@ impl<'a> std::fmt::Display for Value<'a> {
         match self {
             Value::Int(n) => write!(f, "{}", n),
             Value::Sym(s) => write!(f, "{}", s),
-            Value::Quot(q) => write!(f, "'{}", q),
+            Value::Lam(p, b) => write!(f, "'({} {})", p, b),
             Value::Type(t) => write!(f, "{}", t),
         }
     }

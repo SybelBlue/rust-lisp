@@ -73,7 +73,7 @@ fn type_expr_helper<'a>(e: &'a Expr, ctxt: &mut Context) -> Result<Type, TypeErr
                 .get_type(k)
                 .ok_or(TypeError::UndefinedSymbol(k))?
                 .clone(),
-            Value::Quot(e) => Type::fun(Type::Unit, type_expr(e.as_ref(), ctxt)?),
+            Value::Lam(_p, _b) => todo!("impl lam typing"),
         }),
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {

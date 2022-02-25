@@ -41,65 +41,61 @@ impl<'a> std::fmt::Display for FilePos<'a> {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum ParseError<'a> {
-    MisplacedQuote(FilePos<'a>),
+    MisplacedLambda(FilePos<'a>),
+    MissingLambdaParams(FilePos<'a>),
+    MissingLambdaBody(FilePos<'a>),
+    ExtraLamBody(FilePos<'a>),
     InSExp(FilePos<'a>, Box<ParseError<'a>>),
 }
 
 pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> Result<Vec<Expr<'a>>, ParseError<'a>> {
     let mut ts = ts.into_iter();
-    let mut vals = Vec::new();
-    let mut quoted = None;
+    let mut exprs = Vec::new();
 
-    while let Some(t) = ts.next() {
-        let val = match t {
-            Token::Quote(fp) => {
-                if quoted.is_some() {
-                    return Err(ParseError::MisplacedQuote(fp));
+    if let Some(t) = ts.next() {
+        match parse_first(t)? {
+            Err(lam_fp) => {
+                exprs.push(Expr::Val(Value::Sym(String::from("\\"))));
+                let t = ts.next().ok_or(ParseError::MissingLambdaParams(lam_fp.clone()))?;
+                exprs.push(parse_rest(t)?);
+                let t = ts.next().ok_or(ParseError::MissingLambdaBody(lam_fp.clone()))?;
+                exprs.push(parse_rest(t)?);
+                return if ts.next().is_some() {
+                    Err(ParseError::ExtraLamBody(lam_fp))
                 } else {
-                    quoted = Some(fp);
-                }
-                None
+                    Ok(exprs)
+                };
             },
-            Token::Word(w) =>
-                Some(if let Ok(n) = w.parse::<usize>() {
-                    Expr::Val(Value::Int(n))
-                } else {
-                    Expr::Val(Value::Sym(w))
-                }),
-            Token::SExp(SBody { start, body }) => {
-                let body = parse_tokens(body)
-                    .map_err(|e| ParseError::InSExp(start.clone(), Box::new(e)))?;
-                Some(Expr::SExp(SBody { start, body }))
-            },
-        };
-        if let Some(val) = val {
-            vals.push(Expr::Val(Value::Quot(Box::new(val))));
-            quoted = None;
+            Ok(e) => exprs.push(e)
         }
-    }
-
-    if let Some(fp) = quoted {
-        Err(ParseError::MisplacedQuote(fp))
     } else {
-        Ok(vals)
+        return Ok(exprs);
     }
 
+    for t in ts {
+        exprs.push(parse_rest(t)?);
+    }
+
+    Ok(exprs)
 }
 
-// pub struct Context<'a> {
-//     prev: Option<&'a Context<'a>>,
-//     symbols: HashMap<String, crate::types::Type>,
-// }
+fn parse_rest<'a>(t: Token<'a>) -> Result<Expr<'a>, ParseError<'a>> {
+    parse_first(t)?.map_err(ParseError::MisplacedLambda)
+}
 
-// impl<'a> Context<'a> {
-//     pub fn new() -> Self {
-//         use crate::types::Type::*;
-//         Self {
-//             prev: None,
-//             symbols: vec!
-//                 [ (format!("def"), Fun(Box::new(Str), Box::new(Type)))
-//                 , (format!("+"), Fun(Box::new(Int), Box::new(Fun(Box::new(Int), Box::new(Int)))))
-//                 ].into_iter().collect(),
-//         }
-//     }
-// }
+fn parse_first<'a>(t: Token<'a>) -> Result<Result<Expr<'a>, FilePos<'a>>, ParseError<'a>> {
+    Ok(match t {
+        Token::LamSlash(fp) => Err(fp),
+        Token::Word(w) =>
+            Ok(if let Ok(n) = w.parse::<usize>() {
+                Expr::Val(Value::Int(n))
+            } else {
+                Expr::Val(Value::Sym(w))
+            }),
+        Token::SExp(SBody { start, body }) => {
+            let body = parse_tokens(body)
+                .map_err(|e| ParseError::InSExp(start.clone(), Box::new(e)))?;
+            Ok(Expr::SExp(SBody { start, body }))
+        },
+    })
+}
