@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Result, Write};
+use std::fmt::{Display, Formatter, Result};
 
 pub mod types;
 pub mod values;
@@ -15,6 +15,18 @@ pub struct SBody<'a, T>
     pub body: Vec<T>,
 }
 
+impl<'a, T> Display for SBody<'a, T> 
+    where T: Display + PartialEq + Eq + PartialOrd + Ord + Clone {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        if let Some((fst, rst)) = self.body.split_first() {
+            write!(f, "{}", fst)?;
+            rst.into_iter().try_for_each(|e| write!(f, " {}", e))
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Expr<'a> {
     Val(Value<'a>),
@@ -25,16 +37,7 @@ impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Expr::Val(v) => write!(f, "{}", v),
-            Expr::SExp(SBody { body, .. }) => {
-                f.write_char('(')?;
-                if let Some((fst, rst)) = body.split_first() {
-                    write!(f, "{}", fst)?;
-                    for e in rst {
-                        write!(f, " {}", e)?;
-                    }
-                }
-                f.write_char(')')
-            },
+            Expr::SExp(sbody) => write!(f, "({})", sbody),
         }
     }
 }
