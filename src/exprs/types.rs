@@ -1,5 +1,3 @@
-use std::fmt::Write;
-
 use crate::parsing::FilePos;
 
 use super::{contexts::TypeContext, values::Value, Expr, SBody};
@@ -67,16 +65,6 @@ impl std::fmt::Display for Type {
 impl Type {
     pub fn fun(par: Self, ret: Self) -> Self {
         Self::Fun(Box::new(par), Box::new(ret))
-    }
-
-    fn unpack(&self) -> Vec<&Self> {
-        if let Self::Fun(pt, rt) = self {
-            let mut out = vec![pt.as_ref()];
-            out.extend(rt.as_ref().unpack());
-            out
-        } else {
-            vec![&self]
-        }
     }
 }
 
@@ -146,6 +134,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                                     Ok((Type::fun(par, acc), ctxt))
                                 })?;
                             let ctxt = ctxt.put_eq(id, fn_type.clone());
+                            println!("{:?}", crate::exprs::contexts::FlatTypeContext::from(&ctxt));
                             return Ok((Type::fun(ap_type, fn_type), ctxt));
                         },
                         _ => return Err(TypeError::TooManyArgs(start, fst)),

@@ -87,7 +87,6 @@ impl TypeContext {
     }
 
     pub fn concretize(self, id: usize) -> Result<(Self, Type), TypeError<'static>> {
-        println!("{:?}", FlatTypeContext::from(&self));
         let cls = self.equivalences(id);
         let conc: Vec<&Type> = cls.iter().filter(|t| t.is_concrete()).collect();
         Ok((self, match conc.as_slice() {
