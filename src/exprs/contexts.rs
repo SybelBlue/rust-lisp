@@ -10,8 +10,13 @@ pub enum TypeContext {
         symb: Ident,
         tipe: Type,
         base: Box<TypeContext>,
+    },
+    TVar {
+        symb: Ident,
         tvar: usize,
-    }
+        base: Box<TypeContext>,
+    },
+    VarEq(usize, Type, Box<TypeContext>),
 }
 
 impl TypeContext {
@@ -19,41 +24,49 @@ impl TypeContext {
         Self::Entry {
             symb: String::from("+"),
             tipe: Type::fun(Type::Int, Type::fun(Type::Int, Type::Int)),
-            tvar: 0,
             base: Box::new(Self::Empty),
         }
     }
 
     pub fn get<'a>(&'a self, key: &Ident) -> Option<&'a Type> {
         match self {
+            Self::Entry { symb, tipe, ..} if symb == key =>
+                    Some(tipe),
+            ctxt => ctxt.base().and_then(|b| b.get(key)),
+        }
+    }
+
+    fn base(&self) -> Option<&TypeContext> {
+        match self {
             Self::Empty => None,
-            Self::Entry { symb, tipe, base, ..} => {
-                if symb == key {
-                    Some(tipe)
-                } else {
-                    base.as_ref().get(key)
-                }
-            }
+            Self::Entry { base, .. } 
+                | Self::TVar { base, .. }
+                | Self::VarEq(_, _, base) 
+                => Some(base.as_ref()),
         }
     }
 
     fn tvar(&self) -> usize {
-        if let Self::Entry { tvar, .. } = self {
+        if let Self::TVar { tvar, .. } = self {
             *tvar
         } else {
-            0
+            self.base().map(|b| b.tvar()).unwrap_or(0)
         }
     }
 
     pub fn put(self, symb: Ident, tipe: Type) -> Self {
-        let tvar = self.tvar();
-        Self::Entry { symb, tipe, base: Box::new(self), tvar }
+        Self::Entry { symb, tipe, base: Box::new(self) }
     }
 
     pub fn put_new_tvar(self, symb: Ident) -> (Self, Type) {
         let tvar = self.tvar();
-        let tipe = Type::Var(format!("{}_{}", symb, tvar));
+        let tipe = Type::Var(tvar);
         let tvar = tvar + 1;
-        (Self::Entry { symb, tipe: tipe.clone(), base: Box::new(self), tvar }, tipe)
+        (Self::TVar { symb, tvar, base: Box::new(self) }, tipe)
+    }
+
+    pub fn put_eq(self, tvar: usize, other: Type) -> Option<Self> {
+        // todo: check for conflicting restraints
+        Some(Self::VarEq(tvar, other, Box::new(self)))
     }
 }

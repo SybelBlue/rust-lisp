@@ -12,7 +12,17 @@ pub enum Type {
     Type,
     Data(String),
     Fun(Box<Type>, Box<Type>),
-    Var(String),
+    Var(usize),
+}
+
+impl Type {
+    fn unify(&self, got: &Self, ctxt: TypeContext) -> Option<TypeContext> {
+        if self == got { return Some(ctxt); }
+        if let Type::Var(s) = self {
+            return ctxt.put_eq(*s, got.clone());
+        }
+        todo!()
+    }
 }
 
 impl std::fmt::Display for Type {
@@ -79,10 +89,11 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                     ctxt = new;
                     expr_type.push(var);
                 }
-                let (ctxt, _ret_type) = ctxt.put_new_tvar(String::from("lam"));
-                // let lam_type = expr_type.into_iter().rev().fold(ret_type, |arr, curr| Type::fun(curr, arr));
-                // lam_type
-                type_expr(b, ctxt)?
+                let (ctxt, _ret_type_var) = ctxt.put_new_tvar(String::from("lam"));
+                let (ret_type, ctxt) = type_expr(b, ctxt)?;
+                let lam_type = expr_type.into_iter().rev().fold(ret_type, |arr, curr| Type::fun(curr, arr));
+                (lam_type, ctxt)
+
             },
         }),
         Expr::SExp(SBody { start, body }) => {
@@ -92,14 +103,15 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                     let (e_type, new) = type_expr(e, ctxt)?;
                     ctxt = new;
                     if let Type::Fun(param_type, ret_type) = f_type.clone() {
-                        if *param_type != e_type {
+                        if let Some(new) = param_type.unify(&e_type, ctxt) {
+                            f_type = *ret_type;
+                            ctxt = new;
+                        } else {
                             return Err(TypeError::TypeMismatch {
                                 got: e_type,
                                 expected: *param_type,
                                 at: start,
                             });
-                        } else {
-                            f_type = *ret_type;
                         }
                     } else {
                         return Err(TypeError::TooManyArgs(start, fst));
