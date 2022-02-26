@@ -23,6 +23,15 @@ impl Type {
         }
         todo!()
     }
+
+    pub fn is_concrete(&self) -> bool {
+        match self {
+            Type::Unit | Type::Int | Type::Str | Type::Type => true,
+            Type::Data(_) => true, // will maybe be polymorphic later
+            Type::Fun(p, r) => p.as_ref().is_concrete() && r.as_ref().is_concrete(),
+            Type::Var(_) => false,
+        }
+    }
 }
 
 impl std::fmt::Display for Type {
