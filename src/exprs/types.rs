@@ -57,13 +57,8 @@ impl std::fmt::Display for Type {
             Type::Str => write!(f, "String"),
             Type::Type => write!(f, "Type"),
             Type::Data(s) => write!(f, "{}", s),
-            Type::Fun(pt, rt) => {
-                write!(f, "(-> {}", pt.as_ref())?;
-                for t in rt.as_ref().unpack() {
-                    write!(f, " {}", t)?;
-                }
-                f.write_char(')')
-            },
+            Type::Fun(pt, rt) => 
+                write!(f, "(-> {} {})", pt.as_ref(), rt.as_ref()),
             Type::Var(s) => write!(f, "t_{}", s),
         }
     }
@@ -125,26 +120,38 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
         }),
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
-                let (mut f_type, mut ctxt) = type_expr(fst, ctxt)?;
-                for e in rst {
-                    let (e_type, new) = type_expr(e, ctxt)?;
+                let (mut ap_type, mut ctxt) = type_expr(fst, ctxt)?;
+                let mut rest = rst.into_iter();
+                while let Some(arg) = rest.next() {
+                    let (arg_type, new) = type_expr(arg, ctxt)?;
                     ctxt = new;
-                    if let Type::Fun(param_type, ret_type) = f_type.clone() {
-                        if let Some(new) = param_type.unify(&e_type, ctxt) {
-                            f_type = *ret_type;
-                            ctxt = new;
-                        } else {
-                            return Err(TypeError::TypeMismatch {
-                                got: e_type,
-                                expected: *param_type,
-                                at: start,
-                            });
-                        }
-                    } else {
-                        return Err(TypeError::TooManyArgs(start, fst));
+                    match ap_type {
+                        Type::Fun(param_type, ret_type) => {
+                            if let Some(new) = param_type.unify(&arg_type, ctxt) {
+                                ap_type = *ret_type;
+                                ctxt = new;
+                            } else {
+                                return Err(TypeError::TypeMismatch {
+                                    got: arg_type,
+                                    expected: *param_type,
+                                    at: start,
+                                });
+                            }
+                        },
+                        Type::Var(id) => {
+                            let (ctxt, ret_type_id) = ctxt.put_new_tvar(format!("{}", arg));
+                            let (fn_type, ctxt) = rest.rev().try_fold((Type::Var(ret_type_id), ctxt), 
+                                |(acc, ctxt), arg| {
+                                    let (par, ctxt) = type_expr(arg, ctxt)?;
+                                    Ok((Type::fun(par, acc), ctxt))
+                                })?;
+                            let ctxt = ctxt.put_eq(id, fn_type.clone());
+                            return Ok((Type::fun(ap_type, fn_type), ctxt));
+                        },
+                        _ => return Err(TypeError::TooManyArgs(start, fst)),
                     }
                 }
-                Ok((f_type, ctxt))
+                Ok((ap_type, ctxt))
             } else {
                 Ok((Type::Unit, ctxt))
             }
