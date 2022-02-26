@@ -4,24 +4,26 @@ use crate::parsing::FilePos;
 
 use super::{contexts::TypeContext, values::Value, Expr, SBody};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
     Unit,
     Int,
     Str,
     Type,
     Data(String),
-    Fun(Box<Type>, Box<Type>),
     Var(usize),
+    Fun(Box<Type>, Box<Type>),
 }
 
-impl Type {
+impl Type { 
     fn unify(&self, got: &Self, ctxt: TypeContext) -> Option<TypeContext> {
         if self == got { return Some(ctxt); }
         if let Type::Var(s) = self {
-            return ctxt.put_eq(*s, got.clone());
-        }
-        Some(ctxt)
+            return Some(ctxt.put_eq(*s, got.clone()));
+        } else if let Type::Var(g) = got {
+            return Some(ctxt.put_eq(*g, self.clone()))
+        } 
+        None
     }
 
     pub fn is_concrete(&self) -> bool {
@@ -114,11 +116,10 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                 }
                 let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lam"));
                 let (ret_type, ctxt) = type_expr(b, ctxt)?;
-                let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone()).expect("todo, figure this out");
+                let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
                 let lam_type = expr_type.into_iter().rev().fold(ret_type, |arr, curr| Type::fun(curr, arr));
                 let (ctxt, t) = lam_type.concretize(ctxt)?;
                 (t, ctxt)
-                // (lam_type, ctxt)
             },
         }),
         Expr::SExp(SBody { start, body }) => {

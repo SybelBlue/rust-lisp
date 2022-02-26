@@ -1,9 +1,23 @@
-use std::collections::HashSet;
+use std::collections::{HashSet, HashMap};
 
 use super::types::{Type, TypeError};
 
 pub type Ident = String;
 pub type QualifiedIdent = String;
+
+pub type EquivalenceClass = HashSet<Type>;
+
+#[derive(Debug)]
+pub struct FlatTypeContext {
+    equiv_classes: Vec<EquivalenceClass>,
+    bound: HashMap<Ident, Type>,
+}
+
+impl From<&TypeContext> for FlatTypeContext {
+    fn from(ctxt: &TypeContext) -> Self {
+        Self { equiv_classes: ctxt.equiv_classes(), bound: ctxt.as_hash() }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum TypeContext {
@@ -67,69 +81,72 @@ impl TypeContext {
         (Self::TVar { symb, tvar, base: Box::new(self) }, tvar)
     }
 
-    pub fn put_eq(self, tvar: usize, other: Type) -> Option<Self> {
+    pub fn put_eq(self, tvar: usize, other: Type) -> Self {
         // todo: check for conflicting restraints
-        Some(Self::VarEq(tvar, other, Box::new(self)))
+        Self::VarEq(tvar, other, Box::new(self))
     }
 
     pub fn concretize(self, id: usize) -> Result<(Self, Type), TypeError<'static>> {
-        println!("{:?}", self);
-        let mut to_check = vec![id];
-        let mut checked = HashSet::new();
-        let mut last = id;
-        let mut found = None;
-        while let Some(tvar) = to_check.pop() {
-            last = tvar;
-            checked.insert(tvar);
-            for ctxt in TypeContextIter::new(&self) {
+        println!("{:?}", FlatTypeContext::from(&self));
+        let cls = self.equivalences(id);
+        let conc: Vec<&Type> = cls.iter().filter(|t| t.is_concrete()).collect();
+        Ok((self, match conc.as_slice() {
+            &[] => cls.into_iter().max().unwrap_or(Type::Var(id)),
+            &[t] => t.clone(),
+            &[s, t, ..] => return Err(TypeError::BadEquivalence(s.clone(), t.clone()))
+        }))
+    }
+
+    fn as_hash(&self) -> HashMap<Ident, Type> {
+        self.unpack()
+            .into_iter()
+            .filter_map(|ctxt| {
                 match ctxt {
-                    TypeContext::Entry { .. } | TypeContext::Empty => {},
-                    TypeContext::TVar { tvar, .. } => 
-                        if *tvar == id { break; },
-                    TypeContext::VarEq(tvar, tipe, _) => {
-                        if *tvar == id {
-                            match tipe {
-                                Type::Var(id2) => {
-                                    if !checked.contains(id2) {
-                                        to_check.push(*id2);
-                                    }
-                                },
-                                Type::Fun(_, _) => todo!("impl concretization for fn"),
-                                tipe => {
-                                    let tipe = tipe.clone();
-                                    match found {
-                                        None => { found = Some(tipe); },
-                                        Some(f) if f == tipe => return Ok((self, tipe)),
-                                        Some(f) => return Err(TypeError::BadEquivalence(f, tipe)),
-                                    }
-                                }
-                            }
-                        }
-                    },
+                    TypeContext::Entry { symb, tipe, .. } => Some((symb.clone(), tipe.clone())),
+                    TypeContext::TVar { symb, tvar, .. } => Some((symb.clone(), Type::Var(*tvar))),
+                    _ => None,
                 }
+            })
+            .collect()
+    }
+
+    fn equiv_classes(&self) -> Vec<EquivalenceClass> {
+        let mut eqs: Vec<EquivalenceClass> = Vec::new();
+        for n in 1..=self.tvar() {
+            if !eqs.iter().any(|e| e.contains(&Type::Var(n))) {
+                let mut e = self.equivalences(n);
+                e.insert(Type::Var(n));
+                eqs.push(e);
             }
         }
-        Ok((self, Type::Var(last)))
+        eqs
     }
-}
 
-struct TypeContextIter<'a>(Option<&'a TypeContext>);
-
-impl<'a> TypeContextIter<'a> {
-    pub fn new(ctxt: &'a TypeContext) -> Self {
-        Self(Some(ctxt))
-    }
-}
-
-impl<'a> std::iter::Iterator for TypeContextIter<'a> {
-    type Item = &'a TypeContext;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(curr) = self.0 {
-            self.0 = curr.base();
-            Some(curr)
-        } else {
-            None
+    fn equivalences(&self, tvar: usize) -> EquivalenceClass {
+        let mut out = HashSet::new();
+        for ctxt in self.unpack().into_iter().rev() {
+            match ctxt {
+                Self::VarEq(id, tipe, _) if *id == tvar || out.contains(&Type::Var(*id)) => { 
+                    out.insert(tipe.clone()); 
+                }
+                Self::VarEq(id, tipe, _) if &Type::Var(tvar) == tipe => {
+                    out.insert(Type::Var(*id));
+                }
+                _ => {}
+            }
         }
+        out
+
+    }
+
+    /// Returns an inside-out vec of this context
+    pub fn unpack(&self) -> Vec<&Self> {
+        let mut slf = vec![self];
+        let mut curr = self;
+        while let Some(next) = curr.base() {
+            slf.push(next);
+            curr = next;
+        }
+        slf
     }
 }
