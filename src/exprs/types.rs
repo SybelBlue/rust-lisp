@@ -108,7 +108,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                 .clone(), ctxt),
             Value::Lam(ps, b) => {
                 let mut ctxt = ctxt.clone();
-                let mut expr_type = Vec::new();
+                let mut expr_type = Vec::new(); // in reverse order!
                 for p in ps.as_ref().get_symbols() {
                     let (new, var) = ctxt.put_new_tvar(p);
                     ctxt = new;
@@ -117,7 +117,8 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                 let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lam"));
                 let (ret_type, ctxt) = type_expr(b, ctxt)?;
                 let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
-                let lam_type = expr_type.into_iter().rev().fold(ret_type, |arr, curr| Type::fun(curr, arr));
+                // undoes reversal!
+                let lam_type = expr_type.into_iter().fold(ret_type, |arr, curr| Type::fun(curr, arr));
                 let (ctxt, t) = lam_type.concretize(ctxt)?;
                 (t, ctxt)
             },
