@@ -21,7 +21,7 @@ impl Type {
         if let Type::Var(s) = self {
             return ctxt.put_eq(*s, got.clone());
         }
-        todo!()
+        Some(ctxt)
     }
 
     pub fn is_concrete(&self) -> bool {
@@ -31,6 +31,19 @@ impl Type {
             Type::Fun(p, r) => p.as_ref().is_concrete() && r.as_ref().is_concrete(),
             Type::Var(_) => false,
         }
+    }
+
+    pub fn concretize(self, ctxt: TypeContext) -> Result<(TypeContext, Self), TypeError<'static>> {
+        Ok(match self {
+            Type::Unit | Type::Int | Type::Str | Type::Type => (ctxt, self),
+            Type::Data(_) => (ctxt, self), // will maybe be polymorphic later
+            Type::Fun(p, r) => {
+                let (ctxt, p) = p.concretize(ctxt)?;
+                let (ctxt, r) = r.concretize(ctxt)?;
+                (ctxt, Type::fun(p, r))
+            },
+            Type::Var(id) => ctxt.concretize(id)?,
+        })
     }
 }
 
@@ -78,6 +91,7 @@ pub enum TypeError<'a> {
         expected: Type,
         at: &'a FilePos<'a>,
     },
+    BadEquivalence(Type, Type),
     UndefinedSymbol(&'a String),
 }
 
@@ -96,13 +110,15 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                 for p in ps.as_ref().get_symbols() {
                     let (new, var) = ctxt.put_new_tvar(p);
                     ctxt = new;
-                    expr_type.push(var);
+                    expr_type.push(Type::Var(var));
                 }
-                let (ctxt, _ret_type_var) = ctxt.put_new_tvar(String::from("lam"));
+                let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lam"));
                 let (ret_type, ctxt) = type_expr(b, ctxt)?;
+                let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone()).expect("todo, figure this out");
                 let lam_type = expr_type.into_iter().rev().fold(ret_type, |arr, curr| Type::fun(curr, arr));
-                (lam_type, ctxt)
-
+                let (ctxt, t) = lam_type.concretize(ctxt)?;
+                (t, ctxt)
+                // (lam_type, ctxt)
             },
         }),
         Expr::SExp(SBody { start, body }) => {
