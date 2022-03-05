@@ -86,14 +86,14 @@ impl TypeContext {
         Self::VarEq(tvar, other, Box::new(self))
     }
 
-    pub fn concretize(self, id: usize) -> Result<(Self, Type), TypeError<'static>> {
+    pub fn concretize(self, id: usize) -> Result<(Type, Self), TypeError<'static>> {
         let cls = self.equivalences(id);
         let conc: Vec<&Type> = cls.iter().filter(|t| t.is_concrete()).collect();
-        Ok((self, match conc.as_slice() {
+        Ok((match conc.as_slice() {
             &[] => cls.into_iter().max().unwrap_or(Type::Var(id)),
             &[t] => t.clone(),
             &[s, t, ..] => return Err(TypeError::BadEquivalence(s.clone(), t.clone()))
-        }))
+        }, self))
     }
 
     pub fn flatten(&self) -> FlatTypeContext {

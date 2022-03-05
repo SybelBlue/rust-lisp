@@ -33,14 +33,14 @@ impl Type {
         }
     }
 
-    pub fn concretize(self, ctxt: TypeContext) -> Result<(TypeContext, Self), TypeError<'static>> {
+    pub fn concretize(self, ctxt: TypeContext) -> Result<(Self, TypeContext), TypeError<'static>> {
         Ok(match self {
-            Type::Unit | Type::Int | Type::Str | Type::Type => (ctxt, self),
-            Type::Data(_) => (ctxt, self), // will maybe be polymorphic later
+            Type::Unit | Type::Int | Type::Str | Type::Type => (self, ctxt),
+            Type::Data(_) => (self, ctxt), // will maybe be polymorphic later
             Type::Fun(p, r) => {
-                let (ctxt, p) = p.concretize(ctxt)?;
-                let (ctxt, r) = r.concretize(ctxt)?;
-                (ctxt, Type::fun(p, r))
+                let (p, ctxt) = p.concretize(ctxt)?;
+                let (r, ctxt) = r.concretize(ctxt)?;
+                (Type::fun(p, r), ctxt)
             },
             Type::Var(id) => ctxt.concretize(id)?,
         })
@@ -102,7 +102,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                 let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
                 // undoes reversal!
                 let lam_type = expr_type.into_iter().fold(ret_type, |arr, curr| Type::fun(curr, arr));
-                let (ctxt, t) = lam_type.concretize(ctxt)?;
+                let (t, ctxt) = lam_type.concretize(ctxt)?;
                 (t, ctxt)
             },
         }),
