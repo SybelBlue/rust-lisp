@@ -97,7 +97,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                     ctxt = new;
                     expr_type.push(Type::Var(var));
                 }
-                let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lam"));
+                let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("anon"));
                 let (ret_type, ctxt) = type_expr(b, ctxt)?;
                 let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
                 // undoes reversal!
@@ -108,15 +108,15 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
         }),
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
-                let (mut ap_type, mut ctxt) = type_expr(fst, ctxt)?;
+                let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
                 let mut rest = rst.into_iter();
-                while let Some(arg) = rest.next() {
-                    let (arg_type, new) = type_expr(arg, ctxt)?;
+                while let Some(curr_argument) = rest.next() {
+                    let (arg_type, new) = type_expr(curr_argument, ctxt)?;
                     ctxt = new;
-                    match ap_type {
+                    match target_type {
                         Type::Fun(param_type, ret_type) => {
                             if let Some(new) = param_type.unify(&arg_type, ctxt) {
-                                ap_type = *ret_type;
+                                target_type = *ret_type;
                                 ctxt = new;
                             } else {
                                 return Err(TypeError::TypeMismatch {
@@ -127,20 +127,14 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                             }
                         },
                         Type::Var(id) => {
-                            let (ctxt, ret_type_id) = ctxt.put_new_tvar(format!("{}", arg));
-                            let (fn_type, ctxt) = rest.rev().try_fold((Type::Var(ret_type_id), ctxt), 
-                                |(acc, ctxt), arg| {
-                                    let (par, ctxt) = type_expr(arg, ctxt)?;
-                                    Ok((Type::fun(par, acc), ctxt))
-                                })?;
-                            let ctxt = ctxt.put_eq(id, fn_type.clone());
-                            println!("{:?}", crate::exprs::contexts::FlatTypeContext::from(&ctxt));
-                            return Ok((Type::fun(ap_type, fn_type), ctxt));
+                            let (new, ret_type_id) = ctxt.put_new_tvar(String::from("anon"));
+                            ctxt = new.put_eq(id, Type::fun(arg_type, Type::Var(ret_type_id)));
+                            target_type = Type::Var(ret_type_id);
                         },
                         _ => return Err(TypeError::TooManyArgs(start, fst)),
                     }
                 }
-                Ok((ap_type, ctxt))
+                Ok((target_type, ctxt))
             } else {
                 Ok((Type::Unit, ctxt))
             }

@@ -96,6 +96,10 @@ impl TypeContext {
         }))
     }
 
+    pub fn flatten(&self) -> FlatTypeContext {
+        FlatTypeContext::from(self)
+    }
+
     fn as_hash(&self) -> HashMap<Ident, Type> {
         self.unpack()
             .into_iter()

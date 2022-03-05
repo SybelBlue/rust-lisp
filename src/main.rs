@@ -18,7 +18,7 @@ fn main() -> std::io::Result<()> {
                             match type_expr(e, ctxt.clone()) {
                                 Ok((t, new)) => {
                                     ctxt = new;
-                                    println!("(:: {} {})", e, t);
+                                    println!(" | {} :: {}", e, t);
                                 },
                                 Err(e) => println!("** {:?}", e),
                             }
