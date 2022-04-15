@@ -5,16 +5,50 @@ pub mod exprs;
 #[cfg(test)]
 mod tests {
     mod types {
-        use crate::{exprs::{types::{type_expr, Type}, contexts::TypeContext}, parsing::{lex::Source, parse_tokens}};
+        use crate::exprs::types::*;
 
-        // use crate::types::*;
+        fn type_test<'a>(s: &'a str) -> Type {
+            use crate::exprs::contexts::TypeContext;
+            use crate::parsing::{lex::Source, parse_tokens};
+
+            let src = Source::new(&s, None);
+            let ts = src.lex().unwrap();
+            let es = parse_tokens(ts).unwrap();
+            type_expr(&es[0], TypeContext::new())
+                .unwrap()
+                .0
+        }
+
         #[test]
         fn basic() {
-            let s = format!("(\\f (f 3))");
-            let src = Source::new(&s, None);
-            let e = parse_tokens(src.lex().unwrap()).unwrap();
-            let (t, ctxt) = type_expr(&e[0], TypeContext::new()).unwrap();
-            println!("final output {}", t);
+            use crate::exprs::types::Type::*;
+            let fun = crate::exprs::types::Type::fun;
+
+            assert_eq!(Unit, type_test("()"));
+            assert_eq!(Unit, type_test("(())"));
+            assert_eq!(Int, type_test("3"));
+            assert_eq!(Int, type_test("(3)"));
+            assert_eq!(Int, type_test("(3)"));
+            
+            assert_eq!(fun(Int, fun(Int, Int)), type_test(r"+"));
+            assert_eq!(fun(Int, fun(Int, Int)), type_test(r"(+)"));
+            
+            // TODO: these guys            
+            // Str,
+            // Type,
+            // Data(String),
+            // Var(usize),
+        }
+
+        #[test]
+        fn lambdas() {
+            use crate::exprs::types::Type::*;
+            let fun = crate::exprs::types::Type::fun;
+            
+            assert_eq!(fun(Int, fun(Int, Int)), type_test(r"(\x (+ x))"));
+            
+            assert_eq!(fun(Var(2), Var(2)), type_test(r"(\x x)"));
+            assert_eq!(fun(fun(Int, Var(3)), Var(3)), type_test(r"(\f (f 3))"));
         }
     }
 

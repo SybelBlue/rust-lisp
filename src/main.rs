@@ -8,7 +8,7 @@ fn main() -> std::io::Result<()> {
     reader.set_prompt(">> ")?;
     
     while let ReadResult::Input(input) = reader.read_line()? {
-        match Source::new(&input, Some(name)).lex() {
+        match Source::new(input.as_str(), Some(name)).lex() {
             Ok(ts) => {
                 // println!("tokens {:?}", &ts);
                 match parse_tokens(ts) {

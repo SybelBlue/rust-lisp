@@ -28,13 +28,13 @@ pub type LexResult<'a, T> = Result<T, LexError<'a>>;
 
 #[derive(Debug)]
 pub struct Source<'a> {
-    pub src: &'a String,
+    pub src: &'a str,
     txt: std::str::Chars<'a>,
     pub(crate) pos: FilePos<'a>,
 }
 
 impl<'a> Source<'a> {
-    pub fn new(src: &'a String, name: Option<&'a String>) -> Self {
+    pub fn new(src: &'a str, name: Option<&'a String>) -> Self {
         Self { src, txt: src.chars(), pos: FilePos::new(name) }
     }
 
