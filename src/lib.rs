@@ -5,19 +5,16 @@ pub mod exprs;
 #[cfg(test)]
 mod tests {
     mod types {
+        use crate::{exprs::{types::{type_expr, Type}, contexts::TypeContext}, parsing::{lex::Source, parse_tokens}};
+
         // use crate::types::*;
         #[test]
         fn basic() {
-            // let src = format!("()\nhello\n(+ 12 34 53) (    test\n\t\n\n 2 ' hi) (test0(test1)test-2'(test3)) (0 (1 (2 (3)) ((4) 5)) 6)");
-            // let source = crate::parsing::lex::Source::new(&src, None);
-            // let ts = source.lex()
-            //     .map_err(|e| println!("lexing failed with Error {}", e))
-            //     .unwrap();
-            // let es = crate::parsing::parse::parse_tokens(ts)
-            //     .map_err(|e| println!("parsing failed with Error {:?}", e))
-            //     .unwrap();
-            // let mut ctxt = crate::types::TypeContext::new();
-            // let t = crate::types::type_expr(e, &mut ctxt)
+            let s = format!("(\\f (f 3))");
+            let src = Source::new(&s, None);
+            let e = parse_tokens(src.lex().unwrap()).unwrap();
+            let (t, ctxt) = type_expr(&e[0], TypeContext::new()).unwrap();
+            println!("final output {}", t);
         }
     }
 

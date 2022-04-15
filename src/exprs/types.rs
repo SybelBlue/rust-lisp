@@ -134,7 +134,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                         _ => return Err(TypeError::TooManyArgs(start, fst)),
                     }
                 }
-                println!("{:?}", ctxt.flatten());
+                // println!("{:?}", target_type);
                 target_type.concretize(ctxt)
             } else {
                 Ok((Type::Unit, ctxt))

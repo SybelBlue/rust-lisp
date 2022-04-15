@@ -90,7 +90,7 @@ impl TypeContext {
         let cls = self.equivalences(id);
         let conc: Vec<&Type> = cls.iter().filter(|t| t.is_concrete()).collect();
         Ok((match conc.as_slice() {
-            &[] => cls.into_iter().max().unwrap_or(Type::Var(id)),
+            &[] => cls.into_iter().max().unwrap(),
             &[t] => t.clone(),
             &[s, t, ..] => return Err(TypeError::BadEquivalence(s.clone(), t.clone()))
         }, self))
@@ -113,19 +113,17 @@ impl TypeContext {
             .collect()
     }
 
-    fn equiv_classes(&self) -> Vec<EquivalenceClass> {
+    pub(crate) fn equiv_classes(&self) -> Vec<EquivalenceClass> {
         let mut eqs: Vec<EquivalenceClass> = Vec::new();
         for n in 1..=self.tvar() {
             if !eqs.iter().any(|e| e.contains(&Type::Var(n))) {
-                let mut e = self.equivalences(n);
-                e.insert(Type::Var(n));
-                eqs.push(e);
+                eqs.push(self.equivalences(n));
             }
         }
         eqs
     }
 
-    fn equivalences(&self, tvar: usize) -> EquivalenceClass {
+    pub(crate) fn equivalences(&self, tvar: usize) -> EquivalenceClass {
         let mut out = HashSet::new();
         for ctxt in self.unpack().into_iter().rev() {
             match ctxt {
@@ -138,6 +136,7 @@ impl TypeContext {
                 _ => {}
             }
         }
+        out.insert(Type::Var(tvar));
         out
 
     }
