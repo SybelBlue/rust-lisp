@@ -5,7 +5,7 @@ use super::{contexts::TypeContext, values::Value, Expr, SBody};
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
     Unit,
-    Int,
+    Nat,
     Char,
     Type,
     Data(String),
@@ -30,7 +30,7 @@ impl Type {
 
     pub fn is_concrete(&self) -> bool {
         match self {
-            Type::Unit | Type::Int | Type::Char | Type::Type => true,
+            Type::Unit | Type::Nat | Type::Char | Type::Type => true,
             Type::Data(_) => true, // will maybe be polymorphic later
             Type::Fun(p, r) => p.as_ref().is_concrete() && r.as_ref().is_concrete(),
             Type::Var(_) => false,
@@ -39,7 +39,7 @@ impl Type {
 
     pub fn concretize(self, ctxt: TypeContext) -> Result<(Self, TypeContext), TypeError<'static>> {
         Ok(match self {
-            Type::Unit | Type::Int | Type::Char | Type::Type => (self, ctxt),
+            Type::Unit | Type::Nat | Type::Char | Type::Type => (self, ctxt),
             Type::Data(_) => (self, ctxt), // will maybe be polymorphic later
             Type::Fun(p, r) => {
                 let (p, ctxt) = p.concretize(ctxt)?;
@@ -55,7 +55,7 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Unit => write!(f, "Unit"),
-            Type::Int => write!(f, "Int"),
+            Type::Nat => write!(f, "Nat"),
             Type::Char => write!(f, "Char"),
             Type::Type => write!(f, "Type"),
             Type::Data(s) => write!(f, "{}", s),
@@ -81,7 +81,7 @@ pub enum TypeError<'a> {
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContext), TypeError<'a>> {
     match e {
         Expr::Val(v) => Ok(match v {
-            Value::Int(_) => (Type::Int, ctxt),
+            Value::Int(_) => (Type::Nat, ctxt),
             Value::Type(_) => (Type::Type, ctxt),
             Value::Sym(k) => (ctxt
                 .get(k)

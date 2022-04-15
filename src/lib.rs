@@ -26,12 +26,12 @@ mod tests {
 
             assert_eq!(Unit, type_test("()"));
             assert_eq!(Unit, type_test("(())"));
-            assert_eq!(Int, type_test("3"));
-            assert_eq!(Int, type_test("(3)"));
-            assert_eq!(Int, type_test("(3)"));
+            assert_eq!(Nat, type_test("3"));
+            assert_eq!(Nat, type_test("(3)"));
+            assert_eq!(Nat, type_test("(3)"));
             
-            assert_eq!(fun(Int, fun(Int, Int)), type_test(r"+"));
-            assert_eq!(fun(Int, fun(Int, Int)), type_test(r"(+)"));
+            assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"+"));
+            assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(+)"));
             
             // TODO: these guys            
             // Str,
@@ -45,10 +45,10 @@ mod tests {
             use crate::exprs::types::Type::*;
             let fun = crate::exprs::types::Type::fun;
             
-            assert_eq!(fun(Int, fun(Int, Int)), type_test(r"(\x (+ x))"));
-            
+            assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(\x (+ x))"));
+
             assert_eq!(fun(Var(2), Var(2)), type_test(r"(\x x)"));
-            assert_eq!(fun(fun(Int, Var(3)), Var(3)), type_test(r"(\f (f 3))"));
+            assert_eq!(fun(fun(Nat, Var(3)), Var(3)), type_test(r"(\f (f 3))"));
         }
     }
 

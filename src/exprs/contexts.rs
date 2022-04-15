@@ -39,7 +39,7 @@ impl TypeContext {
     pub fn new() -> Self {
         Self::Entry {
             symb: String::from("+"),
-            tipe: Type::fun(Type::Int, Type::fun(Type::Int, Type::Int)),
+            tipe: Type::fun(Type::Nat, Type::fun(Type::Nat, Type::Nat)),
             base: Box::new(Self::Empty),
         }
     }
