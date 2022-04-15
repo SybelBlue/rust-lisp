@@ -1,3 +1,5 @@
+use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
+
 use crate::parsing::FilePos;
 
 use super::{contexts::TypeContext, values::Value, Expr, SBody};
@@ -51,17 +53,55 @@ impl Type {
             Type::Var(id) => ctxt.concretize(id)?,
         })
     }
+
+    fn variable_values(&self, out: &mut HashSet<usize>) {
+        match self {
+            Self::Var(n) => { out.insert(*n); },
+            Self::Fun(p, r) => {
+                p.as_ref().variable_values(out);
+                r.as_ref().variable_values(out);
+            },
+            Self::Data(_) => todo!(),
+            _ => {}
+        }
+    }
+
+    fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, char>, wrap: bool) -> std::fmt::Result {
+        match self {
+            Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => self.fmt(f),
+            Type::Var(n) => f.write_char(*map.get(n).unwrap()),
+            Type::Fun(p, r) => {
+                if wrap { f.write_char('(')?; }
+                p.display_with(f, map, true)?;
+                f.write_str(" -> ")?;
+                r.display_with(f, map, false)?;
+                if wrap { f.write_char(')')?; }
+                Ok(())
+            },
+        }
+    }
 }
 
-impl std::fmt::Display for Type {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Unit => write!(f, "Unit"),
             Type::Nat => write!(f, "Nat"),
             Type::Char => write!(f, "Char"),
             Type::Type => write!(f, "Type"),
             Type::Data(s) => write!(f, "{}", s),
-            Type::Fun(pt, rt) => write!(f, "(-> {} {})", pt.as_ref(), rt.as_ref()),
+            Type::Fun(_, _) => {
+                let mut vals = HashSet::new();
+                self.variable_values(&mut vals);
+                let mut vals: Vec<usize> = vals.into_iter().collect();
+                vals.sort();
+                let map: HashMap<usize, char> = vals.into_iter()
+                    .enumerate()
+                    .map(|(i, l)| (l, (i as u8 + 'a' as u8) as char))
+                    .collect();
+                if map.len() > 26 { todo!("sooooo many vars") }
+                self.display_with(f, &map, true)
+            },
             Type::Var(s) => write!(f, "t_{}", s),
         }
     }
