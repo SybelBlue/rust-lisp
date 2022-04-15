@@ -47,8 +47,21 @@ mod tests {
             
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(\x (+ x))"));
 
-            assert_eq!(fun(Var(2), Var(2)), type_test(r"(\x x)"));
-            assert_eq!(fun(fun(Nat, Var(3)), Var(3)), type_test(r"(\f (f 3))"));
+            assert_eq!(format!("{}", fun(Var(1), Var(1))), format!("{}", type_test(r"(\x x)")));
+            assert_eq!(format!("{}", fun(fun(Nat, Var(1)), Var(1))), format!("{}", type_test(r"(\f (f 3))")));
+        }
+
+        #[test]
+        fn combinators() {
+            use crate::exprs::types::Type::*;
+            let fun = crate::exprs::types::Type::fun;
+
+            assert_eq!(format!("{}", 
+                fun(fun(Var(2), fun(Var(2), Var(3))), 
+                    fun(fun(Var(1), Var(2)), 
+                    fun(Var(1), 
+                    fun(Var(1)
+                    , Var(3)))))), format!("{}", type_test(r"(\(f g x y) (f (g x) (g y)))")));
         }
     }
 
