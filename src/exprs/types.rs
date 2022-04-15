@@ -19,12 +19,14 @@ impl Type {
     }
 
     fn unify(&self, got: &Self, ctxt: TypeContext) -> Option<TypeContext> {
-        if self == got { return Some(ctxt); }
+        if self == got {
+            return Some(ctxt);
+        }
         if let Type::Var(s) = self {
             return Some(ctxt.put_eq(*s, got.clone()));
         } else if let Type::Var(g) = got {
-            return Some(ctxt.put_eq(*g, self.clone()))
-        } 
+            return Some(ctxt.put_eq(*g, self.clone()));
+        }
         None
     }
 
@@ -45,7 +47,7 @@ impl Type {
                 let (p, ctxt) = p.concretize(ctxt)?;
                 let (r, ctxt) = r.concretize(ctxt)?;
                 (Type::fun(p, r), ctxt)
-            },
+            }
             Type::Var(id) => ctxt.concretize(id)?,
         })
     }
@@ -59,8 +61,7 @@ impl std::fmt::Display for Type {
             Type::Char => write!(f, "Char"),
             Type::Type => write!(f, "Type"),
             Type::Data(s) => write!(f, "{}", s),
-            Type::Fun(pt, rt) => 
-                write!(f, "(-> {} {})", pt.as_ref(), rt.as_ref()),
+            Type::Fun(pt, rt) => write!(f, "(-> {} {})", pt.as_ref(), rt.as_ref()),
             Type::Var(s) => write!(f, "t_{}", s),
         }
     }
@@ -78,15 +79,28 @@ pub enum TypeError<'a> {
     UndefinedSymbol(&'a String),
 }
 
+impl<'a> std::fmt::Display for TypeError<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeError::TooManyArgs(pos, e) => write!(f, "TooManyArgs: {} at {}", e, pos),
+            TypeError::TypeMismatch { got, expected, at } => write!(
+                f, "TypeMismatch at {}\n\tgot:      {}\n\texpected: {}",
+                at, got, expected),
+            TypeError::BadEquivalence(s, t) => write!(f, "BadEquivalence: {} !~ {}", s, t),
+            TypeError::UndefinedSymbol(s) => write!(f, "UndefinedSymbol: {}", s),
+        }
+    }
+}
+
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContext), TypeError<'a>> {
     match e {
         Expr::Val(v) => Ok(match v {
             Value::Int(_) => (Type::Nat, ctxt),
             Value::Type(_) => (Type::Type, ctxt),
-            Value::Sym(k) => (ctxt
-                .get(k)
-                .ok_or(TypeError::UndefinedSymbol(k))?
-                .clone(), ctxt),
+            Value::Sym(k) => (
+                ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone(),
+                ctxt,
+            ),
             Value::Lam(ps, b) => {
                 let mut ctxt = ctxt.clone();
                 let mut expr_type = Vec::new(); // in reverse order!
@@ -99,10 +113,12 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                 let (ret_type, ctxt) = type_expr(b, ctxt)?;
                 let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
                 // undoes reversal!
-                let lam_type = expr_type.into_iter().fold(ret_type, |arr, curr| Type::fun(curr, arr));
+                let lam_type = expr_type
+                    .into_iter()
+                    .fold(ret_type, |arr, curr| Type::fun(curr, arr));
                 let (t, ctxt) = lam_type.concretize(ctxt)?;
                 (t, ctxt)
-            },
+            }
         }),
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
@@ -123,12 +139,12 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
                                     at: start,
                                 });
                             }
-                        },
+                        }
                         Type::Var(id) => {
                             let (new, ret_type_id) = ctxt.put_new_tvar(String::from("anon"));
                             ctxt = new.put_eq(id, Type::fun(arg_type, Type::Var(ret_type_id)));
                             target_type = Type::Var(ret_type_id);
-                        },
+                        }
                         _ => return Err(TypeError::TooManyArgs(start, fst)),
                     }
                 }

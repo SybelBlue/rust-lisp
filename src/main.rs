@@ -6,11 +6,10 @@ fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
     let ref name = format!("term-input");
     reader.set_prompt(">> ")?;
-    
+
     while let ReadResult::Input(input) = reader.read_line()? {
         match Source::new(input.as_str(), Some(name)).lex() {
-            Ok(ts) => {
-                // println!("tokens {:?}", &ts);
+            Ok(ts) =>
                 match parse_tokens(ts) {
                     Ok(es) => {
                         let mut ctxt = TypeContext::new();
@@ -20,12 +19,11 @@ fn main() -> std::io::Result<()> {
                                     ctxt = new;
                                     println!(" | {} :: {}", e, t);
                                 },
-                                Err(e) => println!("** {:?}", e),
+                                Err(e) => println!("** {}", e),
                             }
                         }
                     },
-                    Err(e) => println!("** {:?}", e),
-                }
+                    Err(e) => println!("** {}", e),
             },
             Err(e) => println!("** {}", e)
         }
