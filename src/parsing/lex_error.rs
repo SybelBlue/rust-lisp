@@ -1,13 +1,13 @@
 use super::{FilePos, lex::Source};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum LexErrorType<'a> {
+pub(crate) enum LexErrorBody<'a> {
     TooManyClosing,
     Unclosed(FilePos<'a>),
     StartingLambda(FilePos<'a>),
 }
 
-impl<'a> LexErrorType<'a> {
+impl<'a> LexErrorBody<'a> {
     pub fn col_arrow(&self, file_pos: &FilePos) -> String {
         let file_pos = match &self {
             Self::TooManyClosing => file_pos,
@@ -33,7 +33,7 @@ impl<'a> LexErrorType<'a> {
 #[derive(Debug)]
 pub struct LexError<'a> {
     pub src: Source<'a>,
-    pub(crate) tipe: LexErrorType<'a>,
+    pub(crate) body: LexErrorBody<'a>,
 }
 
 impl<'a> std::fmt::Display for LexError<'a> {
@@ -41,12 +41,12 @@ impl<'a> std::fmt::Display for LexError<'a> {
         let line_indicator = format!(" {} ", self.src.pos.row);
         let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
         write!(f, "error: {} at {}\n{}|\n{}| {}\n{}| {}", 
-            self.tipe.name(), 
+            self.body.name(), 
             self.src.pos, 
             margin,
             line_indicator, 
             self.src.current_line(),
             margin,
-            self.tipe.col_arrow(&self.src.pos))
+            self.body.col_arrow(&self.src.pos))
     }
 }

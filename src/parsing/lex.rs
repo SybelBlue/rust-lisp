@@ -54,12 +54,12 @@ impl<'a> Source<'a> {
                 Some(')') => 
                     match stack.close_sexp() {
                         Ok(st) => stack = st,
-                        Err(tipe) => return Err(LexError { tipe, src: self })
+                        Err(tipe) => return Err(LexError { body: tipe, src: self })
                     },
                 Some('\\') => 
                     match stack.push_lambda(self.pos.clone()) {
                         Ok(st) => stack = st,
-                        Err(tipe) => return Err(LexError { tipe, src: self })
+                        Err(tipe) => return Err(LexError { body: tipe, src: self })
                     },
                 Some(ch) => stack.push_char(ch),
             }
@@ -68,7 +68,7 @@ impl<'a> Source<'a> {
         stack.try_push_word();
 
         stack.finish()
-            .map_err(|tipe| LexError { tipe, src: self })
+            .map_err(|tipe| LexError { body: tipe, src: self })
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
@@ -111,9 +111,9 @@ impl<'a> LexStack<'a> {
         self.sexp_stack.push((file_pos, Vec::with_capacity(4))) // 4 long sexp
     }
 
-    fn close_sexp(mut self) -> Result<Self, LexErrorType<'a>> {
+    fn close_sexp(mut self) -> Result<Self, LexErrorBody<'a>> {
         let last_sexp = self.sexp_stack.pop();
-        let (start, mut body) = last_sexp.ok_or(LexErrorType::TooManyClosing)?;
+        let (start, mut body) = last_sexp.ok_or(LexErrorBody::TooManyClosing)?;
 
         if self.curr_word.len() > 0 {
             body.push(self.dump_curr());
@@ -123,11 +123,11 @@ impl<'a> LexStack<'a> {
         Ok(self)
     }
 
-    fn push_lambda(mut self, fp: FilePos<'a>) -> Result<Self, LexErrorType<'a>> {
+    fn push_lambda(mut self, fp: FilePos<'a>) -> Result<Self, LexErrorBody<'a>> {
         match self.sexp_stack.last() {
-            None => Err(LexErrorType::StartingLambda(fp)),
+            None => Err(LexErrorBody::StartingLambda(fp)),
             Some((_, s)) if !s.is_empty() => 
-                Err(LexErrorType::StartingLambda(fp)),
+                Err(LexErrorBody::StartingLambda(fp)),
             _ => {
                 self.push_token(Token::LamSlash(fp));
         
@@ -160,9 +160,9 @@ impl<'a> LexStack<'a> {
         }
     }
 
-    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorType<'a>> {
+    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorBody<'a>> {
         if let Some((file_pos, _)) = self.sexp_stack.pop() {
-            Err(LexErrorType::Unclosed(file_pos))
+            Err(LexErrorBody::Unclosed(file_pos))
         } else {
             Ok(self.finished)
         }
