@@ -41,17 +41,24 @@ impl Type {
         }
     }
 
-    pub fn concretize(self, ctxt: TypeContext) -> Result<(Self, TypeContext), TypeError<'static>> {
-        Ok(match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Type => (self, ctxt),
-            Type::Data(_) => (self, ctxt), // will maybe be polymorphic later
-            Type::Fun(p, r) => {
-                let (p, ctxt) = p.concretize(ctxt)?;
-                let (r, ctxt) = r.concretize(ctxt)?;
-                (Type::fun(p, r), ctxt)
-            }
-            Type::Var(id) => ctxt.concretize(id)?,
-        })
+    pub fn concretize(&self, ctxt: &TypeContext) -> Self {
+        match self {
+            Type::Unit | Type::Nat | Type::Char | Type::Type | Self::Data(_) => self.clone(),
+            Type::Fun(p, r) => 
+                Type::fun(p.concretize(ctxt), r.concretize(ctxt)),
+            Type::Var(id) => ctxt.query_tvar(*id),
+        }
+    }
+
+    pub fn alpha_sub(&self, tvar: usize, sub: &Self) -> Self {
+        match self {
+            Type::Var(x) if *x == tvar => sub.clone(),
+            Type::Fun(p, r) => Type::fun(
+                p.as_ref().alpha_sub(tvar, sub), 
+                r.as_ref().alpha_sub(tvar, sub)
+            ),
+            _ => self.clone(),
+        }
     }
 
     fn variable_values(&self, out: &mut HashSet<usize>) {
@@ -169,7 +176,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                     }
                 }
                 // println!("{:?}", target_type);
-                target_type.concretize(ctxt)
+                Ok((target_type.concretize(&ctxt), ctxt))
             } else {
                 Ok((Type::Unit, ctxt))
             }
@@ -200,7 +207,7 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
             let lam_type = expr_type
                 .into_iter()
                 .fold(ret_type, |arr, curr| Type::fun(curr, arr));
-            lam_type.concretize(ctxt)?
+            (lam_type.concretize(&ctxt), ctxt)
         }
     })
 }

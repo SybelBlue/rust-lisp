@@ -1,54 +1,8 @@
-use std::collections::{HashSet, HashMap};
-
-use super::types::{Type, TypeError};
+use super::types::Type;
 
 pub type Ident = String;
 pub type QualifiedIdent = String;
 
-pub type EquivalenceClass = HashSet<Type>;
-
-#[derive(Debug)]
-pub struct FlatTypeContext {
-    pub equiv_classes: Vec<EquivalenceClass>,
-    pub bound: HashMap<Ident, Type>,
-    pub last_tvar: usize,
-}
-
-impl From<&TypeContext> for FlatTypeContext {
-    fn from(ctxt: &TypeContext) -> Self {
-        Self { 
-            equiv_classes: ctxt.equiv_classes(), 
-            bound: ctxt.as_hash(),
-            last_tvar: ctxt.tvar(),
-        }
-    }
-}
-
-impl std::fmt::Display for FlatTypeContext {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let char_map = Type::var_to_char_map((1..=self.last_tvar).collect());
-        writeln!(f, "FlatTypeContext {{")?;
-        writeln!(f, "\tequiv_classes: [")?;
-        for ecls in self.equiv_classes.iter() {
-            write!(f, "\t\t{{ ")?;
-            let mut ecls: Vec<&Type> = ecls.iter().collect();
-            ecls.sort();
-            for t in ecls {
-                t.display_with(f, &char_map, false)?;
-                write!(f, ", ")?;
-            }
-            writeln!(f, "}},")?;
-        }
-        writeln!(f, "\t],")?;
-        writeln!(f, "\tbound: {{")?;
-        for (k, v) in self.bound.iter() {
-            write!(f, "\t\t{}: ", k)?;
-            v.display_with(f, &char_map, false)?;
-            write!(f, "\n")?;
-        }
-        writeln!(f, "\t}}\n}}")
-    }
-}
 
 #[derive(Debug, Clone)]
 pub enum TypeContext {
@@ -117,69 +71,23 @@ impl TypeContext {
         Self::VarEq(tvar, other, Box::new(self))
     }
 
-    pub fn concretize(self, id: usize) -> Result<(Type, Self), TypeError<'static>> {
-        let cls = self.equivalences(id);
-        let conc: Vec<&Type> = cls.iter().filter(|t| t.is_concrete()).collect();
-        Ok((match conc.as_slice() {
-            &[] => cls.into_iter().max().unwrap(),
-            &[t] => t.clone(),
-            &[s, t, ..] => return Err(TypeError::BadEquivalence(s.clone(), t.clone()))
-        }, self))
-    }
-
-    pub fn flatten(&self) -> FlatTypeContext {
-        FlatTypeContext::from(self)
-    }
-
-    fn as_hash(&self) -> HashMap<Ident, Type> {
-        self.unpack()
-            .into_iter()
-            .filter_map(|ctxt| {
-                match ctxt {
-                    TypeContext::Entry { symb, tipe, .. } => Some((symb.clone(), tipe.clone())),
-                    TypeContext::TVar { symb, tvar, .. } => Some((symb.clone(), Type::Var(*tvar))),
-                    _ => None,
+    pub fn query_tvar(&self, tvar: usize) -> Type {
+        let goal = tvar;
+        let stack = {
+            let mut s = Vec::new();
+            let mut curr = self;
+            while let Some(next) = curr.base() {
+                match curr {
+                    Self::TVar { tvar, .. } if *tvar == goal => break,
+                    Self::VarEq(tvar, other, _) => s.push((*tvar, other)),
+                    _ => {}
                 }
-            })
-            .collect()
-    }
-
-    pub(crate) fn equiv_classes(&self) -> Vec<EquivalenceClass> {
-        let mut eqs: Vec<EquivalenceClass> = Vec::new();
-        for n in 1..=self.tvar() {
-            if !eqs.iter().any(|e| e.contains(&Type::Var(n))) {
-                eqs.push(self.equivalences(n));
+                curr = next;
             }
-        }
-        eqs
-    }
-
-    pub(crate) fn equivalences(&self, tvar: usize) -> EquivalenceClass {
-        let mut out = HashSet::new();
-        for ctxt in self.unpack().into_iter().rev() {
-            match ctxt {
-                Self::VarEq(id, tipe, _) if *id == tvar || out.contains(&Type::Var(*id)) => { 
-                    out.insert(tipe.clone()); 
-                }
-                Self::VarEq(id, tipe, _) if &Type::Var(tvar) == tipe => {
-                    out.insert(Type::Var(*id));
-                }
-                _ => {}
-            }
-        }
-        out.insert(Type::Var(tvar));
-        out
-
-    }
-
-    /// Returns an inside-out vec of this context
-    pub fn unpack(&self) -> Vec<&Self> {
-        let mut slf = vec![self];
-        let mut curr = self;
-        while let Some(next) = curr.base() {
-            slf.push(next);
-            curr = next;
-        }
-        slf
+            s
+        };  
+        stack.into_iter()
+            .fold(Type::Var(goal), 
+                |curr, (tvar, sub)| curr.alpha_sub(tvar, sub))
     }
 }
