@@ -103,7 +103,7 @@ fn parse_first<'a>(t: Token<'a>) -> Result<Result<Expr<'a>, FilePos<'a>>, ParseE
         Token::LamSlash(fp) => Err(fp),
         Token::Word(w) =>
             Ok(if let Ok(n) = w.parse::<usize>() {
-                Expr::Val(Value::Int(n))
+                Expr::Val(Value::Nat(n))
             } else {
                 Expr::Val(Value::Sym(w))
             }),

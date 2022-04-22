@@ -176,7 +176,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
 
 pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     Ok(match v {
-        Value::Int(_) => (Type::Nat, ctxt),
+        Value::Nat(_) => (Type::Nat, ctxt),
         Value::Type(_) => (Type::Type, ctxt),
         Value::Sym(k) => (
             ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone(),
