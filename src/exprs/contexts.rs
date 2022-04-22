@@ -63,11 +63,13 @@ impl TypeContext {
 
     pub fn put_new_tvar(self, symb: Ident) -> (Self, usize) {
         let tvar = self.tvar() + 1;
+        println!("New tvar: {} :: {}", symb, Type::Var(tvar));
         (Self::TVar { symb, tvar, base: Box::new(self) }, tvar)
     }
 
     pub fn put_eq(self, tvar: usize, other: Type) -> Self {
         // todo: check for conflicting restraints
+        println!("New equivalence: {} ~ {:?}", Type::Var(tvar), other);
         Self::VarEq(tvar, other, Box::new(self))
     }
 

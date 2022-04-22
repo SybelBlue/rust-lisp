@@ -4,7 +4,7 @@ use crate::parsing::FilePos;
 
 use super::{contexts::TypeContext, values::Value, Expr, SBody};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
     Unit,
     Nat,
@@ -21,15 +21,25 @@ impl Type {
     }
 
     fn unify(&self, got: &Self, ctxt: TypeContext) -> Option<TypeContext> {
-        if self == got {
-            return Some(ctxt);
+        match (self, got) {
+            // if both are functions, unpack and recurse
+            (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>
+                p0.as_ref()
+                    .unify(p1, ctxt)
+                    .and_then(|new| 
+                        r0.as_ref().unify(r1, new)),
+            // if equal, done.
+            _ if self == got => Some(ctxt),
+            // if both are tvars, register greatest equivalence
+            (Type::Var(s), Type::Var(o)) =>
+                Some(ctxt.put_eq(*s.min(o), Type::Var(*s.max(o)))),
+            // if either is a tvar, register an equivalency on the other
+            (Type::Var(v), o) 
+                | (o, Type::Var(v)) =>
+                    Some(ctxt.put_eq(*v, o.clone())),
+            // unequal, and neither are vars, so not unification possible
+            _ => None
         }
-        if let Type::Var(s) = self {
-            return Some(ctxt.put_eq(*s, got.clone()));
-        } else if let Type::Var(g) = got {
-            return Some(ctxt.put_eq(*g, self.clone()));
-        }
-        None
     }
 
     pub fn is_concrete(&self) -> bool {
@@ -112,7 +122,21 @@ impl Display for Type {
                 self.variable_values(&mut vals);
                 self.display_with(f, &Type::var_to_char_map(vals.into_iter().collect()), true)
             },
-            Type::Var(s) => write!(f, "t_{}", s),
+            Type::Var(_) => f.write_char('a'),
+        }
+    }
+}
+
+impl std::fmt::Debug for Type {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unit => write!(f, "Unit"),
+            Self::Nat => write!(f, "Nat"),
+            Self::Char => write!(f, "Char"),
+            Self::Type => write!(f, "Type"),
+            Self::Data(arg0) => f.debug_tuple("Data").field(arg0).finish(),
+            Self::Var(arg0) => write!(f, "t_{}", arg0),
+            Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),
         }
     }
 }
@@ -150,6 +174,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
                 let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
+                println!("fst: {}\tfst type: {:?}\tqueried {:?}", fst, target_type, target_type.concretize(&ctxt));
                 let mut rest = rst.into_iter();
                 while let Some(curr_argument) = rest.next() {
                     let (arg_type, new) = type_expr(curr_argument, ctxt)?;
@@ -168,7 +193,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                             }
                         }
                         Type::Var(id) => {
-                            let (new, ret_type_id) = ctxt.put_new_tvar(String::from("sexpbody"));
+                            let (new, ret_type_id) = ctxt.put_new_tvar(format!("sexpbody({})", curr_argument));
                             ctxt = new.put_eq(id, Type::fun(arg_type, Type::Var(ret_type_id)));
                             target_type = Type::Var(ret_type_id);
                         }
