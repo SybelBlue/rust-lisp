@@ -46,7 +46,7 @@ impl Type {
         if self == o {
             true
         } else if let Type::Fun(p, r) = self {
-            p.as_ref().contains(o) || r.as_ref().contains(o)
+            p.contains(o) || r.contains(o)
         } else {
             false
         }
@@ -56,7 +56,7 @@ impl Type {
         match self {
             Type::Unit | Type::Nat | Type::Char | Type::Type => true,
             Type::Data(_) => true, // will maybe be polymorphic later
-            Type::Fun(p, r) => p.as_ref().is_concrete() && r.as_ref().is_concrete(),
+            Type::Fun(p, r) => p.is_concrete() && r.is_concrete(),
             Type::Var(_) => false,
         }
     }
@@ -74,8 +74,8 @@ impl Type {
         match self {
             Type::Var(x) if *x == tvar => sub.clone(),
             Type::Fun(p, r) => Type::fun(
-                p.as_ref().alpha_sub(tvar, sub), 
-                r.as_ref().alpha_sub(tvar, sub)
+                p.alpha_sub(tvar, sub), 
+                r.alpha_sub(tvar, sub)
             ),
             _ => self.clone(),
         }
@@ -85,8 +85,8 @@ impl Type {
         match self {
             Self::Var(n) => { out.insert(*n); },
             Self::Fun(p, r) => {
-                p.as_ref().variable_values(out);
-                r.as_ref().variable_values(out);
+                p.variable_values(out);
+                r.variable_values(out);
             },
             Self::Data(_) => todo!(),
             _ => {}
