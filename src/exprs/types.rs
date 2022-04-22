@@ -174,7 +174,6 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
                 let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
-                println!("fst: {}\tfst type: {:?}\tqueried {:?}", fst, target_type, target_type.concretize(&ctxt));
                 let mut rest = rst.into_iter();
                 while let Some(curr_argument) = rest.next() {
                     let (arg_type, new) = type_expr(curr_argument, ctxt)?;
@@ -201,7 +200,6 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                         _ => return Err(TypeError::TooManyArgs(start, fst)),
                     }
                 }
-                // println!("{:?}", target_type);
                 Ok((target_type.concretize(&ctxt), ctxt))
             } else {
                 Ok((Type::Unit, ctxt))
