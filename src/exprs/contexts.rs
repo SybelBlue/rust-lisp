@@ -11,11 +11,42 @@ pub type EquivalenceClass = HashSet<Type>;
 pub struct FlatTypeContext {
     pub equiv_classes: Vec<EquivalenceClass>,
     pub bound: HashMap<Ident, Type>,
+    pub last_tvar: usize,
 }
 
 impl From<&TypeContext> for FlatTypeContext {
     fn from(ctxt: &TypeContext) -> Self {
-        Self { equiv_classes: ctxt.equiv_classes(), bound: ctxt.as_hash() }
+        Self { 
+            equiv_classes: ctxt.equiv_classes(), 
+            bound: ctxt.as_hash(),
+            last_tvar: ctxt.tvar(),
+        }
+    }
+}
+
+impl std::fmt::Display for FlatTypeContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let char_map = Type::var_to_char_map((1..=self.last_tvar).collect());
+        writeln!(f, "FlatTypeContext {{")?;
+        writeln!(f, "\tequiv_classes: [")?;
+        for ecls in self.equiv_classes.iter() {
+            write!(f, "\t\t{{ ")?;
+            let mut ecls: Vec<&Type> = ecls.iter().collect();
+            ecls.sort();
+            for t in ecls {
+                t.display_with(f, &char_map, false)?;
+                write!(f, ", ")?;
+            }
+            writeln!(f, "}},")?;
+        }
+        writeln!(f, "\t],")?;
+        writeln!(f, "\tbound: {{")?;
+        for (k, v) in self.bound.iter() {
+            write!(f, "\t\t{}: ", k)?;
+            v.display_with(f, &char_map, false)?;
+            write!(f, "\n")?;
+        }
+        writeln!(f, "\t}}\n}}")
     }
 }
 

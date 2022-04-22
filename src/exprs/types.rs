@@ -66,7 +66,17 @@ impl Type {
         }
     }
 
-    fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, char>, wrap: bool) -> std::fmt::Result {
+    pub(crate) fn var_to_char_map(mut vals: Vec<usize>) -> HashMap<usize, char> {
+        vals.sort();
+        let map: HashMap<usize, char> = vals.into_iter()
+            .enumerate()
+            .map(|(i, l)| (l, (i as u8 + 'a' as u8) as char))
+            .collect();
+        if map.len() > 26 { todo!("sooooo many vars") }
+        map
+    }
+
+    pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, char>, wrap: bool) -> std::fmt::Result {
         match self {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => self.fmt(f),
             Type::Var(n) => f.write_char(*map.get(n).unwrap()),
@@ -93,14 +103,7 @@ impl Display for Type {
             Type::Fun(_, _) => {
                 let mut vals = HashSet::new();
                 self.variable_values(&mut vals);
-                let mut vals: Vec<usize> = vals.into_iter().collect();
-                vals.sort();
-                let map: HashMap<usize, char> = vals.into_iter()
-                    .enumerate()
-                    .map(|(i, l)| (l, (i as u8 + 'a' as u8) as char))
-                    .collect();
-                if map.len() > 26 { todo!("sooooo many vars") }
-                self.display_with(f, &map, true)
+                self.display_with(f, &Type::var_to_char_map(vals.into_iter().collect()), true)
             },
             Type::Var(s) => write!(f, "t_{}", s),
         }
@@ -158,7 +161,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                             }
                         }
                         Type::Var(id) => {
-                            let (new, ret_type_id) = ctxt.put_new_tvar(String::from("anon"));
+                            let (new, ret_type_id) = ctxt.put_new_tvar(String::from("sexpbody"));
                             ctxt = new.put_eq(id, Type::fun(arg_type, Type::Var(ret_type_id)));
                             target_type = Type::Var(ret_type_id);
                         }
@@ -190,20 +193,14 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
                 ctxt = new;
                 expr_type.push(Type::Var(var));
             }
-            let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("anon"));
+            let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lambdabody"));
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
             let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
             // undoes reversal!
             let lam_type = expr_type
                 .into_iter()
                 .fold(ret_type, |arr, curr| Type::fun(curr, arr));
-            let (t, ctxt) = lam_type.concretize(ctxt)?;
-            (t, ctxt)
+            lam_type.concretize(ctxt)?
         }
     })
 }
-
-
-
-
-

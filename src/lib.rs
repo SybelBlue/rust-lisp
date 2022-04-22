@@ -14,9 +14,9 @@ mod tests {
             let src = Source::new(&s, None);
             let ts = src.lex().unwrap();
             let es = parse_tokens(ts).unwrap();
-            type_expr(&es[0], TypeContext::new())
-                .unwrap()
-                .0
+            let (t, tc) = type_expr(&es[0], TypeContext::new()).unwrap();
+            println!("{}", tc.flatten());
+            t
         }
 
         #[test]
