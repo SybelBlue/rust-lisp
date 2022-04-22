@@ -42,6 +42,16 @@ impl Type {
         }
     }
 
+    fn contains(&self, o: &Self) -> bool {
+        if self == o {
+            true
+        } else if let Type::Fun(p, r) = self {
+            p.as_ref().contains(o) || r.as_ref().contains(o)
+        } else {
+            false
+        }
+    }
+
     pub fn is_concrete(&self) -> bool {
         match self {
             Type::Unit | Type::Nat | Type::Char | Type::Type => true,
@@ -149,7 +159,7 @@ pub enum TypeError<'a> {
         expected: Type,
         at: &'a FilePos<'a>,
     },
-    BadEquivalence(Type, Type),
+    InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
 }
 
@@ -160,8 +170,17 @@ impl<'a> std::fmt::Display for TypeError<'a> {
             TypeError::TypeMismatch { got, expected, at } => write!(
                 f, "TypeMismatch at {}\n\tgot:      {}\n\texpected: {}",
                 at, got, expected),
-            TypeError::BadEquivalence(s, t) => write!(f, "BadEquivalence: {} !~ {}", s, t),
             TypeError::UndefinedSymbol(s) => write!(f, "UndefinedSymbol: {}", s),
+            TypeError::InfiniteType(s, t) => {
+                write!(f, "InfiniteType: ")?;
+                let mut vals = HashSet::new();
+                s.variable_values(&mut vals);
+                t.variable_values(&mut vals);
+                let map = Type::var_to_char_map(vals.into_iter().collect());
+                s.display_with(f, &map, false)?;
+                write!(f, " ~ ")?;
+                t.display_with(f, &map, false)
+            }
         }
     }
 }
@@ -213,7 +232,7 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
         Value::Nat(_) => (Type::Nat, ctxt),
         Value::Type(_) => (Type::Type, ctxt),
         Value::Sym(k) => (
-            ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone(),
+            ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone().concretize(&ctxt),
             ctxt,
         ),
         Value::Lam(ps, b) => {

@@ -18,6 +18,7 @@ fn main() -> std::io::Result<()> {
                                 Ok((t, new)) => {
                                     ctxt = new;
                                     println!(" | {} :: {}", e, t);
+                                    println!(" | {} :: {}", e, t.concretize(&ctxt));
                                 },
                                 Err(e) => println!("** {}", e),
                             }
