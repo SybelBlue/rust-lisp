@@ -21,22 +21,22 @@ impl Type {
     }
 
     fn unify(&self, got: &Self, ctxt: TypeContext) -> Option<TypeContext> {
-        match (self, got) {
+        match (ctxt.query(self), ctxt.query(got)) {
             // if both are functions, unpack and recurse
             (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>
                 p0.as_ref()
-                    .unify(p1, ctxt)
+                    .unify(&p1, ctxt)
                     .and_then(|new| 
-                        r0.as_ref().unify(r1, new)),
+                        r0.as_ref().unify(&r1, new)),
             // if equal, done.
-            _ if self == got => Some(ctxt),
+            (slf, got) if slf == got => Some(ctxt),
             // if both are tvars, register greatest equivalence
             (Type::Var(s), Type::Var(o)) =>
-                Some(ctxt.put_eq(*s.min(o), Type::Var(*s.max(o)))),
+                Some(ctxt.put_eq(s.min(o), Type::Var(s.max(o)))),
             // if either is a tvar, register an equivalency on the other
             (Type::Var(v), o) 
                 | (o, Type::Var(v)) =>
-                    Some(ctxt.put_eq(*v, o.clone())),
+                    Some(ctxt.put_eq(v, o.clone())),
             // unequal, and neither are vars, so not unification possible
             _ => None
         }
@@ -194,7 +194,8 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                         }
                         Type::Var(id) => {
                             let (new, ret_type_id) = ctxt.put_new_tvar(format!("sexpbody({})", curr_argument));
-                            ctxt = new.put_eq(id, Type::fun(arg_type, Type::Var(ret_type_id)));
+                            let curr_expr_type = Type::fun(arg_type, Type::Var(ret_type_id));
+                            ctxt = Type::Var(id).unify(&curr_expr_type, new).unwrap();
                             target_type = Type::Var(ret_type_id);
                         }
                         _ => return Err(TypeError::TooManyArgs(start, fst)),
@@ -227,7 +228,7 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
             }
             let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lambdabody"));
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
-            let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
+            let ctxt = ret_type.unify(&Type::Var(ret_type_var), ctxt).unwrap();
             // undoes reversal!
             let lam_type = expr_type
                 .into_iter()
