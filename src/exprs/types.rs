@@ -62,11 +62,16 @@ impl Type {
     }
 
     pub fn concretize(&self, ctxt: &TypeContext) -> Self {
-        match self {
+        let out = match self {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Self::Data(_) => self.clone(),
             Type::Fun(p, r) => 
                 Type::fun(p.concretize(ctxt), r.concretize(ctxt)),
             Type::Var(id) => ctxt.query_tvar(*id),
+        };
+        if out == *self {
+            out
+        } else {
+            out.concretize(ctxt)
         }
     }
 
@@ -232,7 +237,7 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
         Value::Nat(_) => (Type::Nat, ctxt),
         Value::Type(_) => (Type::Type, ctxt),
         Value::Sym(k) => (
-            ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone().concretize(&ctxt),
+            ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.concretize(&ctxt),
             ctxt,
         ),
         Value::Lam(ps, b) => {
