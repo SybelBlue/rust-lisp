@@ -9,8 +9,8 @@ pub type EquivalenceClass = HashSet<Type>;
 
 #[derive(Debug)]
 pub struct FlatTypeContext {
-    equiv_classes: Vec<EquivalenceClass>,
-    bound: HashMap<Ident, Type>,
+    pub equiv_classes: Vec<EquivalenceClass>,
+    pub bound: HashMap<Ident, Type>,
 }
 
 impl From<&TypeContext> for FlatTypeContext {
