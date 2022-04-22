@@ -21,11 +21,23 @@ pub enum TypeContext {
 }
 
 impl TypeContext {
+    fn from_type(t: Type, base: Self) -> Self {
+        Self::Entry {
+            symb: format!("{}", t),
+            tipe: Type::Type,
+            base: Box::new(base),       
+        }
+    }
+
     pub fn new() -> Self {
+        let mut base = Self::Empty;
+        for t in [Type::Type, Type::Unit, Type::Char, Type::Nat] {
+            base = Self::from_type(t, base);
+        }
         Self::Entry {
             symb: String::from("+"),
             tipe: Type::fun(Type::Nat, Type::fun(Type::Nat, Type::Nat)),
-            base: Box::new(Self::Empty),
+            base: Box::new(base),
         }
     }
 
@@ -74,6 +86,7 @@ impl TypeContext {
     }
 
     pub fn query(&self, t: &Type) -> Type {
+        // println!("Query: {:?}", t);
         match t {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => t.clone(),
             Type::Var(v) => self.query_tvar(*v),

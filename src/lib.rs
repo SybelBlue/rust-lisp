@@ -51,8 +51,10 @@ mod tests {
             
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(\x (+ x))"));
 
-            assert_eq!(format!("{}", fun(Var(1), Var(1))), format!("{}", type_test(r"(\x x)")));
-            assert_eq!(format!("{}", fun(fun(Nat, Var(1)), Var(1))), format!("{}", type_test(r"(\f (f 3))")));
+            assert_fmt_eq!(fun(Var(1), Var(1)), type_test(r"(\x x)"));
+            assert_fmt_eq!(fun(fun(Nat, Var(1)), Var(1)), type_test(r"(\f (f 3))"));
+
+            assert_eq!(fun(fun(Nat, fun(Nat, Nat)), Nat), type_test(r"(\f (f (f 1 2) (f 3 4)))"));
         }
 
         #[test]
