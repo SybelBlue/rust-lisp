@@ -56,7 +56,11 @@ impl<'a> Source<'a> {
                         Ok(st) => stack = st,
                         Err(tipe) => return Err(LexError { tipe, src: self })
                     },
-                Some('\\') => stack.push_token(Token::LamSlash(self.pos.clone())),
+                Some('\\') => 
+                    match stack.push_lambda(self.pos.clone()) {
+                        Ok(st) => stack = st,
+                        Err(tipe) => return Err(LexError { tipe, src: self })
+                    },
                 Some(ch) => stack.push_char(ch),
             }
         }
@@ -117,6 +121,19 @@ impl<'a> LexStack<'a> {
 
         self.push_token(Token::SExp(SBody { start, body }));
         Ok(self)
+    }
+
+    fn push_lambda(mut self, fp: FilePos<'a>) -> Result<Self, LexErrorType<'a>> {
+        match self.sexp_stack.last() {
+            None => Err(LexErrorType::StartingLambda(fp)),
+            Some((_, s)) if !s.is_empty() => 
+                Err(LexErrorType::StartingLambda(fp)),
+            _ => {
+                self.push_token(Token::LamSlash(fp));
+        
+                Ok(self)
+            }
+        }
     }
 
     fn push_token(&mut self, t: Token<'a>) {

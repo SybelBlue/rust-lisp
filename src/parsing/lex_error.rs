@@ -4,13 +4,15 @@ use super::{FilePos, lex::Source};
 pub(crate) enum LexErrorType<'a> {
     TooManyClosing,
     Unclosed(FilePos<'a>),
+    StartingLambda(FilePos<'a>),
 }
 
 impl<'a> LexErrorType<'a> {
     pub fn col_arrow(&self, file_pos: &FilePos) -> String {
         let file_pos = match &self {
             Self::TooManyClosing => file_pos,
-            Self::Unclosed(file_pos) => file_pos
+            Self::Unclosed(fp) => fp,
+            Self::StartingLambda(fp) => fp,
         };
 
         let mut out = String::new();
@@ -22,7 +24,8 @@ impl<'a> LexErrorType<'a> {
     pub fn name(&self) -> String {
         match self {
             Self::TooManyClosing => format!("Extra Closing Parenthesis"),
-            Self::Unclosed(_) => format!("Unclosed S-Expression")
+            Self::Unclosed(_) => format!("Unclosed S-Expression"),
+            Self::StartingLambda(_) => format!("Starting Lambda Slash")
         }
     }
 }
