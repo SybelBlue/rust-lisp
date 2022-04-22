@@ -132,34 +132,11 @@ impl<'a> std::fmt::Display for TypeError<'a> {
     }
 }
 
-pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContext), TypeError<'a>> {
+pub type TypeResult<'a, T> = Result<T, TypeError<'a>>;
+
+pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
-        Expr::Val(v) => Ok(match v {
-            Value::Int(_) => (Type::Nat, ctxt),
-            Value::Type(_) => (Type::Type, ctxt),
-            Value::Sym(k) => (
-                ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone(),
-                ctxt,
-            ),
-            Value::Lam(ps, b) => {
-                let mut ctxt = ctxt.clone();
-                let mut expr_type = Vec::new(); // in reverse order!
-                for p in ps.as_ref().get_symbols() {
-                    let (new, var) = ctxt.put_new_tvar(p);
-                    ctxt = new;
-                    expr_type.push(Type::Var(var));
-                }
-                let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("anon"));
-                let (ret_type, ctxt) = type_expr(b, ctxt)?;
-                let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
-                // undoes reversal!
-                let lam_type = expr_type
-                    .into_iter()
-                    .fold(ret_type, |arr, curr| Type::fun(curr, arr));
-                let (t, ctxt) = lam_type.concretize(ctxt)?;
-                (t, ctxt)
-            }
-        }),
+        Expr::Val(v) => type_value(v, ctxt),
         Expr::SExp(SBody { start, body }) => {
             if let Some((fst, rst)) = body.split_first() {
                 let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
@@ -196,3 +173,37 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> Result<(Type, TypeContex
         }
     }
 }
+
+pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+    Ok(match v {
+        Value::Int(_) => (Type::Nat, ctxt),
+        Value::Type(_) => (Type::Type, ctxt),
+        Value::Sym(k) => (
+            ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.clone(),
+            ctxt,
+        ),
+        Value::Lam(ps, b) => {
+            let mut ctxt = ctxt.clone();
+            let mut expr_type = Vec::new(); // in reverse order!
+            for p in ps.as_ref().get_symbols() {
+                let (new, var) = ctxt.put_new_tvar(p);
+                ctxt = new;
+                expr_type.push(Type::Var(var));
+            }
+            let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("anon"));
+            let (ret_type, ctxt) = type_expr(b, ctxt)?;
+            let ctxt = ctxt.put_eq(ret_type_var, ret_type.clone());
+            // undoes reversal!
+            let lam_type = expr_type
+                .into_iter()
+                .fold(ret_type, |arr, curr| Type::fun(curr, arr));
+            let (t, ctxt) = lam_type.concretize(ctxt)?;
+            (t, ctxt)
+        }
+    })
+}
+
+
+
+
+
