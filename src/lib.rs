@@ -16,6 +16,12 @@ mod tests {
             let es = parse_tokens(ts).unwrap();
             type_expr(&es[0], TypeContext::new()).unwrap().0
         }
+        
+        macro_rules! assert_fmt_eq {
+            ($a:expr, $b:expr) => {
+                assert_eq!(format!("{}", $a), format!("{}", $b));
+            };
+        }
 
         #[test]
         fn basic() {
@@ -50,16 +56,45 @@ mod tests {
         }
 
         #[test]
-        fn combinators() {
-            use crate::exprs::types::Type::*;
+        fn aviary() {
+            use crate::exprs::types::Type::Var;
             let fun = crate::exprs::types::Type::fun;
 
-            assert_eq!(format!("{}", 
+            // kestrel (const)
+            assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test(r"(\x (\_ x))"));
+            
+            // psi (on)
+            assert_fmt_eq!(
                 fun(fun(Var(2), fun(Var(2), Var(3))), 
                     fun(fun(Var(1), Var(2)), 
                     fun(Var(1), 
                     fun(Var(1)
-                    , Var(3)))))), format!("{}", type_test(r"(\(f g x y) (f (g x) (g y)))")));
+                    , Var(3))))), type_test(r"(\(f g x y) (f (g x) (g y)))"));
+            
+            // bluebird (.)
+            assert_fmt_eq!(
+                fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test(r"(\(g f x) (g (f x)))"));
+            
+            // cardinal (flip)
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
+                type_test(r"(\(f b a) (f a b))"));
+            
+            // applicator ($)
+            assert_fmt_eq!(
+                fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
+                type_test(r"(\(f a) (f a))"));
+            
+            // starling (<*> over (->))
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test(r"(\(fabc gab a) (fabc a (gab a)))"));
+            
+            // pheonix/starling' (liftA2/liftM2 over (->))
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
+                type_test(r"(\(fbcd gab hac a) (fbcd (gab a) (hac a)))"));
         }
     }
 
