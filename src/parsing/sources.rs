@@ -50,24 +50,23 @@ impl<'a> std::fmt::Display for FilePos<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source<'a> {
     Anon(&'a str),
-    File(String)
+    File(String),
 }
 
 impl<'a> Source<'a> {
-
-    pub fn lex(&'a self) -> LexResult<'a, Vec<Token<'a>>> {
-        match self {
-            Source::Anon(s) => SourceIter {
-                pos: FilePos::new(self),
-                txt: s.chars()
+    pub fn lex(&'a self, file_buf: &'a mut String) -> LexResult<'a, Vec<Token<'a>>> {
+        SourceIter {
+            pos: FilePos::new(self),
+            txt: match self {
+                Source::Anon(s) => s.chars(),
+                Source::File(p) => {
+                    let mut file = File::open(p).unwrap();
+                    file.read_to_string(file_buf).unwrap();
+                    file_buf.chars()
+                },
             },
-            Source::File(p) => {
-                let mut f = File::open(p).unwrap();
-                let mut s = String::new();
-                f.read_to_string(&mut s);
-                todo!("howwww")
-            },
-        }.lex()
+        }
+        .lex()
     }
 }
 

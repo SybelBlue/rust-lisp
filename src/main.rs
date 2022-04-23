@@ -7,7 +7,8 @@ fn main() -> std::io::Result<()> {
     reader.set_prompt(">> ")?;
 
     while let ReadResult::Input(input) = reader.read_line()? {
-        match Source::Anon(input.as_str()).lex() {
+            let ref mut buf = String::new();
+            match Source::Anon(input.as_str()).lex(buf) {
             Ok(ts) =>
                 match parse_tokens(ts) {
                     Ok(es) => {

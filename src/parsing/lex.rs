@@ -1,6 +1,8 @@
+use std::str::Chars;
+
 use crate::{exprs::{SToken, SExp}, errors::{LexError, LexResult, LexErrorBody, Loc}};
 
-use super::{FilePos, sources::Source};
+use super::FilePos;
 
 #[derive(Debug, Clone)]
 pub enum Token<'a> {
@@ -25,13 +27,12 @@ impl<'a> Token<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct SourceIter<'a, T> 
-        where T: Iterator<Item=char> {
-    pub(crate) txt: T,
+pub(crate) struct SourceIter<'a> {
+    pub(crate) txt: Chars<'a>,
     pub(crate) pos: FilePos<'a>,
 }
 
-impl<'a, T: Iterator<Item=char>> SourceIter<'a, T> {
+impl<'a> SourceIter<'a> {
     pub fn error(self, body: LexErrorBody) -> LexError<'a> {
         Loc::new(self.pos, body)
     }
