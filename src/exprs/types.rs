@@ -2,7 +2,7 @@ use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
 
 use crate::parsing::FilePos;
 
-use super::{contexts::TypeContext, values::Value, Expr, SBody};
+use super::{contexts::{TypeContext, UnifyErr}, values::Value, Expr, SBody};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -15,38 +15,12 @@ pub enum Type {
     Fun(Box<Type>, Box<Type>),
 }
 
-enum UnifyErr { Inf, Mis }
-
 impl Type {
     pub(crate) fn fun(p: Self, r: Self) -> Self {
         Self::Fun(Box::new(p), Box::new(r))
     }
 
-    fn unify(&self, got: &Self, ctxt: TypeContext) -> Result<TypeContext, UnifyErr> {
-        match (ctxt.query(self), ctxt.query(got)) {
-            // if both are functions, unpack and recurse
-            (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>
-                p0.as_ref()
-                    .unify(&p1, ctxt)
-                    .and_then(|new| 
-                        r0.as_ref().unify(&r1, new)),
-            // if equal, done.
-            (slf, got) if slf == got => Ok(ctxt),
-            // if inf, err.
-            (slf, got) if slf.contains(&got) || got.contains(&slf) => Err(UnifyErr::Inf),
-            // if both are tvars, register greatest equivalence
-            (Type::Var(s), Type::Var(o)) =>
-                Ok(ctxt.put_eq(s.min(o), Type::Var(s.max(o)))),
-            // if either is a tvar, register an equivalency on the other
-            (Type::Var(v), o) 
-                | (o, Type::Var(v)) =>
-                    Ok(ctxt.put_eq(v, o.clone())),
-            // unequal, and neither are vars, so not unification possible
-            _ => Err(UnifyErr::Mis)
-        }
-    }
-
-    fn contains(&self, o: &Self) -> bool {
+    pub fn contains(&self, o: &Self) -> bool {
         if self == o {
             true
         } else if let Type::Fun(p, r) = self {
@@ -208,7 +182,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                     ctxt = new;
                     match target_type {
                         Type::Fun(param_type, ret_type) => {
-                            match param_type.unify(&arg_type, ctxt) {
+                            match ctxt.unify(param_type.as_ref(), &arg_type) {
                                 Ok(new) => {
                                     target_type = *ret_type;
                                     ctxt = new;
@@ -226,9 +200,9 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                             }
                         }
                         Type::Var(_) => {
-                            let (new, ret_type_id) = ctxt.put_new_tvar(format!("sexpbody({})", curr_argument));
+                            let (new, ret_type_id) = ctxt.new_tvar();
                             let curr_expr_type = Type::fun(arg_type, Type::Var(ret_type_id));
-                            match target_type.unify(&curr_expr_type, new) {
+                            match new.unify(&target_type, &curr_expr_type) {
                                 Ok(new) => {
                                     target_type = Type::Var(ret_type_id);
                                     ctxt = new;
@@ -268,14 +242,14 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
             let mut ctxt = ctxt.clone();
             let mut expr_type = Vec::new(); // in reverse order!
             for p in ps.as_ref().get_symbols() {
-                let (new, var) = ctxt.put_new_tvar(p);
+                let (new, var) = ctxt.bind_to_tvar(p);
                 ctxt = new;
                 expr_type.push(Type::Var(var));
             }
-            let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lambdabody"));
+            let (ctxt, ret_type_var) = ctxt.new_tvar();
             let ret_type_var = Type::Var(ret_type_var);
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
-            match ret_type.unify(&ret_type_var, ctxt) {
+            match ctxt.unify(&ret_type, &ret_type_var) {
                 Err(UnifyErr::Inf) => return Err(TypeError::InfiniteType(ret_type, ret_type_var)),
                 Err(UnifyErr::Mis) => todo!("Mismatch should be impossible with var & __"),
                 Ok(ctxt) => {

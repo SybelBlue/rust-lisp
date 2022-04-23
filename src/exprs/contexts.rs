@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::types::Type;
 
 pub type Ident = String;
@@ -5,84 +7,56 @@ pub type QualifiedIdent = String;
 
 
 #[derive(Debug, Clone)]
-pub enum TypeContext {
-    Empty,
-    Entry {
-        symb: Ident,
-        tipe: Type,
-        base: Box<TypeContext>,
-    },
-    TVar {
-        symb: Ident,
-        tvar: usize,
-        base: Box<TypeContext>,
-    },
-    VarEq(usize, Type, Box<TypeContext>),
+pub struct TypeContext{
+    bound: HashMap<QualifiedIdent, Type>,
+    aliased: HashMap<Ident, QualifiedIdent>,
+    type_vars: HashMap<usize, Option<Type>>,
 }
 
+pub enum UnifyErr { Inf, Mis }
+
 impl TypeContext {
-    fn from_type(t: Type, base: Self) -> Self {
-        Self::Entry {
-            symb: format!("{}", t),
-            tipe: Type::Type,
-            base: Box::new(base),       
-        }
-    }
-
     pub fn new() -> Self {
-        let mut base = Self::Empty;
-        for t in [Type::Type, Type::Unit, Type::Char, Type::Nat] {
-            base = Self::from_type(t, base);
+        use super::types::Type::*;
+        type Type_ = super::types::Type;
+        let fun = super::types::Type::fun;
+        
+        let mut bound = HashMap::with_capacity(10);
+        let mut aliased = HashMap::with_capacity(10);
+        
+        fn type_binding(t: Type_, bound: &mut HashMap<String, Type_>, aliased: &mut HashMap<String, String>) {
+            let al = format!("{}", t);
+            let qual = format!("Prelude.{}", al);
+            bound.insert(qual.clone(), Type);
+            aliased.insert(al, qual);
         }
-        Self::Entry {
-            symb: String::from("+"),
-            tipe: Type::fun(Type::Nat, Type::fun(Type::Nat, Type::Nat)),
-            base: Box::new(base),
-        }
-    }
 
-    pub fn get<'a>(&'a self, key: &Ident) -> Option<Type> {
-        match self {
-            Self::Entry { symb, tipe, ..} if symb == key =>
-                    Some(tipe.clone()),
-            Self::TVar { symb, tvar, ..} if symb == key =>
-                    Some(Type::Var(*tvar)),
-            ctxt => ctxt.base().and_then(|b| b.get(key)),
+        bound.insert(format!("Prelude.+"), fun(Nat, fun(Nat, Nat)));
+        aliased.insert(format!("+"), format!("Prelude.+"));
+        for t in [Type, Unit, Nat, Char] {
+            type_binding(t, &mut bound, &mut aliased);
         }
-    }
-
-    fn base(&self) -> Option<&TypeContext> {
-        match self {
-            Self::Empty => None,
-            Self::Entry { base, .. } 
-                | Self::TVar { base, .. }
-                | Self::VarEq(_, _, base) 
-                => Some(base.as_ref()),
+        
+        Self {
+            bound,
+            aliased,
+            type_vars: HashMap::with_capacity(1000),
         }
     }
 
-    fn tvar(&self) -> usize {
-        if let Self::TVar { tvar, .. } = self {
-            *tvar
-        } else {
-            self.base().map(|b| b.tvar()).unwrap_or(0)
+    pub fn get(&self, k: &String) -> Option<&Type> {
+        self.bound.get(self.aliased.get(k).unwrap_or(k))
+    }
+
+    pub fn query_tvar(&self, var: usize) -> Type {
+        let mut curr = var;
+        loop {
+            match self.type_vars.get(&curr).unwrap() {
+                None => return Type::Var(curr),
+                Some(Type::Var(next)) => { curr = *next; }
+                Some(t) => return t.clone(),
+            }
         }
-    }
-
-    pub fn put(self, symb: Ident, tipe: Type) -> Self {
-        Self::Entry { symb, tipe, base: Box::new(self) }
-    }
-
-    pub fn put_new_tvar(self, symb: Ident) -> (Self, usize) {
-        let tvar = self.tvar() + 1;
-        // println!("New tvar: {} :: {:?}", symb, Type::Var(tvar));
-        (Self::TVar { symb, tvar, base: Box::new(self) }, tvar)
-    }
-
-    pub fn put_eq(self, tvar: usize, other: Type) -> Self {
-        // todo: check for conflicting restraints
-        // println!("New equivalence: {:?} ~ {:?}", Type::Var(tvar), other);
-        Self::VarEq(tvar, other, Box::new(self))
     }
 
     pub fn query(&self, t: &Type) -> Type {
@@ -91,27 +65,51 @@ impl TypeContext {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => t.clone(),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 
-                Type::fun(self.query(p.as_ref()), self.query(r.as_ref())),
+                Type::fun(self.query(&p), self.query(r)),
         }
     }
 
-    pub fn query_tvar(&self, tvar: usize) -> Type {
-        let goal = tvar;
-        let stack = {
-            let mut s = Vec::new();
-            let mut curr = self;
-            while let Some(next) = curr.base() {
-                match curr {
-                    Self::TVar { tvar, .. } if *tvar == goal => break,
-                    Self::VarEq(tvar, other, _) => s.push((*tvar, other)),
-                    _ => {}
-                }
-                curr = next;
-            }
-            s
-        };  
-        stack.into_iter()
-            .fold(Type::Var(goal), 
-                |curr, (tvar, sub)| curr.alpha_sub(tvar, sub))
+    fn put_eq(mut self, var: usize, t: Type) -> Result<Self, UnifyErr> {
+        if Some(&None) == self.type_vars.get(&var) {
+            self.type_vars.insert(var, Some(t.clone()));
+            Ok(self)
+        } else {
+            panic!("bad eq: var {} ~ {:?}", var, t)
+        }
+    }
+
+    pub fn bind_to_tvar(self, name: Ident) -> (Self, usize) {
+        let (mut slf, k) = self.new_tvar();
+        slf.bound.insert(name, Type::Var(k));
+        (slf, k)
+    }
+
+    pub fn new_tvar(mut self) -> (Self, usize) {
+        let k = self.type_vars.len();
+        self.type_vars.insert(k, None);
+        (self, k)
+    }
+
+    pub fn unify(self, expected: &Type, got: &Type) -> Result<Self, UnifyErr> {
+        match (self.query(expected), self.query(got)) {
+            // if both are functions, unpack and recurse
+            (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>
+            self.unify(&p0, &p1)
+                    .and_then(|new| new.unify(&r0, &r1)),
+            // if equal, done.
+            (slf, got) if slf == got => Ok(self),
+            // if inf, err.
+            (slf, got) if slf.contains(&got) || got.contains(&slf) => 
+                Err(UnifyErr::Inf),
+            // if both are tvars, register greatest equivalence
+            (Type::Var(s), Type::Var(o)) =>
+                self.put_eq(s.min(o), Type::Var(s.max(o))),
+            // if either is a tvar, register an equivalency on the other
+            (Type::Var(v), o) 
+                | (o, Type::Var(v)) =>
+                    self.put_eq(v, o.clone()),
+            // unequal, and neither are vars, so not unification possible
+            _ => Err(UnifyErr::Mis)
+        }
     }
 }
