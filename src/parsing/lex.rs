@@ -25,12 +25,13 @@ impl<'a> Token<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct SourceIter<'a> {
-    pub(crate) txt: std::str::Chars<'a>,
+pub(crate) struct SourceIter<'a, T> 
+        where T: Iterator<Item=char> {
+    pub(crate) txt: T,
     pub(crate) pos: FilePos<'a>,
 }
 
-impl<'a> SourceIter<'a> {
+impl<'a, T: Iterator<Item=char>> SourceIter<'a, T> {
     pub fn error(self, body: LexErrorBody) -> LexError<'a> {
         Loc::new(self.pos, body)
     }

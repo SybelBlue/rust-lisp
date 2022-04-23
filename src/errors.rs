@@ -17,8 +17,7 @@ impl<'a, T: Debug + Clone + Display> Loc<'a, T> {
 
 impl<'a, T: Display> Display for Loc<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        // writeln!(f, "{} at {}", self.body, self.locable.loc())
-        todo!()
+        writeln!(f, "{} at {}", self.body, self.pos)
     }
 }
 

@@ -13,7 +13,6 @@ mod tests {
             use crate::parsing::parse_tokens;
 
             let src = Source::Anon(s);
-            let src = src.into_iter().unwrap();
             let ts = src.lex().unwrap();
             let es = parse_tokens(ts).unwrap();
             type_expr(&es[0], TypeContext::new()).unwrap().0
@@ -164,8 +163,7 @@ mod tests {
                     , W("6")])];
             
             
-            let source = src.into_iter().unwrap();
-            let ts = source.lex()
+            let ts = src.lex()
                 .map_err(|e| println!("lexing failed with Error {}", e))
                 .unwrap();
     

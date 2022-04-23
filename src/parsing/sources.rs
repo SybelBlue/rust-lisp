@@ -54,23 +54,20 @@ pub enum Source<'a> {
 }
 
 impl<'a> Source<'a> {
-    pub(crate) fn into_iter(&'a self) -> std::io::Result<SourceIter<'a>> {
+
+    pub fn lex(&'a self) -> LexResult<'a, Vec<Token<'a>>> {
         match self {
-            Source::Anon(s) => Ok(SourceIter {
+            Source::Anon(s) => SourceIter {
                 pos: FilePos::new(self),
                 txt: s.chars()
-            }),
+            },
             Source::File(p) => {
-                let mut f = File::open(p)?;
+                let mut f = File::open(p).unwrap();
                 let mut s = String::new();
                 f.read_to_string(&mut s);
                 todo!("howwww")
             },
-        }
-    }
-
-    pub fn lex(&'a self) -> LexResult<'a, Vec<Token<'a>>> {
-        self.into_iter().unwrap().lex()
+        }.lex()
     }
 }
 
