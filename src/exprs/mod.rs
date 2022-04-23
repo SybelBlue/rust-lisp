@@ -44,6 +44,13 @@ impl<'a> Expr<'a> {
         }
         symbols
     }
+
+    pub fn display_simple(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Self::Val(l) => l.display_simple(f),
+            Self::SExp(l) => l.display_simple(f),
+        }
+    }
 }
 
 impl<'a> Display for Expr<'a> {

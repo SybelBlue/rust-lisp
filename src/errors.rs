@@ -13,11 +13,15 @@ impl<'a, T: Debug + Clone + Display> Loc<'a, T> {
     pub fn new(pos: FilePos<'a>, body: T) -> Self {
         Self { pos, body }
     }
+
+    pub fn display_simple(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.body, f)
+    }
 }
 
 impl<'a, T: Display> Display for Loc<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{} at", self.body)?;
+        writeln!(f, "{} ", self.body)?;
         self.pos.write_snippet(f)
     }
 }
@@ -60,12 +64,19 @@ pub enum ParseErrorBody<'a> {
 impl<'a> Display for ParseErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseErrorBody::MisplacedLambda => write!(f, "MisplacedLambda"),
-            ParseErrorBody::MissingLambdaParams => write!(f, "MissingLambdaParams"),
-            ParseErrorBody::MissingLambdaBody => write!(f, "MissingLambdaBody"),
-            ParseErrorBody::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
-            ParseErrorBody::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
-            ParseErrorBody::InSExp(sfp) => write!(f, "In S-Expression:\n{}", sfp.body),
+            Self::MisplacedLambda => write!(f, "MisplacedLambda"),
+            Self::MissingLambdaParams => write!(f, "MissingLambdaParams"),
+            Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
+            Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
+            Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
+            Self::InSExp(sfp) => {
+                if let Self::InSExp(inner) = &sfp.body {
+                    if sfp.pos.row == inner.pos.row {
+                        return Display::fmt(inner.as_ref(), f);
+                    }
+                }
+                write!(f, "In S-Expression:\n{}", sfp.body)
+            },
         }
     }
 }
@@ -83,10 +94,13 @@ pub enum TypeErrorBody<'a> {
 impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TooManyArgs(e) => write!(f, "TooManyArgs: {}", e),
+            Self::TooManyArgs(e) => {
+                f.write_str("Too Many Arguments: ")?;
+                e.display_simple(f)
+            }
             Self::TypeMismatch { got, expected } => 
-                write!(f, "TypeMismatch\n\tgot:      {}\n\texpected: {}", got, expected),
-            Self::UndefinedSymbol(s) => write!(f, "UndefinedSymbol: {}", s),
+                write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
+            Self::UndefinedSymbol(s) => write!(f, "Undefined Symbol: {}", s),
             Self::InfiniteType(s, t) => {
                 write!(f, "InfiniteType: ")?;
                 let mut vals = HashSet::new();
