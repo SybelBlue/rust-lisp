@@ -112,3 +112,4 @@ impl<'a> std::fmt::Display for TypeError<'a> {
 }
 
 pub type TypeResult<'a, T> = Result<T, TypeError<'a>>;
+pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;
