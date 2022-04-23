@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read};
+use std::{fs::File, io::Read, fmt::{Display, Formatter}};
 
 use crate::errors::LexResult;
 
@@ -33,10 +33,14 @@ impl<'a> FilePos<'a> {
         out.push('^');
         out
     }
+
+    pub fn write_snippet(&'a self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
-impl<'a> std::fmt::Display for FilePos<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> Display for FilePos<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}:{}", 
             match self.src {
                 Source::Anon(_) => "anon",
