@@ -1,14 +1,13 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{parse_tokens, lex::SourceIter}, exprs::{types::type_expr, contexts::TypeContext}};
+use rust_lisp::{parsing::{parse_tokens, sources::Source}, exprs::{types::type_expr, contexts::TypeContext}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
-    let ref name = format!("term-input");
     reader.set_prompt(">> ")?;
 
     while let ReadResult::Input(input) = reader.read_line()? {
-        match SourceIter::new(input.as_str(), Some(name)).lex() {
+        match Source::Anon(input.as_str()).lex() {
             Ok(ts) =>
                 match parse_tokens(ts) {
                     Ok(es) => {

@@ -1,6 +1,6 @@
 use super::{Expr, types::Type};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone)]
 pub enum Value<'a> {
     Nat(usize),
     Sym(String),

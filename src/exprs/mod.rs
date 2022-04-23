@@ -4,21 +4,19 @@ pub mod types;
 pub mod values;
 pub mod contexts;
 
-use crate::parsing::sources::FilePos;
+use crate::errors::Loc;
 
 use self::values::Value;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub struct SBody<'a, T> 
-    where T: PartialEq + Eq + PartialOrd + Ord {
-    pub start: FilePos<'a>,
-    pub body: Vec<T>,
-}
+pub type SToken<'a, T> = Loc<'a, SExp<T>>;
 
-impl<'a, T> Display for SBody<'a, T> 
-    where T: Display + PartialEq + Eq + PartialOrd + Ord + Clone {
+#[derive(Debug, Clone)]
+pub struct SExp<T>(pub Vec<T>);
+
+impl<T> Display for SExp<T> 
+    where T: Display {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        if let Some((fst, rst)) = self.body.split_first() {
+        if let Some((fst, rst)) = self.0.split_first() {
             write!(f, "{}", fst)?;
             rst.into_iter().try_for_each(|e| write!(f, " {}", e))
         } else {
@@ -27,10 +25,10 @@ impl<'a, T> Display for SBody<'a, T>
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone)]
 pub enum Expr<'a> {
     Val(Value<'a>),
-    SExp(SBody<'a, Expr<'a>>),
+    SExp(SToken<'a, Expr<'a>>),
 }
 
 impl<'a> Expr<'a> {
@@ -41,7 +39,7 @@ impl<'a> Expr<'a> {
             match next {
                 Expr::Val(Value::Sym(w)) => symbols.push(w.clone()),
                 Expr::Val(_) => {},
-                Expr::SExp(sbody) => to_check.extend(&sbody.body),
+                Expr::SExp(sbody) => to_check.extend(&sbody.body.0),
             }
         }
         symbols

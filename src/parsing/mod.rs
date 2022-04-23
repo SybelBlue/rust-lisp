@@ -3,7 +3,7 @@ pub mod sources;
 
 use std::collections::HashSet;
 
-use crate::{exprs::{Expr, values::Value, SBody}, errors::{ParseErrorBody::*, ParseResult, Loc}};
+use crate::{exprs::{Expr, values::Value, SToken, SExp}, errors::{ParseErrorBody::*, ParseResult, Loc}};
 
 use self::{lex::Token, sources::FilePos};
 
@@ -51,10 +51,10 @@ fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>
             } else {
                 Expr::Val(Value::Sym(w))
             }),
-        Token::SExp(SBody { start, body }) => {
-            let body = parse_tokens(body)
-                .map_err(|e| Loc::new(start.clone(), InSExp(Box::new(e))))?;
-            Ok(Expr::SExp(SBody { start, body }))
+        Token::SExp(Loc { pos: locable, body }) => {
+            let body = parse_tokens(body.0)
+                .map_err(|e| Loc::new(locable.clone(), InSExp(Box::new(e))))?;
+            Ok(Expr::SExp(SToken::new(locable, SExp(body))))
         },
     })
 }
@@ -69,7 +69,7 @@ fn check_params<'a>(t: Token<'a>, start: FilePos<'a>) -> ParseResult<'a, Token<'
                 if !used.insert(w.clone()) {
                     return Err(Loc::new(start.clone(), DuplicateLambdaArg(w.clone())))
                 },
-            Token::SExp(sbody) => to_check.extend(&sbody.body),
+            Token::SExp(sbody) => to_check.extend(&sbody.body.0),
         }
     }
     Ok(t)

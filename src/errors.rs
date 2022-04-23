@@ -1,44 +1,28 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::FilePos, lex::SourceIter}, exprs::{Expr, types::Type}};
+use crate::{parsing::{sources::FilePos}, exprs::{Expr, types::Type}};
 
 
-pub trait Locable<'a> {
-    fn loc(&'a self) -> &'a FilePos<'a>;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Loc<'a, T> {
+    pub pos: FilePos<'a>,
+    pub body: T,
 }
 
-impl<'a> Locable<'a> for FilePos<'a> {
-    fn loc(&'a self) -> &'a FilePos<'a> {
-        self
+impl<'a, T: Debug + Clone + Display> Loc<'a, T> {
+    pub fn new(pos: FilePos<'a>, body: T) -> Self {
+        Self { pos, body }
     }
 }
 
-impl<'a> Locable<'a> for SourceIter<'a> {
-    fn loc(&'a self) -> &'a FilePos<'a> {
-        &self.pos
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Loc<L, T> {
-    locable: L,
-    body: T,
-}
-
-impl<'a, L: Locable<'a>, T: Debug + Clone + Display> Loc<L, T> {
-    pub fn new(locable: L, body: T) -> Self {
-        Self { locable, body }
-    }
-}
-
-impl<'a, L: Locable<'a>, T: Debug + Clone + Display> Display for Loc<L, T> {
+impl<'a, T: Display> Display for Loc<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // writeln!(f, "{} at {}", self.body, self.locable.loc())
         todo!()
     }
 }
 
-pub type LexError<'a> = Loc<SourceIter<'a>, LexErrorBody>;
+pub type LexError<'a> = Loc<'a, LexErrorBody>;
 
 #[derive(Debug, Clone)]
 pub enum LexErrorBody {
@@ -58,7 +42,7 @@ impl Display for LexErrorBody {
     }
 }
 
-pub type ParseError<'a> = Loc<FilePos<'a>, ParseErrorBody<'a>>;
+pub type ParseError<'a> = Loc<'a, ParseErrorBody<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum ParseErrorBody<'a> {

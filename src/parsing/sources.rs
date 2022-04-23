@@ -1,17 +1,19 @@
-use std::{path::Path, fs::File, io::Read, ffi::OsStr};
+use std::{fs::File, io::Read};
 
-use super::lex::SourceIter;
+use crate::errors::LexResult;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+use super::lex::{SourceIter, Token};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FilePos<'a> {
-    pub name: Option<&'a String>,
+    pub src: &'a Source<'a>,
     pub row: usize,
     pub col: usize,
 }
 
 impl<'a> FilePos<'a> {
-    pub fn new(name: Option<&'a String>) -> Self {
-        Self { name, row: 1, col: 1 }
+    pub fn new(src: &'a Source<'a>) -> Self {
+        Self { src, row: 1, col: 1 }
     }
 
     pub fn advance(&mut self, och: &Option<char>) {
@@ -36,22 +38,28 @@ impl<'a> FilePos<'a> {
 impl<'a> std::fmt::Display for FilePos<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}:{}", 
-            self.name.unwrap_or(&String::from("anon")), 
+            match self.src {
+                Source::Anon(_) => "anon",
+                Source::File(s) => s.as_str(),
+            }, 
             self.row,
             self.col)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Source<'a> {
     Anon(&'a str),
     File(String)
 }
 
 impl<'a> Source<'a> {
-    pub fn into_iter(&'a self) -> std::io::Result<SourceIter<'a>> {
+    pub(crate) fn into_iter(&'a self) -> std::io::Result<SourceIter<'a>> {
         match self {
-            Source::Anon(s) => Ok(SourceIter::new(s, None)),
+            Source::Anon(s) => Ok(SourceIter {
+                pos: FilePos::new(self),
+                txt: s.chars()
+            }),
             Source::File(p) => {
                 let mut f = File::open(p)?;
                 let mut s = String::new();
@@ -59,6 +67,10 @@ impl<'a> Source<'a> {
                 todo!("howwww")
             },
         }
+    }
+
+    pub fn lex(&'a self) -> LexResult<'a, Vec<Token<'a>>> {
+        self.into_iter().unwrap().lex()
     }
 }
 

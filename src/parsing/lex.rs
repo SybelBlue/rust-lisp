@@ -1,12 +1,12 @@
-use crate::{exprs::SBody, errors::{LexError, LexResult, LexErrorBody, Loc}};
+use crate::{exprs::{SToken, SExp}, errors::{LexError, LexResult, LexErrorBody, Loc}};
 
-use super::FilePos;
+use super::{FilePos, sources::Source};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, Clone)]
 pub enum Token<'a> {
     LamSlash(FilePos<'a>),
     Word(String),
-    SExp(SBody<'a, Token<'a>>),
+    SExp(SToken<'a, Token<'a>>),
 }
 
 impl<'a> Token<'a> {
@@ -17,7 +17,7 @@ impl<'a> Token<'a> {
             match next {
                 Token::LamSlash(_) => {},
                 Token::Word(w) => symbols.push(w.clone()),
-                Token::SExp(sbody) => to_check.extend(&sbody.body),
+                Token::SExp(sbody) => to_check.extend(&sbody.body.0),
             }
         }
         symbols
@@ -25,18 +25,14 @@ impl<'a> Token<'a> {
 }
 
 #[derive(Debug)]
-pub struct SourceIter<'a> {
+pub(crate) struct SourceIter<'a> {
     pub(crate) txt: std::str::Chars<'a>,
     pub(crate) pos: FilePos<'a>,
 }
 
 impl<'a> SourceIter<'a> {
-    pub fn new(src: &'a str, name: Option<&'a String>) -> Self {
-        Self { txt: src.chars(), pos: FilePos::new(name) }
-    }
-
     pub fn error(self, body: LexErrorBody) -> LexError<'a> {
-        Loc::new(self, body)
+        Loc::new(self.pos, body)
     }
 
     pub fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
@@ -116,7 +112,7 @@ impl<'a> LexStack<'a> {
             body.push(self.dump_curr());
         }
 
-        self.push_token(Token::SExp(SBody { start, body }));
+        self.push_token(Token::SExp(SToken { pos: start, body: SExp(body) }));
         Ok(self)
     }
 

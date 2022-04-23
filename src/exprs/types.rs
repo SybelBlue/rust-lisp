@@ -2,7 +2,7 @@ use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
 
 use crate::errors::{TypeResult, TypeError};
 
-use super::{contexts::{TypeContext, UnifyErr}, values::Value, Expr, SBody};
+use super::{contexts::{TypeContext, UnifyErr}, values::Value, Expr, SToken};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -137,8 +137,8 @@ impl std::fmt::Debug for Type {
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
         Expr::Val(v) => type_value(v, ctxt),
-        Expr::SExp(SBody { start, body }) => {
-            if let Some((fst, rst)) = body.split_first() {
+        Expr::SExp(SToken { pos: locable, body }) => {
+            if let Some((fst, rst)) = body.0.split_first() {
                 let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
                 let mut rest = rst.into_iter();
                 while let Some(curr_argument) = rest.next() {
@@ -155,7 +155,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                                     return Err(TypeError::TypeMismatch {
                                         got: arg_type,
                                         expected: *param_type,
-                                        at: start,
+                                        at: locable,
                                     });
                                 }
                                 Err(UnifyErr::Inf) => {
@@ -175,7 +175,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                                     return Err(TypeError::TypeMismatch {
                                         got: curr_expr_type,
                                         expected: target_type,
-                                        at: start,
+                                        at: locable,
                                     });
                                 }
                                 Err(UnifyErr::Inf) => {
@@ -183,7 +183,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                                 }
                             }
                         }
-                        _ => return Err(TypeError::TooManyArgs(start, fst)),
+                        _ => return Err(TypeError::TooManyArgs(locable, fst)),
                     }
                 }
                 Ok((target_type.concretize(&ctxt), ctxt))

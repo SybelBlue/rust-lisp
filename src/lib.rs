@@ -6,13 +6,14 @@ pub mod errors;
 #[cfg(test)]
 mod tests {
     mod types {
-        use crate::{exprs::types::*, parsing::lex::SourceIter};
+        use crate::{exprs::types::*, parsing::sources::Source};
 
         fn type_test<'a>(s: &'a str) -> Type {
             use crate::exprs::contexts::TypeContext;
             use crate::parsing::parse_tokens;
 
-            let src = SourceIter::new(&s, None);
+            let src = Source::Anon(s);
+            let src = src.into_iter().unwrap();
             let ts = src.lex().unwrap();
             let es = parse_tokens(ts).unwrap();
             type_expr(&es[0], TypeContext::new()).unwrap().0
@@ -123,7 +124,7 @@ mod tests {
     }
 
     mod lexing {
-        use crate::{exprs::SBody, parsing::lex::SourceIter};
+        use crate::{exprs::SToken, parsing::sources::Source};
 
         #[test]
         fn basic() {
@@ -141,12 +142,12 @@ mod tests {
                     match t {
                         Token::LamSlash(_) => L,
                         Token::Word(s) => W(s.as_str()),
-                        Token::SExp(SBody { body, ..}) => S(body.into_iter().map(QSW::from).collect()),
+                        Token::SExp(SToken { body, ..}) => S(body.0.iter().map(QSW::from).collect()),
                     }
                 }
             }
     
-            let src = format!("()\nhello\n(+ 12 34 53) (  \\    test\n\t\n\n (2 hi)  ) (test0(test1)test-2(\\test3 test4)) (0 (1 (2 (3)) ((4) 5)) 6)");
+            let src = Source::Anon("()\nhello\n(+ 12 34 53) (  \\    test\n\t\n\n (2 hi)  ) (test0(test1)test-2(\\test3 test4)) (0 (1 (2 (3)) ((4) 5)) 6)");
             let test = vec!
                 [ S(vec![])
                 , W("hello")
@@ -163,7 +164,7 @@ mod tests {
                     , W("6")])];
             
             
-            let source = SourceIter::new(&src, None);
+            let source = src.into_iter().unwrap();
             let ts = source.lex()
                 .map_err(|e| println!("lexing failed with Error {}", e))
                 .unwrap();
