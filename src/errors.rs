@@ -21,23 +21,22 @@ impl<'a, T: Display> Display for Loc<'a, T> {
     }
 }
 
-pub type LexError<'a> = Loc<'a, LexErrorBody>;
+pub type LexError<'a> = Loc<'a, LexErrorBody<'a>>;
 
 #[derive(Debug, Clone)]
-pub enum LexErrorBody {
+pub enum LexErrorBody<'a> {
     TooManyClosing,
-    Unclosed,
+    Unclosed(FilePos<'a>),
     StartingLambda,
 }
 
-impl Display for LexErrorBody {
+impl<'a> Display for LexErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(
-            match self {
-                Self::TooManyClosing => "Extra Closing Parenthesis",
-                Self::Unclosed => "Unclosed S-Expression",
-                Self::StartingLambda => "Starting Lambda Slash",
-            })
+        match self {
+            Self::TooManyClosing => f.write_str("Extra Closing Parenthesis"),
+            Self::Unclosed(fp) => write!(f, "Unclosed Parens\n\tstarting at {}\n\tending", fp),
+            Self::StartingLambda => f.write_str("Starting Lambda Slash"),
+        }
     }
 }
 

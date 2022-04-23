@@ -33,7 +33,7 @@ pub(crate) struct SourceIter<'a> {
 }
 
 impl<'a> SourceIter<'a> {
-    pub fn error(self, body: LexErrorBody) -> LexError<'a> {
+    pub fn error(self, body: LexErrorBody<'a>) -> LexError<'a> {
         Loc::new(self.pos, body)
     }
 
@@ -106,7 +106,7 @@ impl<'a> LexStack<'a> {
         self.sexp_stack.push((file_pos, Vec::with_capacity(4))) // 4 long sexp
     }
 
-    fn close_sexp(mut self) -> Result<Self, LexErrorBody> {
+    fn close_sexp(mut self) -> Result<Self, LexErrorBody<'a>> {
         let last_sexp = self.sexp_stack.pop();
         let (start, mut body) = last_sexp.ok_or(LexErrorBody::TooManyClosing)?;
 
@@ -155,9 +155,9 @@ impl<'a> LexStack<'a> {
         }
     }
 
-    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorBody> {
+    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorBody<'a>> {
         if let Some((file_pos, _)) = self.sexp_stack.pop() {
-            Err(LexErrorBody::Unclosed)
+            Err(LexErrorBody::Unclosed(file_pos))
         } else {
             Ok(self.finished)
         }
