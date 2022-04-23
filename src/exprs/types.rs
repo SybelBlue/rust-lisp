@@ -15,12 +15,14 @@ pub enum Type {
     Fun(Box<Type>, Box<Type>),
 }
 
+enum UnifyErr { Inf, Mis }
+
 impl Type {
     pub(crate) fn fun(p: Self, r: Self) -> Self {
         Self::Fun(Box::new(p), Box::new(r))
     }
 
-    fn unify(&self, got: &Self, ctxt: TypeContext) -> Option<TypeContext> {
+    fn unify(&self, got: &Self, ctxt: TypeContext) -> Result<TypeContext, UnifyErr> {
         match (ctxt.query(self), ctxt.query(got)) {
             // if both are functions, unpack and recurse
             (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>
@@ -29,16 +31,18 @@ impl Type {
                     .and_then(|new| 
                         r0.as_ref().unify(&r1, new)),
             // if equal, done.
-            (slf, got) if slf == got => Some(ctxt),
+            (slf, got) if slf == got => Ok(ctxt),
+            // if inf, err.
+            (slf, got) if slf.contains(&got) || got.contains(&slf) => Err(UnifyErr::Inf),
             // if both are tvars, register greatest equivalence
             (Type::Var(s), Type::Var(o)) =>
-                Some(ctxt.put_eq(s.min(o), Type::Var(s.max(o)))),
+                Ok(ctxt.put_eq(s.min(o), Type::Var(s.max(o)))),
             // if either is a tvar, register an equivalency on the other
             (Type::Var(v), o) 
                 | (o, Type::Var(v)) =>
-                    Some(ctxt.put_eq(v, o.clone())),
+                    Ok(ctxt.put_eq(v, o.clone())),
             // unequal, and neither are vars, so not unification possible
-            _ => None
+            _ => Err(UnifyErr::Mis)
         }
     }
 
@@ -204,22 +208,42 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                     ctxt = new;
                     match target_type {
                         Type::Fun(param_type, ret_type) => {
-                            if let Some(new) = param_type.unify(&arg_type, ctxt) {
-                                target_type = *ret_type;
-                                ctxt = new;
-                            } else {
-                                return Err(TypeError::TypeMismatch {
-                                    got: arg_type,
-                                    expected: *param_type,
-                                    at: start,
-                                });
+                            match param_type.unify(&arg_type, ctxt) {
+                                Ok(new) => {
+                                    target_type = *ret_type;
+                                    ctxt = new;
+                                }
+                                Err(UnifyErr::Mis) => {
+                                    return Err(TypeError::TypeMismatch {
+                                        got: arg_type,
+                                        expected: *param_type,
+                                        at: start,
+                                    });
+                                }
+                                Err(UnifyErr::Inf) => {
+                                    return Err(TypeError::InfiniteType(param_type.as_ref().clone(), arg_type));
+                                }
                             }
                         }
-                        Type::Var(id) => {
+                        Type::Var(_) => {
                             let (new, ret_type_id) = ctxt.put_new_tvar(format!("sexpbody({})", curr_argument));
                             let curr_expr_type = Type::fun(arg_type, Type::Var(ret_type_id));
-                            ctxt = Type::Var(id).unify(&curr_expr_type, new).unwrap();
-                            target_type = Type::Var(ret_type_id);
+                            match target_type.unify(&curr_expr_type, new) {
+                                Ok(new) => {
+                                    target_type = Type::Var(ret_type_id);
+                                    ctxt = new;
+                                }
+                                Err(UnifyErr::Mis) => {
+                                    return Err(TypeError::TypeMismatch {
+                                        got: curr_expr_type,
+                                        expected: target_type,
+                                        at: start,
+                                    });
+                                }
+                                Err(UnifyErr::Inf) => {
+                                    return Err(TypeError::InfiniteType(target_type, curr_expr_type));
+                                }
+                            }
                         }
                         _ => return Err(TypeError::TooManyArgs(start, fst)),
                     }
@@ -249,13 +273,19 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
                 expr_type.push(Type::Var(var));
             }
             let (ctxt, ret_type_var) = ctxt.put_new_tvar(String::from("lambdabody"));
+            let ret_type_var = Type::Var(ret_type_var);
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
-            let ctxt = ret_type.unify(&Type::Var(ret_type_var), ctxt).unwrap();
-            // undoes reversal!
-            let lam_type = expr_type
-                .into_iter()
-                .fold(ret_type, |arr, curr| Type::fun(curr, arr));
-            (lam_type.concretize(&ctxt), ctxt)
+            match ret_type.unify(&ret_type_var, ctxt) {
+                Err(UnifyErr::Inf) => return Err(TypeError::InfiniteType(ret_type, ret_type_var)),
+                Err(UnifyErr::Mis) => todo!("Mismatch should be impossible with var & __"),
+                Ok(ctxt) => {
+                    // undoes reversal!
+                    let lam_type = expr_type
+                        .into_iter()
+                        .fold(ret_type, |arr, curr| Type::fun(curr, arr));
+                    (lam_type.concretize(&ctxt), ctxt)
+                }
+            }
         }
     })
 }
