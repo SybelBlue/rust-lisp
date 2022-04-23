@@ -6,7 +6,7 @@ pub mod contexts;
 
 use crate::errors::Loc;
 
-use self::values::Value;
+use self::values::{Value, VToken};
 
 pub type SToken<'a, T> = Loc<'a, SExp<T>>;
 
@@ -27,7 +27,7 @@ impl<T> Display for SExp<T>
 
 #[derive(Debug, Clone)]
 pub enum Expr<'a> {
-    Val(Value<'a>),
+    Val(VToken<'a>),
     SExp(SToken<'a, Expr<'a>>),
 }
 
@@ -37,7 +37,7 @@ impl<'a> Expr<'a> {
         let mut to_check = vec![self];
         while let Some(next) = to_check.pop() {
             match next {
-                Expr::Val(Value::Sym(w)) => symbols.push(w.clone()),
+                Expr::Val(VToken { body: Value::Sym(w), .. }) => symbols.push(w.clone()),
                 Expr::Val(_) => {},
                 Expr::SExp(sbody) => to_check.extend(&sbody.body.0),
             }

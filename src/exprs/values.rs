@@ -1,4 +1,8 @@
+use crate::errors::Loc;
+
 use super::{Expr, types::Type};
+
+pub type VToken<'a> = Loc<'a, Value<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {

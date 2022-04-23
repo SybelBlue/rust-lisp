@@ -1,5 +1,4 @@
 pub mod parsing;
-pub mod interpreting;
 pub mod exprs;
 pub mod errors;
 
@@ -141,7 +140,7 @@ mod tests {
                 fn from(t: &'a Token<'a>) -> Self {
                     match t {
                         Token::LamSlash(_) => L,
-                        Token::Word(s) => W(s.as_str()),
+                        Token::Word(s, _) => W(s.as_str()),
                         Token::SExp(SToken { body, ..}) => S(body.0.iter().map(QSW::from).collect()),
                     }
                 }

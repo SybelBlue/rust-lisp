@@ -17,7 +17,8 @@ impl<'a, T: Debug + Clone + Display> Loc<'a, T> {
 
 impl<'a, T: Display> Display for Loc<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{} at {}", self.body, self.pos)
+        writeln!(f, "{} at", self.body)?;
+        self.pos.write_snippet(f)
     }
 }
 
@@ -34,7 +35,11 @@ impl<'a> Display for LexErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::TooManyClosing => f.write_str("Extra Closing Parenthesis"),
-            Self::Unclosed(fp) => write!(f, "Unclosed Parens\n\tstarting at {}\n\tending", fp),
+            Self::Unclosed(fp) => {
+                f.write_str("Unclosed Parens starting at:\n")?;
+                fp.write_snippet(f)?;
+                f.write_str("ending at:\n")
+            },
             Self::StartingLambda => f.write_str("Starting Lambda Slash"),
         }
     }
@@ -65,43 +70,24 @@ impl<'a> Display for ParseErrorBody<'a> {
     }
 }
 
-
-// impl<'a> Display for LexError<'a> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-//         let line_indicator = format!(" {} ", self.src.pos.row);
-//         let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
-//         write!(f, "error: {} at {}\n{}|\n{}| {}\n{}| {}", 
-//             self.body.name(), 
-//             self.src.pos, 
-//             margin,
-//             line_indicator, 
-//             self.src.current_line(),
-//             margin,
-//             self.body.col_arrow(&self.src.pos))
-//     }
-// }
+pub type TypeError<'a> = Loc<'a, TypeErrorBody<'a>>;
 
 #[derive(Debug, Clone)]
-pub enum TypeError<'a> {
-    TooManyArgs(&'a FilePos<'a>, &'a Expr<'a>),
-    TypeMismatch {
-        got: Type,
-        expected: Type,
-        at: &'a FilePos<'a>,
-    },
+pub enum TypeErrorBody<'a> {
+    TooManyArgs(&'a Expr<'a>),
+    TypeMismatch { got: Type, expected: Type },
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
 }
 
-impl<'a> Display for TypeError<'a> {
+impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            TypeError::TooManyArgs(pos, e) => write!(f, "TooManyArgs: {} at {}", e, pos),
-            TypeError::TypeMismatch { got, expected, at } => write!(
-                f, "TypeMismatch at {}\n\tgot:      {}\n\texpected: {}",
-                at, got, expected),
-            TypeError::UndefinedSymbol(s) => write!(f, "UndefinedSymbol: {}", s),
-            TypeError::InfiniteType(s, t) => {
+            Self::TooManyArgs(e) => write!(f, "TooManyArgs: {}", e),
+            Self::TypeMismatch { got, expected } => 
+                write!(f, "TypeMismatch\n\tgot:      {}\n\texpected: {}", got, expected),
+            Self::UndefinedSymbol(s) => write!(f, "UndefinedSymbol: {}", s),
+            Self::InfiniteType(s, t) => {
                 write!(f, "InfiniteType: ")?;
                 let mut vals = HashSet::new();
                 s.variable_values(&mut vals);

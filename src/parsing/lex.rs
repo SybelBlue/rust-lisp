@@ -7,7 +7,7 @@ use super::FilePos;
 #[derive(Debug, Clone)]
 pub enum Token<'a> {
     LamSlash(FilePos<'a>),
-    Word(String),
+    Word(String, FilePos<'a>),
     SExp(SToken<'a, Token<'a>>),
 }
 
@@ -18,7 +18,7 @@ impl<'a> Token<'a> {
         while let Some(next) = to_check.pop() {
             match next {
                 Token::LamSlash(_) => {},
-                Token::Word(w) => symbols.push(w.clone()),
+                Token::Word(w, _) => symbols.push(w.clone()),
                 Token::SExp(sbody) => to_check.extend(&sbody.body.0),
             }
         }
@@ -38,7 +38,7 @@ impl<'a> SourceIter<'a> {
     }
 
     pub fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
-        let mut stack = LexStack::new();
+        let mut stack = LexStack::new(self.pos.clone());
 
         loop {
             let (skipped, next) = self.advance();
@@ -60,7 +60,7 @@ impl<'a> SourceIter<'a> {
                         Ok(st) => stack = st,
                         Err(body) => return Err(self.error(body))
                     },
-                Some(ch) => stack.push_char(ch),
+                Some(ch) => stack.push_char(ch, &self.pos),
             }
         }
 
@@ -90,14 +90,16 @@ struct LexStack<'a> {
     sexp_stack: Vec<(FilePos<'a>, Vec<Token<'a>>)>,
     finished: Vec<Token<'a>>,
     curr_word: String,
+    curr_word_start: FilePos<'a>,
 }
 
 impl<'a> LexStack<'a> {
-    fn new() -> Self {
+    fn new(start_pos: FilePos<'a>) -> Self {
         Self {
             sexp_stack: Vec::with_capacity(8),      // 8 deep nested sexp
             finished: Vec::with_capacity(50),       // 50 tokens on top level
             curr_word: String::with_capacity(10),   // 10 char words
+            curr_word_start: start_pos,   
         }
     }
 
@@ -141,12 +143,17 @@ impl<'a> LexStack<'a> {
     }
 
     fn dump_curr(&mut self) -> Token<'a> {
-        let out = Token::Word(self.curr_word.clone());
+        let out = Token::Word(self.curr_word.clone(), self.curr_word_start.clone());
         self.curr_word.clear();
         out
     }
 
-    fn push_char(&mut self, ch: char) { self.curr_word.push(ch) }
+    fn push_char(&mut self, ch: char, curr_pos: &FilePos<'a>) { 
+        if self.curr_word.is_empty() {
+            self.curr_word_start = curr_pos.clone();
+        }
+        self.curr_word.push(ch);
+    }
 
     fn try_push_word(&mut self) {
         if self.curr_word.len() > 0 {

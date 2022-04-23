@@ -1,6 +1,6 @@
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
 
-use crate::errors::{TypeResult, TypeError};
+use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos};
 
 use super::{contexts::{TypeContext, UnifyErr}, values::Value, Expr, SToken};
 
@@ -136,8 +136,8 @@ impl std::fmt::Debug for Type {
 
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
-        Expr::Val(v) => type_value(v, ctxt),
-        Expr::SExp(SToken { pos: locable, body }) => {
+        Expr::Val(v) => type_value(&v.body, ctxt, &v.pos),
+        Expr::SExp(SToken { pos, body }) => {
             if let Some((fst, rst)) = body.0.split_first() {
                 let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
                 let mut rest = rst.into_iter();
@@ -152,14 +152,13 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                                     ctxt = new;
                                 }
                                 Err(UnifyErr::Mis) => {
-                                    return Err(TypeError::TypeMismatch {
+                                    return Err(TypeError::new(pos.clone(), TypeMismatch {
                                         got: arg_type,
                                         expected: *param_type,
-                                        at: locable,
-                                    });
+                                    }));
                                 }
                                 Err(UnifyErr::Inf) => {
-                                    return Err(TypeError::InfiniteType(param_type.as_ref().clone(), arg_type));
+                                    return Err(TypeError::new(pos.clone(), InfiniteType(param_type.as_ref().clone(), arg_type)));
                                 }
                             }
                         }
@@ -172,18 +171,17 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
                                     ctxt = new;
                                 }
                                 Err(UnifyErr::Mis) => {
-                                    return Err(TypeError::TypeMismatch {
+                                    return Err(TypeError::new(pos.clone(), TypeMismatch {
                                         got: curr_expr_type,
                                         expected: target_type,
-                                        at: locable,
-                                    });
+                                    }));
                                 }
                                 Err(UnifyErr::Inf) => {
-                                    return Err(TypeError::InfiniteType(target_type, curr_expr_type));
+                                    return Err(TypeError::new(pos.clone(), InfiniteType(target_type, curr_expr_type)));
                                 }
                             }
                         }
-                        _ => return Err(TypeError::TooManyArgs(locable, fst)),
+                        _ => return Err(TypeError::new(pos.clone(), TooManyArgs(fst))),
                     }
                 }
                 Ok((target_type.concretize(&ctxt), ctxt))
@@ -194,12 +192,12 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
     }
 }
 
-pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, TypeContext)> {
     Ok(match v {
         Value::Nat(_) => (Type::Nat, ctxt),
         Value::Type(_) => (Type::Type, ctxt),
         Value::Sym(k) => (
-            ctxt.get(k).ok_or(TypeError::UndefinedSymbol(k))?.concretize(&ctxt),
+            ctxt.get(k).ok_or(TypeError::new(pos.clone(), UndefinedSymbol(k)))?.concretize(&ctxt),
             ctxt,
         ),
         Value::Lam(ps, b) => {
@@ -214,7 +212,7 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext) -> TypeResult<'a, (Type, 
             let ret_type_var = Type::Var(ret_type_var);
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
             match ctxt.unify(&ret_type, &ret_type_var) {
-                Err(UnifyErr::Inf) => return Err(TypeError::InfiniteType(ret_type, ret_type_var)),
+                Err(UnifyErr::Inf) => return Err(TypeError::new(pos.clone(), InfiniteType(ret_type, ret_type_var))),
                 Err(UnifyErr::Mis) => todo!("Mismatch should be impossible with var & __"),
                 Ok(ctxt) => {
                     // undoes reversal!

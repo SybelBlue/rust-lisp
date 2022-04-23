@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, fmt::{Display, Formatter}};
+use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}};
 
 use crate::errors::LexResult;
 
@@ -27,7 +27,7 @@ impl<'a> FilePos<'a> {
         }
     }
 
-    pub fn col_arrow(&self) -> String {
+    fn col_arrow(&self) -> String {
         let mut out = String::new();
         out.extend((0..(self.col - 2)).map(|_| ' '));
         out.push('^');
@@ -35,7 +35,13 @@ impl<'a> FilePos<'a> {
     }
 
     pub fn write_snippet(&'a self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        todo!()
+        let line = self.src.get_line(self.row).ok_or(std::fmt::Error)?;
+        let line_indicator = format!(" {} ", self.row);
+        let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
+        writeln!(f, "at {}", self)?;
+        writeln!(f, "{}| ", margin)?;
+        writeln!(f, "{}| {}", line_indicator, line)?;
+        writeln!(f, "{}| {}", margin, self.col_arrow())
     }
 }
 
@@ -71,6 +77,24 @@ impl<'a> Source<'a> {
             },
         }
         .lex()
+    }
+
+    pub fn get_line(&self, row: usize) -> Option<String> {
+        match self {
+            Source::Anon(src) => {
+                src.lines().nth(row - 1).map(String::from)
+            },
+            Source::File(p) => {
+                File::open(p)
+                    .ok()
+                    .map(std::io::BufReader::new)
+                    .and_then(|file| {
+                        file.lines()
+                            .nth(row - 1)
+                            .and_then(Result::ok)
+                    })
+            },
+        }
     }
 }
 
