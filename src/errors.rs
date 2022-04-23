@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{FilePos, lex::Source}, exprs::{Expr, types::Type}};
+use crate::{parsing::{sources::FilePos, lex::SourceIter}, exprs::{Expr, types::Type}};
 
 
 pub trait Locable<'a> {
@@ -13,7 +13,7 @@ impl<'a> Locable<'a> for FilePos<'a> {
     }
 }
 
-impl<'a> Locable<'a> for Source<'a> {
+impl<'a> Locable<'a> for SourceIter<'a> {
     fn loc(&'a self) -> &'a FilePos<'a> {
         &self.pos
     }
@@ -33,11 +33,12 @@ impl<'a, L: Locable<'a>, T: Debug + Clone + Display> Loc<L, T> {
 
 impl<'a, L: Locable<'a>, T: Debug + Clone + Display> Display for Loc<L, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{} at {}", self.body, self.locable.loc())
+        // writeln!(f, "{} at {}", self.body, self.locable.loc())
+        todo!()
     }
 }
 
-pub type LexError<'a> = Loc<Source<'a>, LexErrorBody>;
+pub type LexError<'a> = Loc<SourceIter<'a>, LexErrorBody>;
 
 #[derive(Debug, Clone)]
 pub enum LexErrorBody {

@@ -6,13 +6,13 @@ pub mod errors;
 #[cfg(test)]
 mod tests {
     mod types {
-        use crate::exprs::types::*;
+        use crate::{exprs::types::*, parsing::lex::SourceIter};
 
         fn type_test<'a>(s: &'a str) -> Type {
             use crate::exprs::contexts::TypeContext;
-            use crate::parsing::{lex::Source, parse_tokens};
+            use crate::parsing::parse_tokens;
 
-            let src = Source::new(&s, None);
+            let src = SourceIter::new(&s, None);
             let ts = src.lex().unwrap();
             let es = parse_tokens(ts).unwrap();
             type_expr(&es[0], TypeContext::new()).unwrap().0
@@ -123,11 +123,11 @@ mod tests {
     }
 
     mod lexing {
-        use crate::exprs::SBody;
+        use crate::{exprs::SBody, parsing::lex::SourceIter};
 
         #[test]
         fn basic() {
-            use crate::parsing::lex::{Token, Source};
+            use crate::parsing::lex::Token;
             
             #[derive(Debug, PartialEq, Eq)]
             enum QSW<'a> {
@@ -163,7 +163,7 @@ mod tests {
                     , W("6")])];
             
             
-            let source = Source::new(&src, None);
+            let source = SourceIter::new(&src, None);
             let ts = source.lex()
                 .map_err(|e| println!("lexing failed with Error {}", e))
                 .unwrap();

@@ -4,7 +4,7 @@ pub mod types;
 pub mod values;
 pub mod contexts;
 
-use crate::parsing::FilePos;
+use crate::parsing::sources::FilePos;
 
 use self::values::Value;
 

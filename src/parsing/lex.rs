@@ -25,15 +25,14 @@ impl<'a> Token<'a> {
 }
 
 #[derive(Debug)]
-pub struct Source<'a> {
-    pub src: &'a str,
-    txt: std::str::Chars<'a>,
+pub struct SourceIter<'a> {
+    pub(crate) txt: std::str::Chars<'a>,
     pub(crate) pos: FilePos<'a>,
 }
 
-impl<'a> Source<'a> {
+impl<'a> SourceIter<'a> {
     pub fn new(src: &'a str, name: Option<&'a String>) -> Self {
-        Self { src, txt: src.chars(), pos: FilePos::new(name) }
+        Self { txt: src.chars(), pos: FilePos::new(name) }
     }
 
     pub fn error(self, body: LexErrorBody) -> LexError<'a> {
@@ -86,10 +85,6 @@ impl<'a> Source<'a> {
                 return (true, n);
             }
         }
-    }
-
-    pub(crate) fn current_line(&self) -> String {
-        String::from(self.src.lines().nth(self.pos.row - 1).unwrap())
     }
 }
 
