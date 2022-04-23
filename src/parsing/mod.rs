@@ -2,7 +2,7 @@ pub mod lex;
 
 use std::collections::HashSet;
 
-use crate::{exprs::{Expr, values::Value, SBody}, errors::{ParseError::*, ParseResult}};
+use crate::{exprs::{Expr, values::Value, SBody}, errors::{ParseErrorBody::*, ParseResult, Loc}};
 
 use self::lex::Token;
 
@@ -29,6 +29,13 @@ impl<'a> FilePos<'a> {
             _ => self.col += 1,
         }
     }
+
+    pub fn col_arrow(&self) -> String {
+        let mut out = String::new();
+        out.extend((0..(self.col - 2)).map(|_| ' '));
+        out.push('^');
+        out
+    }
 }
 
 impl<'a> std::fmt::Display for FilePos<'a> {
@@ -47,12 +54,12 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     if let Some(t) = ts.next() {
         match parse_first(t)? {
             Err(lam_fp) => {
-                let t = ts.next().ok_or(MissingLambdaParams(lam_fp.clone()))?;
+                let t = ts.next().ok_or(Loc::new(lam_fp.clone(), MissingLambdaParams))?;
                 let p = parse_rest(check_params(t)?)?;
-                let t = ts.next().ok_or(MissingLambdaBody(lam_fp.clone()))?;
+                let t = ts.next().ok_or(Loc::new(lam_fp.clone(), MissingLambdaBody))?;
                 let b = parse_rest(t)?;
                 return if ts.next().is_some() {
-                    Err(ExtraLambdaBody(lam_fp))
+                    Err(Loc::new(lam_fp, ExtraLambdaBody))
                 } else {
                     Ok(vec![Expr::Val(Value::Lam(Box::new(p), Box::new(b)))])
                 };
@@ -71,7 +78,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
 }
 
 fn parse_rest<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
-    parse_first(t)?.map_err(MisplacedLambda)
+    parse_first(t)?.map_err(|fp| Loc::new(fp, MisplacedLambda))
 }
 
 fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>>> {
@@ -85,7 +92,7 @@ fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>
             }),
         Token::SExp(SBody { start, body }) => {
             let body = parse_tokens(body)
-                .map_err(|e| InSExp(start.clone(), Box::new(e)))?;
+                .map_err(|e| Loc::new(start.clone(), InSExp(Box::new(e))))?;
             Ok(Expr::SExp(SBody { start, body }))
         },
     })
@@ -96,10 +103,10 @@ fn check_params<'a>(t: Token<'a>) -> ParseResult<'a, Token<'a>> {
     let mut to_check = vec![&t];
     while let Some(next) = to_check.pop() {
         match next {
-            Token::LamSlash(fp) => return Err(MisplacedLambda(fp.clone())),
+            Token::LamSlash(fp) => return Err(Loc::new(fp.clone(), MisplacedLambda)),
             Token::Word(w) =>
                 if !used.insert(w.clone()) {
-                    return Err(DuplicateLambdaArg(w.clone()))
+                    return Err(Loc::new(fp, DuplicateLambdaArg(w.clone())))
                 },
             Token::SExp(sbody) => to_check.extend(&sbody.body),
         }

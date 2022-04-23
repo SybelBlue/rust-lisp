@@ -1,81 +1,102 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
 use crate::{parsing::{FilePos, lex::Source}, exprs::{Expr, types::Type}};
 
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) enum LexErrorBody<'a> {
+pub trait Locable<'a> {
+    fn loc(&'a self) -> &'a FilePos<'a>;
+}
+
+impl<'a> Locable<'a> for FilePos<'a> {
+    fn loc(&'a self) -> &'a FilePos<'a> {
+        self
+    }
+}
+
+impl<'a> Locable<'a> for Source<'a> {
+    fn loc(&'a self) -> &'a FilePos<'a> {
+        &self.pos
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Loc<L, T> {
+    locable: L,
+    body: T,
+}
+
+impl<'a, L: Locable<'a>, T: Debug + Clone + Display> Loc<L, T> {
+    pub fn new(locable: L, body: T) -> Self {
+        Self { locable, body }
+    }
+}
+
+impl<'a, L: Locable<'a>, T: Debug + Clone + Display> Display for Loc<L, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{} at {}", self.body, self.locable.loc())
+    }
+}
+
+pub type LexError<'a> = Loc<Source<'a>, LexErrorBody>;
+
+#[derive(Debug, Clone)]
+pub enum LexErrorBody {
     TooManyClosing,
-    Unclosed(FilePos<'a>),
-    StartingLambda(FilePos<'a>),
+    Unclosed,
+    StartingLambda,
 }
 
-impl<'a> LexErrorBody<'a> {
-    pub fn col_arrow(&self, file_pos: &FilePos) -> String {
-        let file_pos = match &self {
-            Self::TooManyClosing => file_pos,
-            Self::Unclosed(fp) => fp,
-            Self::StartingLambda(fp) => fp,
-        };
-
-        let mut out = String::new();
-        out.extend((0..(file_pos.col - 2)).map(|_| ' '));
-        out.push('^');
-        out
-    }
-
-    pub fn name(&self) -> String {
-        match self {
-            Self::TooManyClosing => format!("Extra Closing Parenthesis"),
-            Self::Unclosed(_) => format!("Unclosed S-Expression"),
-            Self::StartingLambda(_) => format!("Starting Lambda Slash")
-        }
+impl Display for LexErrorBody {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(
+            match self {
+                Self::TooManyClosing => "Extra Closing Parenthesis",
+                Self::Unclosed => "Unclosed S-Expression",
+                Self::StartingLambda => "Starting Lambda Slash",
+            })
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum ParseError<'a> {
-    MisplacedLambda(FilePos<'a>),
-    MissingLambdaParams(FilePos<'a>),
-    MissingLambdaBody(FilePos<'a>),
-    ExtraLambdaBody(FilePos<'a>),
+pub type ParseError<'a> = Loc<FilePos<'a>, ParseErrorBody<'a>>;
+
+#[derive(Debug, Clone)]
+pub enum ParseErrorBody<'a> {
+    MisplacedLambda,
+    MissingLambdaParams,
+    MissingLambdaBody,
+    ExtraLambdaBody,
     DuplicateLambdaArg(String),
-    InSExp(FilePos<'a>, Box<ParseError<'a>>),
+    InSExp(Box<ParseError<'a>>),
 }
 
-impl<'a> std::fmt::Display for ParseError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> Display for ParseErrorBody<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseError::MisplacedLambda(fp) => write!(f, "MisplacedLambda at {}", fp),
-            ParseError::MissingLambdaParams(fp) => write!(f, "MissingLambdaParams at {}", fp),
-            ParseError::MissingLambdaBody(fp) => write!(f, "MissingLambdaBody at {}", fp),
-            ParseError::ExtraLambdaBody(fp) => write!(f, "ExtraLambdaBody at {}", fp),
-            ParseError::DuplicateLambdaArg(fp) => write!(f, "DuplicateLambdaArg at {}", fp),
-            ParseError::InSExp(sfp, err) => write!(f, "In S-Expression at {}:\n{}", sfp, err.as_ref()),
+            ParseErrorBody::MisplacedLambda => write!(f, "MisplacedLambda"),
+            ParseErrorBody::MissingLambdaParams => write!(f, "MissingLambdaParams"),
+            ParseErrorBody::MissingLambdaBody => write!(f, "MissingLambdaBody"),
+            ParseErrorBody::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
+            ParseErrorBody::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
+            ParseErrorBody::InSExp(sfp) => write!(f, "In S-Expression:\n{}", sfp.body),
         }
     }
 }
 
-#[derive(Debug)]
-pub struct LexError<'a> {
-    pub src: Source<'a>,
-    pub(crate) body: LexErrorBody<'a>,
-}
 
-impl<'a> std::fmt::Display for LexError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let line_indicator = format!(" {} ", self.src.pos.row);
-        let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
-        write!(f, "error: {} at {}\n{}|\n{}| {}\n{}| {}", 
-            self.body.name(), 
-            self.src.pos, 
-            margin,
-            line_indicator, 
-            self.src.current_line(),
-            margin,
-            self.body.col_arrow(&self.src.pos))
-    }
-}
+// impl<'a> Display for LexError<'a> {
+//     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//         let line_indicator = format!(" {} ", self.src.pos.row);
+//         let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
+//         write!(f, "error: {} at {}\n{}|\n{}| {}\n{}| {}", 
+//             self.body.name(), 
+//             self.src.pos, 
+//             margin,
+//             line_indicator, 
+//             self.src.current_line(),
+//             margin,
+//             self.body.col_arrow(&self.src.pos))
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub enum TypeError<'a> {
@@ -89,8 +110,8 @@ pub enum TypeError<'a> {
     UndefinedSymbol(&'a String),
 }
 
-impl<'a> std::fmt::Display for TypeError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl<'a> Display for TypeError<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeError::TooManyArgs(pos, e) => write!(f, "TooManyArgs: {} at {}", e, pos),
             TypeError::TypeMismatch { got, expected, at } => write!(
@@ -111,5 +132,6 @@ impl<'a> std::fmt::Display for TypeError<'a> {
     }
 }
 
+pub type LexResult<'a, T> = Result<T, LexError<'a>>;
 pub type TypeResult<'a, T> = Result<T, TypeError<'a>>;
 pub type ParseResult<'a, T> = Result<T, ParseError<'a>>;

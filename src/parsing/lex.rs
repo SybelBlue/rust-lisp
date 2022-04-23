@@ -1,4 +1,4 @@
-use crate::{exprs::SBody, errors::{LexError, LexErrorBody}};
+use crate::{exprs::SBody, errors::{LexError, LexResult, LexErrorBody, Loc}};
 
 use super::FilePos;
 
@@ -24,8 +24,6 @@ impl<'a> Token<'a> {
     }
 }
 
-pub type LexResult<'a, T> = Result<T, LexError<'a>>;
-
 #[derive(Debug)]
 pub struct Source<'a> {
     pub src: &'a str,
@@ -36,6 +34,10 @@ pub struct Source<'a> {
 impl<'a> Source<'a> {
     pub fn new(src: &'a str, name: Option<&'a String>) -> Self {
         Self { src, txt: src.chars(), pos: FilePos::new(name) }
+    }
+
+    pub fn error(self, body: LexErrorBody) -> LexError<'a> {
+        Loc::new(self, body)
     }
 
     pub fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
@@ -54,12 +56,12 @@ impl<'a> Source<'a> {
                 Some(')') => 
                     match stack.close_sexp() {
                         Ok(st) => stack = st,
-                        Err(tipe) => return Err(LexError { body: tipe, src: self })
+                        Err(body) => return Err(self.error(body))
                     },
                 Some('\\') => 
                     match stack.push_lambda(self.pos.clone()) {
                         Ok(st) => stack = st,
-                        Err(tipe) => return Err(LexError { body: tipe, src: self })
+                        Err(body) => return Err(self.error(body))
                     },
                 Some(ch) => stack.push_char(ch),
             }
@@ -68,7 +70,7 @@ impl<'a> Source<'a> {
         stack.try_push_word();
 
         stack.finish()
-            .map_err(|tipe| LexError { body: tipe, src: self })
+            .map_err(|body| self.error(body))
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
@@ -111,7 +113,7 @@ impl<'a> LexStack<'a> {
         self.sexp_stack.push((file_pos, Vec::with_capacity(4))) // 4 long sexp
     }
 
-    fn close_sexp(mut self) -> Result<Self, LexErrorBody<'a>> {
+    fn close_sexp(mut self) -> Result<Self, LexErrorBody> {
         let last_sexp = self.sexp_stack.pop();
         let (start, mut body) = last_sexp.ok_or(LexErrorBody::TooManyClosing)?;
 
@@ -123,11 +125,11 @@ impl<'a> LexStack<'a> {
         Ok(self)
     }
 
-    fn push_lambda(mut self, fp: FilePos<'a>) -> Result<Self, LexErrorBody<'a>> {
+    fn push_lambda(mut self, fp: FilePos<'a>) -> Result<Self, LexErrorBody> {
         match self.sexp_stack.last() {
-            None => Err(LexErrorBody::StartingLambda(fp)),
+            None => Err(LexErrorBody::StartingLambda),
             Some((_, s)) if !s.is_empty() => 
-                Err(LexErrorBody::StartingLambda(fp)),
+                Err(LexErrorBody::StartingLambda),
             _ => {
                 self.push_token(Token::LamSlash(fp));
         
@@ -160,9 +162,9 @@ impl<'a> LexStack<'a> {
         }
     }
 
-    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorBody<'a>> {
+    fn finish(mut self) -> Result<Vec<Token<'a>>, LexErrorBody> {
         if let Some((file_pos, _)) = self.sexp_stack.pop() {
-            Err(LexErrorBody::Unclosed(file_pos))
+            Err(LexErrorBody::Unclosed)
         } else {
             Ok(self.finished)
         }
