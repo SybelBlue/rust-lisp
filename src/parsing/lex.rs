@@ -1,6 +1,6 @@
-use crate::exprs::SBody;
+use crate::{exprs::SBody, errors::{LexError, LexErrorBody}};
 
-use super::{FilePos, lex_error::*};
+use super::FilePos;
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum Token<'a> {

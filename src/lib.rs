@@ -1,6 +1,7 @@
 pub mod parsing;
 pub mod interpreting;
 pub mod exprs;
+pub mod errors;
 
 #[cfg(test)]
 mod tests {

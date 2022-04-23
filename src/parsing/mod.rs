@@ -1,9 +1,8 @@
 pub mod lex;
-pub(crate) mod lex_error;
 
-use std::{collections::HashSet};
+use std::collections::HashSet;
 
-use crate::exprs::{Expr, values::Value, SBody};
+use crate::{exprs::{Expr, values::Value, SBody}, errors::ParseError};
 
 use self::lex::Token;
 
@@ -38,29 +37,6 @@ impl<'a> std::fmt::Display for FilePos<'a> {
             self.name.unwrap_or(&String::from("anon")), 
             self.row,
             self.col)
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
-pub enum ParseError<'a> {
-    MisplacedLambda(FilePos<'a>),
-    MissingLambdaParams(FilePos<'a>),
-    MissingLambdaBody(FilePos<'a>),
-    ExtraLambdaBody(FilePos<'a>),
-    DuplicateLambdaArg(String),
-    InSExp(FilePos<'a>, Box<ParseError<'a>>),
-}
-
-impl<'a> std::fmt::Display for ParseError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ParseError::MisplacedLambda(fp) => write!(f, "MisplacedLambda at {}", fp),
-            ParseError::MissingLambdaParams(fp) => write!(f, "MissingLambdaParams at {}", fp),
-            ParseError::MissingLambdaBody(fp) => write!(f, "MissingLambdaBody at {}", fp),
-            ParseError::ExtraLambdaBody(fp) => write!(f, "ExtraLambdaBody at {}", fp),
-            ParseError::DuplicateLambdaArg(fp) => write!(f, "DuplicateLambdaArg at {}", fp),
-            ParseError::InSExp(sfp, err) => write!(f, "In S-Expression at {}:\n{}", sfp, err.as_ref()),
-        }
     }
 }
 

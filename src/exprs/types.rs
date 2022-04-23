@@ -1,6 +1,6 @@
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
 
-use crate::parsing::FilePos;
+use crate::errors::{TypeResult, TypeError};
 
 use super::{contexts::{TypeContext, UnifyErr}, values::Value, Expr, SBody};
 
@@ -64,7 +64,7 @@ impl Type {
         }
     }
 
-    fn variable_values(&self, out: &mut HashSet<usize>) {
+    pub fn variable_values(&self, out: &mut HashSet<usize>) {
         match self {
             Self::Var(n) => { out.insert(*n); },
             Self::Fun(p, r) => {
@@ -133,42 +133,6 @@ impl std::fmt::Debug for Type {
         }
     }
 }
-
-#[derive(Debug, Clone)]
-pub enum TypeError<'a> {
-    TooManyArgs(&'a FilePos<'a>, &'a Expr<'a>),
-    TypeMismatch {
-        got: Type,
-        expected: Type,
-        at: &'a FilePos<'a>,
-    },
-    InfiniteType(Type, Type),
-    UndefinedSymbol(&'a String),
-}
-
-impl<'a> std::fmt::Display for TypeError<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TypeError::TooManyArgs(pos, e) => write!(f, "TooManyArgs: {} at {}", e, pos),
-            TypeError::TypeMismatch { got, expected, at } => write!(
-                f, "TypeMismatch at {}\n\tgot:      {}\n\texpected: {}",
-                at, got, expected),
-            TypeError::UndefinedSymbol(s) => write!(f, "UndefinedSymbol: {}", s),
-            TypeError::InfiniteType(s, t) => {
-                write!(f, "InfiniteType: ")?;
-                let mut vals = HashSet::new();
-                s.variable_values(&mut vals);
-                t.variable_values(&mut vals);
-                let map = Type::var_to_char_map(vals.into_iter().collect());
-                s.display_with(f, &map, false)?;
-                write!(f, " ~ ")?;
-                t.display_with(f, &map, false)
-            }
-        }
-    }
-}
-
-pub type TypeResult<'a, T> = Result<T, TypeError<'a>>;
 
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
