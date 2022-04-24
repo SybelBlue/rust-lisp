@@ -14,29 +14,17 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
         // is unit
         (None, _) => Ok(vec![]),
         // is singleton
-        (Some(t), None) => Ok(vec![parse_simple(t)?]),
+        (Some(t), None) => Ok(vec![parse(t)?]),
         // has at least two 
         (Some(fst), Some(snd)) => {
             let param_check = check_params(&fst);
-            match (parse_one(fst)?, parse_one(snd)?) {
-                // both are arrows!
-                (Err((_, pos)), Err(_)) => Err(Loc::new(pos, MisplacedArrow)),
-                // fst is backarrow!
-                (Err((false, pos)), _) => Err(Loc::new(pos, MisplacedArrow)),
-                // fst is arrow, snd not arrow...
-                (Err((true, pos)), Ok(e)) => {
-                    let mut out = vec![Expr::Val(Loc::new(pos, Value::Sym(String::from("->")))), e];
-                    for t in ts {
-                        out.push(parse_simple(t)?);
-                    }
-                    Ok(out)
-                }
-                // fst not arrow, snd is backarrow...
-                (Ok(_e), Err((false, _pos))) => {
+            match (parse(fst)?, parse_catch_arrow(snd)?) {
+                // snd is backarrow...
+                (_e, Err((false, _pos))) => {
                     todo!("make binds")
                 }
-                // fst not arrow, snd is forward arrow..
-                (Ok(params), Err((true, pos))) => {
+                // snd is forward arrow..
+                (params, Err((true, pos))) => {
                     param_check?;
                     if let Some(t) = ts.next() {
                         if ts.next().is_none() {
@@ -50,7 +38,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
                     }
                 }
                 // neither are arrows..
-                (Ok(fst), Ok(snd)) => {
+                (fst, Ok(snd)) => {
                     let mut out = vec![fst, snd];
                     for t in ts {
                         out.push(parse_simple(t)?);
@@ -63,11 +51,19 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
 }
 
 fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
-    parse_one(t)?.map_err(|(_, fp)| Loc::new(fp, MisplacedArrow))
+    parse_catch_arrow(t)?.map_err(|(_, fp)| Loc::new(fp, MisplacedArrow))
+}
+
+fn parse<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
+    match parse_catch_arrow(t)? {
+        Ok(e) => Ok(e),
+        Err((true, pos)) => Ok(Expr::Val(Loc::new(pos, Value::Sym(String::from("->"))))),
+        Err((false, pos)) => Err(Loc::new(pos, MisplacedArrow)),
+    }
 }
 
 /// If successful, returns an expr or the direction and location of an arrow
-fn parse_one<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (bool, FilePos<'a>)>> {
+fn parse_catch_arrow<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (bool, FilePos<'a>)>> {
     Ok(match t {
         Token::Word(w, pos) =>
             Ok(if let Ok(n) = w.parse::<usize>() {
