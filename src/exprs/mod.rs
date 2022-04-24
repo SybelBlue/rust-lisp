@@ -33,16 +33,16 @@ pub enum Expr<'a> {
     SExp(SToken<'a, Expr<'a>>),
     Data {
         name: Identifier<'a>, 
-        kind: Loc<'a, Box<Expr<'a>>>,
+        kind: Box<Expr<'a>>,
         variants: Vec<DataVariant<'a>>,
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct DataVariant<'a> {
-    data_name: &'a Identifier<'a>,
-    name: Identifier<'a>, 
-    tipe: Expr<'a>,
+    pub data_name: Identifier<'a>,
+    pub name: Identifier<'a>, 
+    pub tipe: Expr<'a>,
 }
 
 impl<'a> Expr<'a> {
@@ -65,7 +65,7 @@ impl<'a> Expr<'a> {
             Self::Val(l) => l.display_simple(f),
             Self::SExp(l) => l.display_simple(f),
             Self::Data { name, kind, variants } => {
-                f.write_str("(data (")?;
+                f.write_str("data (")?;
                 name.display_simple(f)?;
                 f.write_char(' ')?;
                 kind.display_simple(f)?;

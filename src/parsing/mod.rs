@@ -4,7 +4,7 @@ pub mod sources;
 use std::collections::HashSet;
 use std::vec::IntoIter;
 
-use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp}, errors::{ParseResult, ParseError}};
+use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp, Identifier, DataVariant}, errors::{ParseResult, ParseError}};
 
 use crate::errors::ParseErrorBody::*;
 use crate::parsing::lex::Keyword::*;
@@ -56,7 +56,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
                     return Err(ParseError::new(pos, MisplacedKeyword(Backarrow)))
                 }
                 Err((Data, pos)) => {
-                    return parse_data_decl(pos, snd, ts);
+                    return Ok(vec![parse_data_decl(pos, snd, ts)?]);
                 },
                 Err((Trait, pos)) => {
                     return Err(ParseError::new(pos, NotYetImplemented("trait")));
@@ -71,35 +71,46 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     }
 }
 
-fn parse_data_decl<'a>(pos: FilePos<'a>, snd: Expr<'a>, ts: IntoIter<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
-    fn parse_ident_type_pair<'a>(t: Token<'a>) -> ParseResult<'a, (String, Expr<'a>)> {
-        if let Token::SExp(SToken { body: SExp(v), pos }) = t {
-            let mut ts = v.into_iter();
-            match (ts.next(), ts.next()) {
-                (_, None) => 
-                    Err(ParseError::new(pos, NotYetImplemented("data variant defaults"))),
-                (Some(Token::Word(name, _)), Some(snd)) =>
-                    Ok((name.clone(), parse_simple(snd)?)),
-                _ =>
-                    Err(ParseError::new(pos, BadDataVariant)),
+fn parse_data_decl<'a>(pos: FilePos<'a>, snd: Expr<'a>, ts: IntoIter<Token<'a>>) -> ParseResult<'a, Expr<'a>> {
+    if let Expr::SExp(SToken { body: SExp(v), .. }) = snd {
+        let mut es = v.into_iter();
+        if let Some(Expr::Val(VToken { body: Value::Sym(name), pos })) = es.next() {
+            if let Some(kind) = es.next() {
+                if es.next().is_none() {
+                    let name = Identifier::new(pos, name);
+                    let kind = Box::new(kind);
+
+                    let mut variants = Vec::new();
+                    for t in ts {
+                        variants.push(parse_ident_type_pair(name.clone(), t)?);
+                    }
+
+                    return Ok(Expr::Data { name, kind, variants });
+                }
             }
-        } else {
-            Err(ParseError::new(t.pos(), NotYetImplemented("data variant defaults")))
         }
     }
+    return Err(ParseError::new(pos, BadDataIdentifier));
+}
 
-    let name = if let Expr::Val(VToken { body: Value::Sym(s), .. }) = snd {
-        s
+fn parse_ident_type_pair<'a>(data_name: Identifier<'a>, t: Token<'a>) -> ParseResult<'a, DataVariant<'a>> {
+    if let Token::SExp(SToken { body: SExp(v), pos }) = t {
+        let mut ts = v.into_iter();
+        match (ts.next(), ts.next()) {
+            (Some(_), None) => 
+                Err(ParseError::new(pos, NotYetImplemented("data variant defaults"))),
+            (Some(Token::Word(name, pos)), Some(snd)) =>
+                Ok(DataVariant { 
+                    data_name, 
+                    name: Identifier::new(pos, name), 
+                    tipe: parse_simple(snd)?,
+                }),
+            _ =>
+                Err(ParseError::new(pos, BadDataVariant)),
+        }
     } else {
-        return Err(ParseError::new(pos, BadDataIdentifier))
-    };
-
-    let mut variants = Vec::new();
-    for t in ts {
-        variants.push(parse_ident_type_pair(t)?);
+        Err(ParseError::new(t.pos(), NotYetImplemented("data variant defaults")))
     }
-
-    todo!()
 }
 
 /// Any keyword results in an Error
