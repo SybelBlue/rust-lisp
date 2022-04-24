@@ -74,9 +74,9 @@ impl Type {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_, _) => self.fmt(f),
             Type::Var(n) => f.write_char(*map.get(n).unwrap()),
             Type::Fun(p, r) => {
-                if wrap { f.write_char('(')?; }
+                if wrap { f.write_str("(-> ")?; }
                 p.display_with(f, map, true)?;
-                f.write_str(" -> ")?;
+                f.write_char(' ')?;
                 r.display_with(f, map, false)?;
                 if wrap { f.write_char(')')?; }
                 Ok(())

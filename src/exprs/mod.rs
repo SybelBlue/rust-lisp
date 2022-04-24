@@ -54,9 +54,6 @@ impl<'a> Expr<'a> {
 
 impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        match self {
-            Expr::Val(v) => write!(f, "{}", v),
-            Expr::SExp(sbody) => write!(f, "({})", sbody),
-        }
+        self.display_simple(f)
     }
 }
