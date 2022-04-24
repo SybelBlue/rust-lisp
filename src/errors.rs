@@ -52,7 +52,6 @@ pub type ParseError<'a> = Loc<'a, ParseErrorBody<'a>>;
 #[derive(Debug, Clone)]
 pub enum ParseErrorBody<'a> {
     MisplacedArrow,
-    MissingLambdaParams,
     MissingLambdaBody,
     ExtraLambdaBody,
     DuplicateLambdaArg(String),
@@ -62,8 +61,7 @@ pub enum ParseErrorBody<'a> {
 impl<'a> Display for ParseErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MisplacedArrow => write!(f, "MisplacedLambda"),
-            Self::MissingLambdaParams => write!(f, "MissingLambdaParams"),
+            Self::MisplacedArrow => write!(f, "MisplacedArrow"),
             Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
             Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
             Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),

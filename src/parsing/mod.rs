@@ -10,39 +10,64 @@ use self::{lex::Token, sources::FilePos};
 
 pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     let mut ts = ts.into_iter();
-    let mut exprs = Vec::new();
-
-    if let Some(t) = ts.next() {
-        match parse_first(t)? {
-            Err(lam_fp) => {
-                let t = ts.next().ok_or(Loc::new(lam_fp.clone(), MissingLambdaParams))?;
-                let p = parse_rest(check_params(t)?)?;
-                let t = ts.next().ok_or(Loc::new(lam_fp.clone(), MissingLambdaBody))?;
-                let b = parse_rest(t)?;
-                return if ts.next().is_some() {
-                    Err(Loc::new(lam_fp, ExtraLambdaBody))
-                } else {
-                    Ok(vec![Expr::Val(Loc::new(lam_fp, Value::Lam(Box::new(p), Box::new(b))))])
-                };
-            },
-            Ok(e) => exprs.push(e)
+    match (ts.next(), ts.next()) {
+        // is unit
+        (None, _) => Ok(vec![]),
+        // is singleton
+        (Some(t), None) => Ok(vec![parse_simple(t)?]),
+        // has at least two 
+        (Some(fst), Some(snd)) => {
+            let param_check = check_params(&fst);
+            match (parse_one(fst)?, parse_one(snd)?) {
+                // both are arrows!
+                (Err((_, pos)), Err(_)) => Err(Loc::new(pos, MisplacedArrow)),
+                // fst is backarrow!
+                (Err((false, pos)), _) => Err(Loc::new(pos, MisplacedArrow)),
+                // fst is arrow, snd not arrow...
+                (Err((true, pos)), Ok(e)) => {
+                    let mut out = vec![Expr::Val(Loc::new(pos, Value::Sym(String::from("->")))), e];
+                    for t in ts {
+                        out.push(parse_simple(t)?);
+                    }
+                    Ok(out)
+                }
+                // fst not arrow, snd is backarrow...
+                (Ok(_e), Err((false, _pos))) => {
+                    todo!("make binds")
+                }
+                // fst not arrow, snd is forward arrow..
+                (Ok(params), Err((true, pos))) => {
+                    param_check?;
+                    if let Some(t) = ts.next() {
+                        if ts.next().is_none() {
+                            let body = parse_simple(t)?;
+                            Ok(vec![Expr::Val(Loc::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
+                        } else {
+                            Err(Loc::new(pos, ExtraLambdaBody))
+                        }
+                    } else {
+                        Err(Loc::new(pos, MissingLambdaBody))
+                    }
+                }
+                // neither are arrows..
+                (Ok(fst), Ok(snd)) => {
+                    let mut out = vec![fst, snd];
+                    for t in ts {
+                        out.push(parse_simple(t)?);
+                    }
+                    Ok(out)
+                }
+            }
         }
-    } else {
-        return Ok(exprs);
     }
-
-    for t in ts {
-        exprs.push(parse_rest(t)?);
-    }
-
-    Ok(exprs)
 }
 
-fn parse_rest<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
-    parse_first(t)?.map_err(|fp| Loc::new(fp, MisplacedArrow))
+fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
+    parse_one(t)?.map_err(|(_, fp)| Loc::new(fp, MisplacedArrow))
 }
 
-fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>>> {
+/// If successful, returns an expr or the direction and location of an arrow
+fn parse_one<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (bool, FilePos<'a>)>> {
     Ok(match t {
         Token::Word(w, pos) =>
             Ok(if let Ok(n) = w.parse::<usize>() {
@@ -55,13 +80,13 @@ fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>
                 .map_err(|e| Loc::new(locable.clone(), InSExp(Box::new(e))))?;
             Ok(Expr::SExp(SToken::new(locable, SExp(body))))
         },
-        _ => todo!("fix broken arrow system")
+        Token::Arrow(forward, pos) => Err((forward, pos)),
     })
 }
 
-fn check_params<'a>(t: Token<'a>) -> ParseResult<'a, Token<'a>> {
+fn check_params<'a>(t: &Token<'a>) -> ParseResult<'a, ()> {
     let mut used = HashSet::new();
-    let mut to_check = vec![&t];
+    let mut to_check = vec![t];
     while let Some(next) = to_check.pop() {
         match next {
             Token::Arrow(_, fp) => return Err(Loc::new(fp.clone(), MisplacedArrow)),
@@ -72,5 +97,5 @@ fn check_params<'a>(t: Token<'a>) -> ParseResult<'a, Token<'a>> {
             Token::SExp(sbody) => to_check.extend(&sbody.body.0),
         }
     }
-    Ok(t)
+    Ok(())
 }
