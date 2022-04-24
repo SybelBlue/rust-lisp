@@ -3,7 +3,7 @@ pub mod sources;
 
 use std::collections::HashSet;
 
-use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp}, errors::{ParseErrorBody::*, ParseResult, Loc}};
+use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp}, errors::{ParseErrorBody::*, ParseResult, ParseError}};
 
 use self::{lex::Token, sources::FilePos};
 
@@ -23,7 +23,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
 
     match snd {
         Err((false, pos)) => {
-            Err(Loc::new(pos, NotYetImplemented("Backarrow bind")))
+            Err(ParseError::new(pos, NotYetImplemented("Backarrow bind")))
         }
         Err((true, pos)) => {
             check_params(&fst_tkn)?;
@@ -33,10 +33,10 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
                     let body = parse_simple(t)?;
                     Ok(vec![Expr::Val(VToken::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
                 } else {
-                    Err(Loc::new(pos, ExtraLambdaBody))
+                    Err(ParseError::new(pos, ExtraLambdaBody))
                 }
             } else {
-                Err(Loc::new(pos, MissingLambdaBody))
+                Err(ParseError::new(pos, MissingLambdaBody))
             }
         }
         Ok(snd) => {
@@ -50,14 +50,14 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
 }
 
 fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
-    parse_catch_arrow(t)?.map_err(|(_, fp)| Loc::new(fp, MisplacedArrow))
+    parse_catch_arrow(t)?.map_err(|(_, fp)| ParseError::new(fp, MisplacedArrow))
 }
 
 fn parse<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     match parse_catch_arrow(t)? {
         Ok(e) => Ok(e),
         Err((true, pos)) => Ok(Expr::Val(VToken::new(pos, Value::Sym(String::from("->"))))),
-        Err((false, pos)) => Err(Loc::new(pos, MisplacedArrow)),
+        Err((false, pos)) => Err(ParseError::new(pos, MisplacedArrow)),
     }
 }
 
@@ -70,9 +70,9 @@ fn parse_catch_arrow<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (bool
             } else {
                 Expr::Val(VToken::new(pos, Value::Sym(w)))
             }),
-        Token::SExp(Loc { pos: locable, body }) => {
+        Token::SExp(SToken { pos: locable, body }) => {
             let body = parse_tokens(body.0)
-                .map_err(|e| Loc::new(locable.clone(), InSExp(Box::new(e))))?;
+                .map_err(|e| ParseError::new(locable.clone(), InSExp(Box::new(e))))?;
             Ok(Expr::SExp(SToken::new(locable, SExp(body))))
         },
         Token::Arrow(forward, pos) => Err((forward, pos)),
@@ -84,10 +84,10 @@ fn check_params<'a>(t: &Token<'a>) -> ParseResult<'a, ()> {
     let mut to_check = vec![t];
     while let Some(next) = to_check.pop() {
         match next {
-            Token::Arrow(_, fp) => return Err(Loc::new(fp.clone(), MisplacedArrow)),
+            Token::Arrow(_, fp) => return Err(ParseError::new(fp.clone(), MisplacedArrow)),
             Token::Word(w, pos) =>
                 if !used.insert(w.clone()) {
-                    return Err(Loc::new(pos.clone(), DuplicateLambdaArg(w.clone())))
+                    return Err(ParseError::new(pos.clone(), DuplicateLambdaArg(w.clone())))
                 },
             Token::SExp(sbody) => to_check.extend(sbody.body.0.iter().rev()),
         }

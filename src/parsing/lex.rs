@@ -1,6 +1,6 @@
 use std::str::Chars;
 
-use crate::{exprs::{SToken, SExp}, errors::{LexError, LexResult, LexErrorBody, Loc}};
+use crate::{exprs::{SToken, SExp}, errors::{LexError, LexResult, LexErrorBody}};
 
 use super::FilePos;
 
@@ -19,7 +19,7 @@ pub(crate) struct SourceIter<'a> {
 
 impl<'a> SourceIter<'a> {
     pub(crate) fn error(self, body: LexErrorBody<'a>) -> LexError<'a> {
-        Loc::new(self.pos, body)
+        LexError::new(self.pos, body)
     }
 
     pub(crate) fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
