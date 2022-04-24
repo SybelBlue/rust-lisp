@@ -5,6 +5,7 @@ use super::{Type, contexts::{TypeContext, UnifyErr}};
 
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
+        Expr::Data { .. } => Ok((Type::Unit, ctxt)),
         Expr::Val(v) => type_value(&v.body, ctxt, &v.pos),
         Expr::SExp(SToken { pos, body }) => {
             if let Some((fst, rst)) = body.0.split_first() {
@@ -72,7 +73,7 @@ pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> 
         Value::Lam(ps, b) => {
             let mut ctxt = ctxt.clone();
             let mut expr_type = Vec::new(); // in reverse order!
-            for p in ps.as_ref().get_symbols() {
+            for p in ps.as_ref().get_lambda_param_names() {
                 let (new, var) = ctxt.bind_to_tvar(p);
                 ctxt = new;
                 expr_type.push(Type::Var(var));
