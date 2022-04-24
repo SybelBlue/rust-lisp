@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::types::Type;
+use super::Type;
 
 pub type Ident = String;
 pub type QualifiedIdent = String;
@@ -17,9 +17,9 @@ pub enum UnifyErr { Inf, Mis }
 
 impl TypeContext {
     pub fn new() -> Self {
-        use super::types::Type::*;
-        type Type_ = super::types::Type;
-        let fun = super::types::Type::fun;
+        use super::Type::*;
+        type Type_ = super::Type;
+        let fun = super::Type::fun;
         
         let mut bound = HashMap::with_capacity(10);
         let mut aliased = HashMap::with_capacity(10);

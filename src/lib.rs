@@ -5,17 +5,17 @@ pub mod errors;
 #[cfg(test)]
 mod tests {
     mod types {
-        use crate::{exprs::types::*, parsing::sources::Source};
+        use crate::{exprs::typing::*, parsing::sources::Source};
 
         fn type_test<'a>(s: &'a str) -> Type {
-            use crate::exprs::contexts::TypeContext;
+            use crate::exprs::typing::contexts::TypeContext;
             use crate::parsing::parse_tokens;
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let es = parse_tokens(ts).unwrap();
-            type_expr(&es[0], TypeContext::new()).unwrap().0
+            crate::exprs::typing::checking::type_expr(&es[0], TypeContext::new()).unwrap().0
         }
         
         macro_rules! assert_fmt_eq {
@@ -26,8 +26,8 @@ mod tests {
 
         #[test]
         fn basic() {
-            use crate::exprs::types::Type::*;
-            let fun = crate::exprs::types::Type::fun;
+            use crate::exprs::typing::Type::*;
+            let fun = crate::exprs::typing::Type::fun;
 
             assert_eq!(Unit, type_test("()"));
             assert_eq!(Unit, type_test("(())"));
@@ -47,7 +47,7 @@ mod tests {
 
         #[test]
         fn type_fn_basic() {
-            use crate::exprs::types::Type::*;
+            use crate::exprs::typing::Type::*;
 
             assert_eq!(Type, type_test("Unit"));
             assert_eq!(Type, type_test("(Unit)"));
@@ -59,8 +59,8 @@ mod tests {
 
         #[test]
         fn lambdas() {
-            use crate::exprs::types::Type::*;
-            let fun = crate::exprs::types::Type::fun;
+            use crate::exprs::typing::Type::*;
+            let fun = crate::exprs::typing::Type::fun;
             
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(\x (+ x))"));
 
@@ -72,8 +72,8 @@ mod tests {
 
         #[test]
         fn type_fn_lambdas() {
-            use crate::exprs::types::Type::*;
-            let fun = crate::exprs::types::Type::fun;
+            use crate::exprs::typing::Type::*;
+            let fun = crate::exprs::typing::Type::fun;
 
             assert_fmt_eq!(fun(fun(Type, Var(1)), Var(1)), type_test(r"(\f (f Nat))"));
             assert_fmt_eq!(fun(fun(Type, fun(Unit, Type)), Type), type_test(r"(\f (f (f Nat ()) ()))"));
@@ -81,8 +81,8 @@ mod tests {
 
         #[test]
         fn aviary() {
-            use crate::exprs::types::Type::Var;
-            let fun = crate::exprs::types::Type::fun;
+            use crate::exprs::typing::Type::Var;
+            let fun = crate::exprs::typing::Type::fun;
 
             // kestrel (const)
             assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test(r"(\x (\_ x))"));

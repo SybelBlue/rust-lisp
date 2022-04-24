@@ -1,6 +1,6 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{parse_tokens, sources::Source}, exprs::{types::type_expr, contexts::TypeContext}};
+use rust_lisp::{parsing::{parse_tokens, sources::Source}, exprs::typing::{checking::type_expr, contexts::TypeContext}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;

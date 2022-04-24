@@ -1,8 +1,7 @@
 use std::{fmt::{Display, Formatter, Result}};
 
-pub mod types;
+pub mod typing;
 pub mod values;
-pub mod contexts;
 
 use crate::errors::Loc;
 
