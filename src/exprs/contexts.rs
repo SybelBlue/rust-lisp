@@ -65,7 +65,7 @@ impl TypeContext {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => t.clone(),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 
-                Type::fun(self.query(&p), self.query(r)),
+                Type::fun(self.query(p), self.query(r)),
         }
     }
 
