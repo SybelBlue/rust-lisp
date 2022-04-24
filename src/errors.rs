@@ -56,6 +56,7 @@ pub enum ParseErrorBody<'a> {
     ExtraLambdaBody,
     DuplicateLambdaArg(String),
     InSExp(Box<ParseError<'a>>),
+    NotYetImplemented(&'a str),
 }
 
 impl<'a> Display for ParseErrorBody<'a> {
@@ -65,9 +66,8 @@ impl<'a> Display for ParseErrorBody<'a> {
             Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
             Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
             Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
-            Self::InSExp(sfp) => {
-                write!(f, "{}Inside SExpression", sfp.as_ref())
-            },
+            Self::InSExp(sfp) => write!(f, "{}Inside SExpression", sfp.as_ref()),
+            Self::NotYetImplemented(msg) => write!(f, "NotYetImplemented: {}", msg),
         }
     }
 }

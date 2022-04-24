@@ -22,8 +22,8 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     };
 
     match snd {
-        Err((false, _pos)) => {
-            todo!("make binds")
+        Err((false, pos)) => {
+            Err(Loc::new(pos, NotYetImplemented("Backarrow bind")))
         }
         Err((true, pos)) => {
             check_params(&fst_tkn)?;
