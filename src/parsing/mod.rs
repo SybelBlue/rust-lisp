@@ -3,7 +3,7 @@ pub mod sources;
 
 use std::collections::HashSet;
 
-use crate::{exprs::{Expr, values::Value, SToken, SExp}, errors::{ParseErrorBody::*, ParseResult, Loc}};
+use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp}, errors::{ParseErrorBody::*, ParseResult, Loc}};
 
 use self::{lex::Token, sources::FilePos};
 
@@ -31,7 +31,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
             if let Some(t) = ts.next() {
                 if ts.next().is_none() {
                     let body = parse_simple(t)?;
-                    Ok(vec![Expr::Val(Loc::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
+                    Ok(vec![Expr::Val(VToken::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
                 } else {
                     Err(Loc::new(pos, ExtraLambdaBody))
                 }
@@ -56,7 +56,7 @@ fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
 fn parse<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     match parse_catch_arrow(t)? {
         Ok(e) => Ok(e),
-        Err((true, pos)) => Ok(Expr::Val(Loc::new(pos, Value::Sym(String::from("->"))))),
+        Err((true, pos)) => Ok(Expr::Val(VToken::new(pos, Value::Sym(String::from("->"))))),
         Err((false, pos)) => Err(Loc::new(pos, MisplacedArrow)),
     }
 }
@@ -66,9 +66,9 @@ fn parse_catch_arrow<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (bool
     Ok(match t {
         Token::Word(w, pos) =>
             Ok(if let Ok(n) = w.parse::<usize>() {
-                Expr::Val(Loc::new(pos, Value::Nat(n)))
+                Expr::Val(VToken::new(pos, Value::Nat(n)))
             } else {
-                Expr::Val(Loc::new(pos, Value::Sym(w)))
+                Expr::Val(VToken::new(pos, Value::Sym(w)))
             }),
         Token::SExp(Loc { pos: locable, body }) => {
             let body = parse_tokens(body.0)
