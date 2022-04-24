@@ -22,7 +22,7 @@ impl Type {
         Self::Fun(Box::new(p), Box::new(r))
     }
 
-    pub fn contains(&self, o: &Self) -> bool {
+    pub(crate) fn contains(&self, o: &Self) -> bool {
         if self == o {
             true
         } else if let Type::Fun(p, r) = self {
@@ -32,16 +32,7 @@ impl Type {
         }
     }
 
-    pub fn is_concrete(&self) -> bool {
-        match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Type => true,
-            Type::Data(_) => true, // will maybe be polymorphic later
-            Type::Fun(p, r) => p.is_concrete() && r.is_concrete(),
-            Type::Var(_) => false,
-        }
-    }
-
-    pub fn concretize(&self, ctxt: &TypeContext) -> Self {
+    pub(crate) fn concretize(&self, ctxt: &TypeContext) -> Self {
         let out = match self {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Self::Data(_) => self.clone(),
             Type::Fun(p, r) => 
@@ -55,18 +46,7 @@ impl Type {
         }
     }
 
-    pub fn alpha_sub(&self, tvar: usize, sub: &Self) -> Self {
-        match self {
-            Type::Var(x) if *x == tvar => sub.clone(),
-            Type::Fun(p, r) => Type::fun(
-                p.alpha_sub(tvar, sub), 
-                r.alpha_sub(tvar, sub)
-            ),
-            _ => self.clone(),
-        }
-    }
-
-    pub fn variable_values(&self, out: &mut HashSet<usize>) {
+    pub(crate) fn variable_values(&self, out: &mut HashSet<usize>) {
         match self {
             Self::Var(n) => { out.insert(*n); },
             Self::Fun(p, r) => {

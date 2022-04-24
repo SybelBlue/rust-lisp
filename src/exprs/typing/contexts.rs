@@ -13,7 +13,7 @@ pub struct TypeContext{
     type_vars: HashMap<usize, Option<Type>>,
 }
 
-pub enum UnifyErr { Inf, Mis }
+pub(crate) enum UnifyErr { Inf, Mis }
 
 impl TypeContext {
     pub fn new() -> Self {
@@ -44,11 +44,11 @@ impl TypeContext {
         }
     }
 
-    pub fn get(&self, k: &String) -> Option<&Type> {
+    pub(crate) fn get(&self, k: &String) -> Option<&Type> {
         self.bound.get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub fn query_tvar(&self, var: usize) -> Type {
+    pub(crate) fn query_tvar(&self, var: usize) -> Type {
         let mut curr = var;
         loop {
             match self.type_vars.get(&curr).unwrap() {
@@ -59,7 +59,7 @@ impl TypeContext {
         }
     }
 
-    pub fn query(&self, t: &Type) -> Type {
+    pub(crate) fn query(&self, t: &Type) -> Type {
         // println!("Query: {:?}", t);
         match t {
             Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => t.clone(),
@@ -78,19 +78,19 @@ impl TypeContext {
         }
     }
 
-    pub fn bind_to_tvar(self, name: Ident) -> (Self, usize) {
+    pub(crate) fn bind_to_tvar(self, name: Ident) -> (Self, usize) {
         let (mut slf, k) = self.new_tvar();
         slf.bound.insert(name, Type::Var(k));
         (slf, k)
     }
 
-    pub fn new_tvar(mut self) -> (Self, usize) {
+    pub(crate) fn new_tvar(mut self) -> (Self, usize) {
         let k = self.type_vars.len();
         self.type_vars.insert(k, None);
         (self, k)
     }
 
-    pub fn unify(self, expected: &Type, got: &Type) -> Result<Self, UnifyErr> {
+    pub(crate) fn unify(self, expected: &Type, got: &Type) -> Result<Self, UnifyErr> {
         match (self.query(expected), self.query(got)) {
             // if both are functions, unpack and recurse
             (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>

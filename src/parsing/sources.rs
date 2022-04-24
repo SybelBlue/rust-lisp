@@ -12,11 +12,11 @@ pub struct FilePos<'a> {
 }
 
 impl<'a> FilePos<'a> {
-    pub fn new(src: &'a Source<'a>) -> Self {
+    pub(crate) fn new(src: &'a Source<'a>) -> Self {
         Self { src, row: 1, col: 1 }
     }
 
-    pub fn advance(&mut self, och: &Option<char>) {
+    pub(crate) fn advance(&mut self, och: &Option<char>) {
         match och {
             None => {},
             Some('\n') => {
@@ -34,7 +34,7 @@ impl<'a> FilePos<'a> {
         out
     }
 
-    pub fn write_snippet(&'a self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn write_snippet(&'a self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let line = self.src.get_line(self.row).ok_or(std::fmt::Error)?;
         let line_indicator = format!(" {} ", self.row);
         let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
@@ -79,7 +79,7 @@ impl<'a> Source<'a> {
         .lex()
     }
 
-    pub fn get_line(&self, row: usize) -> Option<String> {
+    pub(crate) fn get_line(&self, row: usize) -> Option<String> {
         match self {
             Source::Anon(src) => {
                 src.lines().nth(row - 1).map(String::from)

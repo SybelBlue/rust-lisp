@@ -10,11 +10,11 @@ pub struct Loc<'a, T> {
 }
 
 impl<'a, T: Debug + Clone + Display> Loc<'a, T> {
-    pub fn new(pos: FilePos<'a>, body: T) -> Self {
+    pub(crate) fn new(pos: FilePos<'a>, body: T) -> Self {
         Self { pos, body }
     }
 
-    pub fn display_simple(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    pub(crate) fn display_simple(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.body, f)
     }
 }

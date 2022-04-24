@@ -11,21 +11,6 @@ pub enum Token<'a> {
     SExp(SToken<'a, Token<'a>>),
 }
 
-impl<'a> Token<'a> {
-    pub fn get_symbols(&'a self) -> Vec<String> {
-        let mut symbols = Vec::new();
-        let mut to_check = vec![self];
-        while let Some(next) = to_check.pop() {
-            match next {
-                Token::LamSlash(_) => {},
-                Token::Word(w, _) => symbols.push(w.clone()),
-                Token::SExp(sbody) => to_check.extend(&sbody.body.0),
-            }
-        }
-        symbols
-    }
-}
-
 #[derive(Debug)]
 pub(crate) struct SourceIter<'a> {
     pub(crate) txt: Chars<'a>,
@@ -33,11 +18,11 @@ pub(crate) struct SourceIter<'a> {
 }
 
 impl<'a> SourceIter<'a> {
-    pub fn error(self, body: LexErrorBody<'a>) -> LexError<'a> {
+    pub(crate) fn error(self, body: LexErrorBody<'a>) -> LexError<'a> {
         Loc::new(self.pos, body)
     }
 
-    pub fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
+    pub(crate) fn lex(mut self) -> LexResult<'a, Vec<Token<'a>>> {
         let mut stack = LexStack::new(self.pos.clone());
 
         loop {

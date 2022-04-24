@@ -31,7 +31,7 @@ pub enum Expr<'a> {
 }
 
 impl<'a> Expr<'a> {
-    pub fn get_symbols(&'a self) -> Vec<String> {
+    pub(crate) fn get_symbols(&'a self) -> Vec<String> {
         let mut symbols = Vec::new();
         let mut to_check = vec![self];
         while let Some(next) = to_check.pop() {
@@ -44,7 +44,7 @@ impl<'a> Expr<'a> {
         symbols
     }
 
-    pub fn display_simple(&self, f: &mut Formatter<'_>) -> Result {
+    pub(crate) fn display_simple(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Val(l) => l.display_simple(f),
             Self::SExp(l) => l.display_simple(f),
