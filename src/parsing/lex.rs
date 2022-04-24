@@ -11,6 +11,16 @@ pub enum Token<'a> {
     SExp(SToken<'a, Token<'a>>),
 }
 
+impl<'a> Token<'a> {
+    pub(crate) fn pos(self) -> FilePos<'a> {
+        match self {
+            Self::Keyword(_, pos) => pos,
+            Self::SExp(SToken { pos, .. }) => pos,
+            Self::Word(_, pos) => pos,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword { 
     Data, 
