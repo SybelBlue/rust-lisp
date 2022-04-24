@@ -32,7 +32,6 @@ pub type LexError<'a> = Loc<'a, LexErrorBody<'a>>;
 pub enum LexErrorBody<'a> {
     TooManyClosing,
     Unclosed(FilePos<'a>),
-    StartingLambda,
 }
 
 impl<'a> Display for LexErrorBody<'a> {
@@ -44,7 +43,6 @@ impl<'a> Display for LexErrorBody<'a> {
                 fp.write_snippet(f)?;
                 f.write_str("ending at:\n")
             },
-            Self::StartingLambda => f.write_str("Starting Lambda Slash"),
         }
     }
 }
@@ -53,7 +51,7 @@ pub type ParseError<'a> = Loc<'a, ParseErrorBody<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum ParseErrorBody<'a> {
-    MisplacedLambda,
+    MisplacedArrow,
     MissingLambdaParams,
     MissingLambdaBody,
     ExtraLambdaBody,
@@ -64,7 +62,7 @@ pub enum ParseErrorBody<'a> {
 impl<'a> Display for ParseErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MisplacedLambda => write!(f, "MisplacedLambda"),
+            Self::MisplacedArrow => write!(f, "MisplacedLambda"),
             Self::MissingLambdaParams => write!(f, "MissingLambdaParams"),
             Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
             Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),

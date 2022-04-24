@@ -39,12 +39,11 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
 }
 
 fn parse_rest<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
-    parse_first(t)?.map_err(|fp| Loc::new(fp, MisplacedLambda))
+    parse_first(t)?.map_err(|fp| Loc::new(fp, MisplacedArrow))
 }
 
 fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>>> {
     Ok(match t {
-        Token::LamSlash(fp) => Err(fp),
         Token::Word(w, pos) =>
             Ok(if let Ok(n) = w.parse::<usize>() {
                 Expr::Val(Loc::new(pos, Value::Nat(n)))
@@ -56,6 +55,7 @@ fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, FilePos<'a>
                 .map_err(|e| Loc::new(locable.clone(), InSExp(Box::new(e))))?;
             Ok(Expr::SExp(SToken::new(locable, SExp(body))))
         },
+        _ => todo!("fix broken arrow system")
     })
 }
 
@@ -64,7 +64,7 @@ fn check_params<'a>(t: Token<'a>) -> ParseResult<'a, Token<'a>> {
     let mut to_check = vec![&t];
     while let Some(next) = to_check.pop() {
         match next {
-            Token::LamSlash(fp) => return Err(Loc::new(fp.clone(), MisplacedLambda)),
+            Token::Arrow(_, fp) => return Err(Loc::new(fp.clone(), MisplacedArrow)),
             Token::Word(w, pos) =>
                 if !used.insert(w.clone()) {
                     return Err(Loc::new(pos.clone(), DuplicateLambdaArg(w.clone())))

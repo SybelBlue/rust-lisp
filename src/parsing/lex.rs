@@ -6,7 +6,7 @@ use super::FilePos;
 
 #[derive(Debug, Clone)]
 pub enum Token<'a> {
-    LamSlash(FilePos<'a>),
+    Arrow(bool, FilePos<'a>),
     Word(String, FilePos<'a>),
     SExp(SToken<'a, Token<'a>>),
 }
@@ -37,11 +37,6 @@ impl<'a> SourceIter<'a> {
                 Some('(') => stack.open_sexp(self.pos.clone()),
                 Some(')') => 
                     match stack.close_sexp() {
-                        Ok(st) => stack = st,
-                        Err(body) => return Err(self.error(body))
-                    },
-                Some('\\') => 
-                    match stack.push_lambda(self.pos.clone()) {
                         Ok(st) => stack = st,
                         Err(body) => return Err(self.error(body))
                     },
@@ -105,19 +100,6 @@ impl<'a> LexStack<'a> {
         Ok(self)
     }
 
-    fn push_lambda(mut self, fp: FilePos<'a>) -> Result<Self, LexErrorBody> {
-        match self.sexp_stack.last() {
-            None => Err(LexErrorBody::StartingLambda),
-            Some((_, s)) if !s.is_empty() => 
-                Err(LexErrorBody::StartingLambda),
-            _ => {
-                self.push_token(Token::LamSlash(fp));
-        
-                Ok(self)
-            }
-        }
-    }
-
     fn push_token(&mut self, t: Token<'a>) {
         self.try_push_word();
         self.sexp_stack
@@ -128,7 +110,11 @@ impl<'a> LexStack<'a> {
     }
 
     fn dump_curr(&mut self) -> Token<'a> {
-        let out = Token::Word(self.curr_word.clone(), self.curr_word_start.clone());
+        let out = match self.curr_word.as_bytes() {
+            b"->" => Token::Arrow(true, self.curr_word_start.clone()),
+            b"<-" => Token::Arrow(false, self.curr_word_start.clone()),
+            _ => Token::Word(self.curr_word.clone(), self.curr_word_start.clone()),
+        };
         self.curr_word.clear();
         out
     }
