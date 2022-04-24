@@ -85,7 +85,7 @@ pub enum TypeErrorBody<'a> {
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
     DatatypeReturnsNontype,
-    DatatypeVariantReturnsNondata,
+    DatatypeVariantReturnsNondata(String),
 }
 
 impl<'a> Display for TypeErrorBody<'a> {
@@ -94,8 +94,8 @@ impl<'a> Display for TypeErrorBody<'a> {
             Self::DatatypeReturnsNontype => {
                 write!(f, "New data kind must return a type")
             }
-            Self::DatatypeVariantReturnsNondata => {
-                write!(f, "New data variant must return its datatype")
+            Self::DatatypeVariantReturnsNondata(s) => {
+                write!(f, "New data variant must return its datatype, not {}", s)
             }
             Self::TooManyArgs(e) => {
                 f.write_str("Too Many Arguments: ")?;

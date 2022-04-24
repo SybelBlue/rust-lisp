@@ -98,6 +98,26 @@ impl Type {
     pub(crate) fn datatype_name(&self) -> String {
         format!("{}", self)
     }
+
+    pub(crate) fn unwind(self) -> Vec<Self> {
+        if let Self::Fun(p, r) = self {
+            let mut out = p.unwind();
+            out.push(*r);
+            out
+        } else {
+            vec![self]
+        }
+    }
+
+    pub(crate) fn wind(ts: Vec<Self>) -> Option<Self> {
+        if ts.is_empty() { return None; }
+        let mut ts = ts;
+        let mut out = ts.pop().unwrap();
+        while let Some(p) = ts.pop() {
+            out = Type::fun(p, out);
+        }
+        Some(out)
+    }
 }
 
 impl Display for Type {

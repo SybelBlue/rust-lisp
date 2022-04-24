@@ -10,6 +10,7 @@ pub type QualifiedIdent = String;
 pub struct TypeContext{
     bound: HashMap<QualifiedIdent, Type>,
     aliased: HashMap<Ident, QualifiedIdent>,
+    datatypes: HashMap<Ident, Type>,
     type_vars: HashMap<usize, Option<Type>>,
 }
 
@@ -43,7 +44,8 @@ impl TypeContext {
         Self {
             bound,
             aliased,
-            type_vars: HashMap::with_capacity(1000),
+            datatypes: HashMap::with_capacity(100),
+            type_vars: HashMap::with_capacity(100),
         }
     }
 
