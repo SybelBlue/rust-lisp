@@ -12,7 +12,7 @@ pub enum Type {
     Nat,
     Char,
     Type,
-    Data(String),
+    Data(String, Box<Type>), // eg Data("Vec", [Nat -> Type -> Type])
     Var(usize),
     Fun(Box<Type>, Box<Type>),
 }
@@ -34,10 +34,11 @@ impl Type {
 
     pub(crate) fn concretize(&self, ctxt: &TypeContext) -> Self {
         let out = match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Type | Self::Data(_) => self.clone(),
-            Type::Fun(p, r) => 
-                Type::fun(p.concretize(ctxt), r.concretize(ctxt)),
-            Type::Var(id) => ctxt.query_tvar(*id),
+            Self::Unit | Self::Nat | Self::Char | Self::Type => self.clone(),
+            Self::Data(_, t) => t.as_ref().clone(),
+            Self::Fun(p, r) => 
+                Self::fun(p.concretize(ctxt), r.concretize(ctxt)),
+            Self::Var(id) => ctxt.query_tvar(*id),
         };
         if out == *self {
             out
@@ -53,7 +54,7 @@ impl Type {
                 p.variable_values(out);
                 r.variable_values(out);
             },
-            Self::Data(_) => todo!(),
+            Self::Data(_, t) => t.variable_values(out),
             _ => {}
         }
     }
@@ -70,7 +71,7 @@ impl Type {
 
     pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, char>, wrap: bool) -> std::fmt::Result {
         match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => self.fmt(f),
+            Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_, _) => self.fmt(f),
             Type::Var(n) => f.write_char(*map.get(n).unwrap()),
             Type::Fun(p, r) => {
                 if wrap { f.write_char('(')?; }
@@ -91,7 +92,7 @@ impl Display for Type {
             Type::Nat => write!(f, "Nat"),
             Type::Char => write!(f, "Char"),
             Type::Type => write!(f, "Type"),
-            Type::Data(s) => write!(f, "{}", s),
+            Type::Data(s, _) => write!(f, "{}", s),
             Type::Fun(_, _) => {
                 let mut vals = HashSet::new();
                 self.variable_values(&mut vals);
@@ -109,7 +110,7 @@ impl std::fmt::Debug for Type {
             Self::Nat => write!(f, "Nat"),
             Self::Char => write!(f, "Char"),
             Self::Type => write!(f, "Type"),
-            Self::Data(arg0) => f.debug_tuple("Data").field(arg0).finish(),
+            Self::Data(arg0, _) => f.debug_tuple("Data").field(arg0).finish(),
             Self::Var(arg0) => write!(f, "t_{}", arg0),
             Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),
         }

@@ -13,7 +13,7 @@ pub struct TypeContext{
     type_vars: HashMap<usize, Option<Type>>,
 }
 
-pub(crate) enum UnifyErr { Inf, Mis }
+pub enum UnifyErr { Inf, Mis }
 
 impl TypeContext {
     pub fn new() -> Self {
@@ -62,7 +62,8 @@ impl TypeContext {
     pub(crate) fn query(&self, t: &Type) -> Type {
         // println!("Query: {:?}", t);
         match t {
-            Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_) => t.clone(),
+            Type::Unit | Type::Nat | Type::Char | Type::Type => t.clone(),
+            Type::Data(_, t) => self.query(t.as_ref()),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 
                 Type::fun(self.query(p), self.query(r)),
