@@ -87,6 +87,17 @@ impl Type {
             },
         }
     }
+
+    pub(crate) fn return_type(&self) -> &Self {
+        match self {
+            Type::Fun(_, r) => r.return_type(),
+            s => s,
+        }
+    }
+
+    pub(crate) fn datatype_name(&self) -> String {
+        format!("{}", self)
+    }
 }
 
 impl Display for Type {

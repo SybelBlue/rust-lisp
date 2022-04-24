@@ -83,6 +83,11 @@ impl TypeContext {
         }
     }
 
+    pub fn bind(mut self, name: Ident, t: Type) -> Self {
+        self.bound.insert(name, t);
+        self
+    }
+
     pub(crate) fn bind_to_tvar(self, name: Ident) -> (Self, usize) {
         let (mut slf, k) = self.new_tvar();
         slf.bound.insert(name, Type::Var(k));

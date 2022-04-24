@@ -84,11 +84,19 @@ pub enum TypeErrorBody<'a> {
     TypeMismatch { got: Type, expected: Type },
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
+    DatatypeReturnsNontype,
+    DatatypeVariantReturnsNondata,
 }
 
 impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::DatatypeReturnsNontype => {
+                write!(f, "New data kind must return a type")
+            }
+            Self::DatatypeVariantReturnsNondata => {
+                write!(f, "New data variant must return its datatype")
+            }
             Self::TooManyArgs(e) => {
                 f.write_str("Too Many Arguments: ")?;
                 e.display_simple(f)

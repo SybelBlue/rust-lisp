@@ -5,7 +5,22 @@ use super::{Type, contexts::{TypeContext, UnifyErr}};
 
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
-        Expr::Data { .. } => Ok((Type::Unit, ctxt)),
+        Expr::Data { name, kind, variants } => {
+            let (kind, ctxt) = type_expr(kind, ctxt)?;
+            if kind.return_type() != &Type::Type {
+                return Err(TypeError::new(name.pos.clone(), DatatypeReturnsNontype))
+            }
+
+            let mut ctxt = ctxt.bind(name.body.clone(), kind);
+            for v in variants {
+                let (variant_type, new) = type_expr(&v.tipe, ctxt)?;
+                if variant_type.return_type().datatype_name() != name.body {
+                    return Err(TypeError::new(v.name.pos.clone(), DatatypeVariantReturnsNondata))
+                }
+                ctxt = new.bind(v.name.body.clone(), variant_type);
+            }
+            Ok((Type::Unit, ctxt))
+        },
         Expr::Val(v) => type_value(&v.body, ctxt, &v.pos),
         Expr::SExp(SToken { pos, body }) => {
             if let Some((fst, rst)) = body.0.split_first() {
