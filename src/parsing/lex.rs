@@ -6,9 +6,40 @@ use super::FilePos;
 
 #[derive(Debug, Clone)]
 pub enum Token<'a> {
-    Arrow(bool, FilePos<'a>),
+    Keyword(Keyword, FilePos<'a>),
     Word(String, FilePos<'a>),
     SExp(SToken<'a, Token<'a>>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Keyword { 
+    Data, 
+    Trait, 
+    Backarrow, 
+    Arrow 
+}
+
+impl Keyword {
+    fn from(s: &str) -> Option<Self> {
+        match s.as_bytes() {
+            b"->" => Some(Self::Arrow),
+            b"<-" => Some(Self::Backarrow),
+            b"data" => Some(Self::Data),
+            b"trait" => Some(Self::Trait),
+            _ => None,
+        }
+    }
+}
+
+impl std::fmt::Display for Keyword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Data => "data",
+            Self::Trait => "trait",
+            Self::Backarrow => "<-",
+            Self::Arrow => "->",
+        })
+    }
 }
 
 #[derive(Debug)]
@@ -110,10 +141,9 @@ impl<'a> LexStack<'a> {
     }
 
     fn dump_curr(&mut self) -> Token<'a> {
-        let out = match self.curr_word.as_bytes() {
-            b"->" => Token::Arrow(true, self.curr_word_start.clone()),
-            b"<-" => Token::Arrow(false, self.curr_word_start.clone()),
-            _ => Token::Word(self.curr_word.clone(), self.curr_word_start.clone()),
+        let out = match Keyword::from(self.curr_word.as_str()) {
+            Some(kw) => Token::Keyword(kw, self.curr_word_start.clone()),
+            None => Token::Word(self.curr_word.clone(), self.curr_word_start.clone()),
         };
         self.curr_word.clear();
         out

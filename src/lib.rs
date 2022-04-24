@@ -123,7 +123,7 @@ mod tests {
     }
 
     mod lexing {
-        use crate::{exprs::SToken, parsing::sources::Source};
+        use crate::{exprs::SToken, parsing::{sources::Source, lex::Keyword}};
 
         #[test]
         fn basic() {
@@ -131,30 +131,36 @@ mod tests {
             
             #[derive(Debug, PartialEq, Eq)]
             enum QSW<'a> {
-                A(bool),
+                K(Keyword),
                 S(Vec<QSW<'a>>),
                 W(&'a str)
             }
             use QSW::*;
+            use Keyword::*;
             impl<'a> From<&'a Token<'a>> for QSW<'a> {
                 fn from(t: &'a Token<'a>) -> Self {
                     match t {
                         Token::Word(s, _) => W(s.as_str()),
                         Token::SExp(SToken { body, ..}) => S(body.0.iter().map(QSW::from).collect()),
-                        Token::Arrow(f, _) => A(*f),
+                        Token::Keyword(f, _) => K(*f),
                     }
                 }
             }
     
-            let src = Source::Anon("()\nhello\n(+ 12 34 53) (  ->    test\n\t\n\n (2 hi)  ) (x <- 4) (<- bad) (test0(test1)test-2(test3 -> test4)) (0 (1 (2 (3)) ((4) 5)) 6)");
+            let src = Source::Anon("()\nhello\n(+ 12 34 53) (  ->    
+                test\n\t\n\n (2 hi)  ) (x <- 4) 
+                (<- bad) 
+                (data (Void Type))
+                (test0(test1)test-2(test3 -> test4)) (0 (1 (2 (3)) ((4) 5)) 6)");
             let test = vec!
                 [ S(vec![])
                 , W("hello")
                 , S(vec![W("+"), W("12"), W("34"), W("53")])
-                , S(vec![A(true), W("test"), S(vec![W("2"), W("hi")])])
-                , S(vec![W("x"), A(false), W("4")])
-                , S(vec![A(false), W("bad")])
-                , S(vec![W("test0"), S(vec![W("test1")]), W("test-2"), S(vec![W("test3"), A(true), W("test4")])])
+                , S(vec![K(Arrow), W("test"), S(vec![W("2"), W("hi")])])
+                , S(vec![W("x"), K(Backarrow), W("4")])
+                , S(vec![K(Backarrow), W("bad")])
+                , S(vec![K(Data), S(vec![W("Void"), W("Type")])])
+                , S(vec![W("test0"), S(vec![W("test1")]), W("test-2"), S(vec![W("test3"), K(Arrow), W("test4")])])
                 , S(vec![W("0")
                     , S(vec![W("1")
                         , S(vec![W("2")

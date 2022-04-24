@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::FilePos}, exprs::{Expr, typing::Type}};
+use crate::{parsing::{sources::FilePos, lex::Keyword}, exprs::{Expr, typing::Type}};
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -51,7 +51,7 @@ pub type ParseError<'a> = Loc<'a, ParseErrorBody<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum ParseErrorBody<'a> {
-    MisplacedArrow,
+    MisplacedKeyword(Keyword),
     MissingLambdaBody,
     ExtraLambdaBody,
     DuplicateLambdaArg(String),
@@ -62,7 +62,7 @@ pub enum ParseErrorBody<'a> {
 impl<'a> Display for ParseErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::MisplacedArrow => write!(f, "MisplacedArrow"),
+            Self::MisplacedKeyword(kw) => write!(f, "MisplacedKeyword({})", kw),
             Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
             Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
             Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
