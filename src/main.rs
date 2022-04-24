@@ -9,7 +9,7 @@ fn main() -> std::io::Result<()> {
     while let ReadResult::Input(input) = reader.read_line()? {
             let ref mut buf = String::new();
             match Source::Anon(input.as_str()).lex(buf) {
-            Ok(ts) =>
+            Ok(ts) => {
                 match parse_tokens(ts) {
                     Ok(es) => {
                         let mut ctxt = TypeContext::new();
@@ -24,6 +24,7 @@ fn main() -> std::io::Result<()> {
                         }
                     },
                     Err(e) => println!("** {}", e),
+                }
             },
             Err(e) => println!("** {}", e)
         }

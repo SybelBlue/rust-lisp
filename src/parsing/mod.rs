@@ -89,7 +89,7 @@ fn check_params<'a>(t: &Token<'a>) -> ParseResult<'a, ()> {
                 if !used.insert(w.clone()) {
                     return Err(Loc::new(pos.clone(), DuplicateLambdaArg(w.clone())))
                 },
-            Token::SExp(sbody) => to_check.extend(&sbody.body.0),
+            Token::SExp(sbody) => to_check.extend(sbody.body.0.iter().rev()),
         }
     }
     Ok(())

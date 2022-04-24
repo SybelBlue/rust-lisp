@@ -9,7 +9,7 @@ pub struct Loc<'a, T> {
     pub body: T,
 }
 
-impl<'a, T: Debug + Clone + Display> Loc<'a, T> {
+impl<'a, T: Display> Loc<'a, T> {
     pub(crate) fn new(pos: FilePos<'a>, body: T) -> Self {
         Self { pos, body }
     }
@@ -39,9 +39,9 @@ impl<'a> Display for LexErrorBody<'a> {
         match self {
             Self::TooManyClosing => f.write_str("Extra Closing Parenthesis"),
             Self::Unclosed(fp) => {
-                f.write_str("Unclosed Parens starting at:\n")?;
+                f.write_str("Unclosed Parens\nstarting\n")?;
                 fp.write_snippet(f)?;
-                f.write_str("ending at:\n")
+                f.write_str("ending")
             },
         }
     }
@@ -66,12 +66,7 @@ impl<'a> Display for ParseErrorBody<'a> {
             Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
             Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
             Self::InSExp(sfp) => {
-                if let Self::InSExp(inner) = &sfp.body {
-                    if sfp.pos.row == inner.pos.row {
-                        return Display::fmt(inner.as_ref(), f);
-                    }
-                }
-                write!(f, "In S-Expression:\n{}", sfp.body)
+                write!(f, "{}Inside SExpression", sfp.as_ref())
             },
         }
     }
