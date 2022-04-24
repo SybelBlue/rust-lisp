@@ -1,4 +1,4 @@
-use std::{fmt::{Display, Formatter, Result}};
+use std::{fmt::{Display, Formatter, Result, Write}};
 
 pub mod typing;
 pub mod values;
@@ -16,8 +16,9 @@ impl<T> Display for SExp<T>
     where T: Display {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         if let Some((fst, rst)) = self.0.split_first() {
-            write!(f, "{}", fst)?;
-            rst.into_iter().try_for_each(|e| write!(f, " {}", e))
+            write!(f, "({}", fst)?;
+            rst.into_iter().try_for_each(|e| write!(f, " {}", e))?;
+            f.write_char(')')
         } else {
             Ok(())
         }

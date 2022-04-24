@@ -110,7 +110,7 @@ impl std::fmt::Debug for Type {
             Self::Nat => write!(f, "Nat"),
             Self::Char => write!(f, "Char"),
             Self::Type => write!(f, "Type"),
-            Self::Data(arg0, _) => f.debug_tuple("Data").field(arg0).finish(),
+            Self::Data(arg0, _) => f.write_str(arg0),
             Self::Var(arg0) => write!(f, "t_{}", arg0),
             Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),
         }

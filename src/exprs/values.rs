@@ -17,7 +17,7 @@ impl<'a> std::fmt::Display for Value<'a> {
         match self {
             Value::Nat(n) => write!(f, "{}", n),
             Value::Sym(s) => write!(f, "{}", s),
-            Value::Lam(p, b) => write!(f, "({} -> {})", p, b),
+            Value::Lam(p, b) => write!(f, "{} -> {}", p, b),
             Value::Type(t) => write!(f, "{}", t),
         }
     }

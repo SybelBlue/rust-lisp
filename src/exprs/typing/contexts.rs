@@ -31,6 +31,9 @@ impl TypeContext {
             aliased.insert(al, qual);
         }
 
+        bound.insert(format!("Prelude.->"), fun(Type, fun(Type, Type)));
+        aliased.insert(format!("->"), format!("Prelude.->"));
+
         bound.insert(format!("Prelude.+"), fun(Nat, fun(Nat, Nat)));
         aliased.insert(format!("+"), format!("Prelude.+"));
         for t in [Type, Unit, Nat, Char] {
