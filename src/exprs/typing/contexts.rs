@@ -66,7 +66,8 @@ impl TypeContext {
         // println!("Query: {:?}", t);
         match t {
             Type::Unit | Type::Nat | Type::Char | Type::Type => t.clone(),
-            Type::Data(_, t) => self.query(t.as_ref()),
+            Type::Data(n, ts) => 
+                Type::Data(n.clone(), ts.iter().map(|p| self.query(p)).collect()),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 
                 Type::fun(self.query(p), self.query(r)),

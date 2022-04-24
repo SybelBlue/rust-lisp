@@ -12,7 +12,9 @@ pub enum Type {
     Nat,
     Char,
     Type,
-    Data(String, Box<Type>), // eg Data("Vec", [Nat -> Type -> Type])
+    // ComplexPolyData Nat (-> Nat Char) Char
+    // eventually want dependent typing, not yet capable.
+    Data(String, Vec<Type>), 
     Var(usize),
     Fun(Box<Type>, Box<Type>),
 }
@@ -35,7 +37,8 @@ impl Type {
     pub(crate) fn concretize(&self, ctxt: &TypeContext) -> Self {
         let out = match self {
             Self::Unit | Self::Nat | Self::Char | Self::Type => self.clone(),
-            Self::Data(_, t) => t.as_ref().clone(),
+            Self::Data(s, t) => 
+                Self::Data(s.clone(), t.iter().map(|p| ctxt.query(p)).collect()),
             Self::Fun(p, r) => 
                 Self::fun(p.concretize(ctxt), r.concretize(ctxt)),
             Self::Var(id) => ctxt.query_tvar(*id),
@@ -54,7 +57,8 @@ impl Type {
                 p.variable_values(out);
                 r.variable_values(out);
             },
-            Self::Data(_, t) => t.variable_values(out),
+            Self::Data(_, ts) => 
+                ts.iter().for_each(|p| p.variable_values(out)),
             _ => {}
         }
     }
