@@ -9,43 +9,42 @@ use self::{lex::Token, sources::FilePos};
 
 
 pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
+    if ts.is_empty() { return Ok(Vec::new()) }
+
     let mut ts = ts.into_iter();
-    match (ts.next(), ts.next()) {
-        // is unit
-        (None, _) => Ok(vec![]),
-        // is singleton
-        (Some(t), None) => Ok(vec![parse(t)?]),
-        // has at least two 
-        (Some(fst), Some(snd)) => {
-            let param_check = check_params(&fst);
-            match (parse(fst)?, parse_catch_arrow(snd)?) {
-                // snd is backarrow...
-                (_e, Err((false, _pos))) => {
-                    todo!("make binds")
+    
+    let fst_tkn = ts.next().unwrap();
+
+    let snd = if let Some(t) = ts.next() {
+        parse_catch_arrow(t)?
+    } else {
+        return Ok(vec![parse(fst_tkn)?]);
+    };
+
+    match snd {
+        Err((false, _pos)) => {
+            todo!("make binds")
+        }
+        Err((true, pos)) => {
+            check_params(&fst_tkn)?;
+            let params = parse(fst_tkn)?;
+            if let Some(t) = ts.next() {
+                if ts.next().is_none() {
+                    let body = parse_simple(t)?;
+                    Ok(vec![Expr::Val(Loc::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
+                } else {
+                    Err(Loc::new(pos, ExtraLambdaBody))
                 }
-                // snd is forward arrow..
-                (params, Err((true, pos))) => {
-                    param_check?;
-                    if let Some(t) = ts.next() {
-                        if ts.next().is_none() {
-                            let body = parse_simple(t)?;
-                            Ok(vec![Expr::Val(Loc::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
-                        } else {
-                            Err(Loc::new(pos, ExtraLambdaBody))
-                        }
-                    } else {
-                        Err(Loc::new(pos, MissingLambdaBody))
-                    }
-                }
-                // neither are arrows..
-                (fst, Ok(snd)) => {
-                    let mut out = vec![fst, snd];
-                    for t in ts {
-                        out.push(parse_simple(t)?);
-                    }
-                    Ok(out)
-                }
+            } else {
+                Err(Loc::new(pos, MissingLambdaBody))
             }
+        }
+        Ok(snd) => {
+            let mut out = vec![parse(fst_tkn)?, snd];
+            for t in ts {
+                out.push(parse_simple(t)?);
+            }
+            Ok(out)
         }
     }
 }
