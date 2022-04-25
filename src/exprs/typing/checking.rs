@@ -6,14 +6,9 @@ use super::{Type, contexts::{TypeContext, UnifyErr}};
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
         Expr::Data { name, kind, variants } => {
+            // need a parse_expr instead that captures type variables
+            // and returns a Type instead of evaluating the type of "(-> Nat Nat) ~> Type"
             let (kind, ctxt) = type_expr(kind, ctxt)?;
-            
-            let mut ts = kind.unwind();
-            if ts.pop() != Some(Type::Type) {
-                return Err(TypeError::new(name.pos.clone(), DatatypeReturnsNontype));
-            }
-            ts.push(Type::Data(name.body.clone(), vec![]));
-            let kind = Type::wind(ts).unwrap();
 
             let mut ctxt = ctxt.bind(name.body.clone(), kind);
             for v in variants {
