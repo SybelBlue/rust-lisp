@@ -13,8 +13,6 @@ pub enum Token<'a> {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword { 
-    Data, 
-    Trait, 
     Backarrow, 
     Arrow 
 }
@@ -24,8 +22,6 @@ impl Keyword {
         match s.as_bytes() {
             b"->" => Some(Self::Arrow),
             b"<-" => Some(Self::Backarrow),
-            b"data" => Some(Self::Data),
-            b"trait" => Some(Self::Trait),
             _ => None,
         }
     }
@@ -34,8 +30,6 @@ impl Keyword {
 impl std::fmt::Display for Keyword {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
-            Self::Data => "data",
-            Self::Trait => "trait",
             Self::Backarrow => "<-",
             Self::Arrow => "->",
         })

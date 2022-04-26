@@ -42,12 +42,6 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
                 Err(ParseError::new(pos, MissingLambdaBody))
             }
         }
-        Err((Trait, pos)) => {
-            Err(ParseError::new(pos, NotYetImplemented("traits")))
-        }
-        Err((Data, pos)) => {
-            Err(ParseError::new(pos, NotYetImplemented("data")))
-        }
         Ok(snd) => {
             let mut out = vec![parse_first(fst_tkn)?, snd];
             for t in ts {
@@ -68,8 +62,6 @@ fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
         Ok(e) => Ok(e),
         Err((Arrow, pos)) => Ok(Expr::Val(VToken::new(pos, Value::Sym(String::from("->"))))),
         Err((Backarrow, pos)) => Err(ParseError::new(pos, MisplacedKeyword(Backarrow))),
-        Err((Data, pos)) => Err(ParseError::new(pos, NotYetImplemented("data"))),
-        Err((Trait, pos)) => Err(ParseError::new(pos, NotYetImplemented("trait"))),
     }
 }
 
