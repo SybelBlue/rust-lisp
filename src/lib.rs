@@ -14,8 +14,12 @@ mod tests {
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
-            let es = crate::parsing::parse(ts).unwrap();
-            crate::typing::checking::type_stmt(es.last().unwrap(), TypeContext::new()).unwrap().0
+            let ss = crate::parsing::parse(ts).unwrap();
+            ss.iter().try_fold(
+                (Type::Unit, TypeContext::new()), 
+                |(_, ctxt), s| crate::typing::checking::type_stmt(&s, ctxt)
+            ).unwrap().0
+
         }
         
         macro_rules! assert_fmt_eq {
@@ -50,6 +54,19 @@ mod tests {
             assert_fmt_eq!(fun(fun(Nat, Var(1)), Var(1)), type_test("(f -> (f 3))"));
 
             assert_eq!(fun(fun(Nat, fun(Nat, Nat)), Nat), type_test("(f -> (f (f 1 2) (f 3 4)))"));
+        }
+
+        #[test]
+        fn basic_binds() {
+            use crate::typing::Type::{self, *};
+            assert_eq!(Unit, type_test("(unit <- ())"));
+            assert_eq!(Unit, type_test("(unit <- (()))"));
+            assert_eq!(Unit, type_test("(unit <- (())) unit"));
+            assert_eq!(Nat, type_test("(x <- 3)"));
+            assert_eq!(Nat, type_test("(x <- (3))"));
+            assert_eq!(Nat, type_test("(x <- 3) x"));
+            assert_eq!(Type::fun(Nat, Nat), type_test("((double x) <- (+ x x))"));
+            assert_eq!(Nat, type_test("(x <- 3) ((double x) <- (+ x x)) (double x)"));
         }
 
         #[test]
