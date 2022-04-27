@@ -7,7 +7,7 @@ pub type QualifiedIdent = String;
 
 
 #[derive(Debug, Clone)]
-pub struct TypeContext{
+pub struct TypeContext {
     bound: HashMap<QualifiedIdent, Type>,
     aliased: HashMap<Ident, QualifiedIdent>,
     type_vars: HashMap<usize, Option<Type>>,
