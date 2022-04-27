@@ -8,7 +8,7 @@ use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp, Stmt}, errors::
 use crate::errors::ParseErrorBody::*;
 use crate::parsing::lex::Keyword::*;
 
-use self::{lex::{Token, Keyword}, sources::FilePos};
+use self::{lex::{Token, Keyword, TokenBody}, sources::FilePos};
 
 
 pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
@@ -81,34 +81,34 @@ fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
 }
 
 /// If successful, returns an expr or the direction and location of an arrow
-fn parse_catch_keyword<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (Keyword, FilePos<'a>)>> {
-    Ok(match t {
-        Token::Word(w, pos) =>
+fn parse_catch_keyword<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (Keyword, FilePos<'a>)>> {
+    Ok(match body {
+        TokenBody::Word(w) =>
             Ok(if let Ok(n) = w.parse::<usize>() {
                 Expr::Val(VToken::new(pos, Value::Nat(n)))
             } else {
                 Expr::Val(VToken::new(pos, Value::Sym(w)))
             }),
-        Token::SExp(SToken { pos: locable, body }) => {
-            let body = parse_no_stmts(body.0)
-                .map_err(|e| ParseError::new(locable.clone(), InSExp(Box::new(e))))?;
-            Ok(Expr::SExp(SToken::new(locable, SExp(body))))
+        TokenBody::SExp(SExp(body)) => {
+            let body = parse_no_stmts(body)
+                .map_err(|e| ParseError::new(pos.clone(), InSExp(Box::new(e))))?;
+            Ok(Expr::SExp(SToken::new(pos, SExp(body))))
         },
-        Token::Keyword(kw, pos) => Err((kw, pos)),
+        TokenBody::Keyword(kw) => Err((kw, pos)),
     })
 }
 
 fn check_params<'a>(t: &Token<'a>) -> ParseResult<'a, ()> {
     let mut used = HashSet::new();
     let mut to_check = vec![t];
-    while let Some(next) = to_check.pop() {
-        match next {
-            Token::Keyword(kw, fp) => return Err(ParseError::new(fp.clone(), MisplacedKeyword(*kw))),
-            Token::Word(w, pos) =>
+    while let Some(Token { pos, body }) = to_check.pop() {
+        match body {
+            TokenBody::Keyword(kw) => return Err(ParseError::new(pos.clone(), MisplacedKeyword(*kw))),
+            TokenBody::Word(w) =>
                 if !used.insert(w.clone()) {
                     return Err(ParseError::new(pos.clone(), DuplicateLambdaArg(w.clone())))
                 },
-            Token::SExp(sbody) => to_check.extend(sbody.body.0.iter().rev()),
+            TokenBody::SExp(SExp(sbody)) => to_check.extend(sbody.iter().rev()),
         }
     }
     Ok(())

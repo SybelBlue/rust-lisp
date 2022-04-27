@@ -1,14 +1,16 @@
 use std::str::Chars;
 
-use crate::{exprs::{SToken, SExp}, errors::{LexError, LexResult, LexErrorBody}};
+use crate::{exprs::SExp, errors::{LexError, LexResult, LexErrorBody, Loc}};
 
 use super::FilePos;
 
+pub type Token<'a> = Loc<'a, TokenBody<'a>>;
+
 #[derive(Debug, Clone)]
-pub enum Token<'a> {
-    Keyword(Keyword, FilePos<'a>),
-    Word(String, FilePos<'a>),
-    SExp(SToken<'a, Token<'a>>),
+pub enum TokenBody<'a> {
+    Keyword(Keyword),
+    Word(String),
+    SExp(SExp<Token<'a>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -115,13 +117,13 @@ impl<'a> LexStack<'a> {
 
     fn close_sexp(mut self) -> Result<Self, LexErrorBody<'a>> {
         let last_sexp = self.sexp_stack.pop();
-        let (start, mut body) = last_sexp.ok_or(LexErrorBody::TooManyClosing)?;
+        let (pos, mut body) = last_sexp.ok_or(LexErrorBody::TooManyClosing)?;
 
         if self.curr_word.len() > 0 {
             body.push(self.dump_curr());
         }
 
-        self.push_token(Token::SExp(SToken { pos: start, body: SExp(body) }));
+        self.push_token(Token { pos, body: TokenBody::SExp(SExp(body)) });
         Ok(self)
     }
 
@@ -135,12 +137,12 @@ impl<'a> LexStack<'a> {
     }
 
     fn dump_curr(&mut self) -> Token<'a> {
-        let out = match Keyword::from(self.curr_word.as_str()) {
-            Some(kw) => Token::Keyword(kw, self.curr_word_start.clone()),
-            None => Token::Word(self.curr_word.clone(), self.curr_word_start.clone()),
+        let body = match Keyword::from(self.curr_word.as_str()) {
+            Some(kw) => TokenBody::Keyword(kw),
+            None => TokenBody::Word(self.curr_word.clone()),
         };
         self.curr_word.clear();
-        out
+        Token { pos: self.curr_word_start.clone(), body }
     }
 
     fn push_char(&mut self, ch: char, curr_pos: &FilePos<'a>) { 

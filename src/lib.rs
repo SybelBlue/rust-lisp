@@ -101,11 +101,11 @@ mod tests {
     }
 
     mod lexing {
-        use crate::{exprs::SToken, parsing::{sources::Source, lex::Keyword}};
+        use crate::parsing::{sources::Source, lex::Keyword};
 
         #[test]
         fn basic() {
-            use crate::parsing::lex::Token;
+            use crate::parsing::lex::{Token, TokenBody};
             
             #[derive(Debug, PartialEq, Eq)]
             enum QSW<'a> {
@@ -117,10 +117,10 @@ mod tests {
             use Keyword::*;
             impl<'a> From<&'a Token<'a>> for QSW<'a> {
                 fn from(t: &'a Token<'a>) -> Self {
-                    match t {
-                        Token::Word(s, _) => W(s.as_str()),
-                        Token::SExp(SToken { body, ..}) => S(body.0.iter().map(QSW::from).collect()),
-                        Token::Keyword(f, _) => K(*f),
+                    match &t.body {
+                        TokenBody::Word(s) => W(s.as_str()),
+                        TokenBody::SExp(body) => S(body.0.iter().map(QSW::from).collect()),
+                        TokenBody::Keyword(kw) => K(*kw),
                     }
                 }
             }
