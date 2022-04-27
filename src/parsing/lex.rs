@@ -2,7 +2,7 @@ use std::str::Chars;
 
 use crate::{exprs::SExp, errors::{LexError, LexResult, LexErrorBody, Loc}};
 
-use super::FilePos;
+use super::sources::FilePos;
 
 pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 
