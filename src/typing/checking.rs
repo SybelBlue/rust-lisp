@@ -1,7 +1,16 @@
-use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos};
+use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::Stmt};
 use crate::exprs::{values::Value, Expr, SToken};
 
 use super::{Type, contexts::{TypeContext, UnifyErr}};
+
+pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+    match s {
+        Stmt::Expr(e) => 
+            type_expr(e, ctxt),
+        Stmt::Bind(_, vloc) => 
+            type_value(&vloc.body, ctxt, &vloc.pos),
+    }
+}
 
 pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {

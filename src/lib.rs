@@ -16,7 +16,7 @@ mod tests {
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let es = parse_tokens(ts).unwrap();
-            crate::typing::checking::type_expr(&es[0], TypeContext::new()).unwrap().0
+            crate::typing::checking::type_stmt(&es[0], TypeContext::new()).unwrap().0
         }
         
         macro_rules! assert_fmt_eq {

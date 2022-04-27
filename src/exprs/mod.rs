@@ -68,10 +68,6 @@ impl<'a> Stmt<'a> {
     pub(crate) fn value(pos: FilePos<'a>, v: Value<'a>) -> Self {
         Self::Expr(Expr::Val(VToken { pos, body: v }))
     }
-    
-    pub(crate) fn sexp(pos: FilePos<'a>, s: Vec<Expr<'a>>) -> Self {
-        Self::Expr(Expr::SExp(SToken { pos, body: SExp(s)}))
-    }
 }
 
 impl<'a> Display for Stmt<'a> {
