@@ -52,6 +52,7 @@ pub type ParseError<'a> = Loc<'a, ParseErrorBody<'a>>;
 #[derive(Debug, Clone)]
 pub enum ParseErrorBody<'a> {
     MisplacedKeyword(Keyword),
+    MissingBindingIdentifier,
     MissingLambdaBody,
     ExtraLambdaBody,
     DuplicateLambdaArg(String),
@@ -63,6 +64,7 @@ impl<'a> Display for ParseErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::MisplacedKeyword(kw) => write!(f, "MisplacedKeyword({})", kw),
+            Self::MissingBindingIdentifier => write!(f, "MissingBindingIdentifier"),
             Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
             Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
             Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),

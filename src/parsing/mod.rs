@@ -11,7 +11,7 @@ use crate::parsing::lex::Keyword::*;
 use self::{lex::{Token, Keyword}, sources::FilePos};
 
 
-pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
+pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
     if ts.is_empty() { return Ok(Vec::new()) }
 
     let mut ts = ts.into_iter();
@@ -57,7 +57,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
 
 fn parse_no_stmts<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     let mut out = Vec::new();
-    for t in parse_tokens(ts)? {
+    for t in parse(ts)? {
         match t {
             Stmt::Expr(e) => out.push(e),
             Stmt::Bind(_, VToken { pos, .. }) => 

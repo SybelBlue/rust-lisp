@@ -58,10 +58,12 @@ impl<'a> Display for Expr<'a> {
     }
 }
 
+pub type Ident<'a> = Loc<'a, String>;
+
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
-    Bind(Loc<'a, String>, VToken<'a>),
+    Bind(Ident<'a>, VToken<'a>),
 }
 
 impl<'a> Stmt<'a> {

@@ -10,12 +10,11 @@ mod tests {
 
         fn type_test<'a>(s: &'a str) -> Type {
             use crate::typing::contexts::TypeContext;
-            use crate::parsing::parse_tokens;
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
-            let es = parse_tokens(ts).unwrap();
+            let es = crate::parsing::parse(ts).unwrap();
             crate::typing::checking::type_stmt(&es[0], TypeContext::new()).unwrap().0
         }
         
@@ -38,6 +37,11 @@ mod tests {
             
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"+"));
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(+)"));
+        }
+
+        #[test]
+        fn debug() {
+            type_test(&"(x <- 3)");
         }
 
         #[test]
