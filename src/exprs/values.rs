@@ -1,6 +1,7 @@
 use crate::errors::Loc;
 
-use super::{Expr, typing::Type};
+use super::Expr;
+use crate::typing::Type;
 
 pub type VToken<'a> = Loc<'a, Value<'a>>;
 

@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::FilePos, lex::Keyword}, exprs::{Expr, typing::Type}};
+use crate::{parsing::{sources::FilePos, lex::Keyword}, exprs::Expr, typing::Type};
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]

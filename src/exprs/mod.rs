@@ -1,6 +1,5 @@
 use std::{fmt::{Display, Formatter, Result, Write}};
 
-pub mod typing;
 pub mod values;
 
 use crate::errors::Loc;
