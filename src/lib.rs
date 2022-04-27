@@ -93,6 +93,41 @@ mod tests {
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
                 type_test("((fbcd gab hac a) -> (fbcd (gab a) (hac a)))"));
         }
+
+        #[test]
+        fn named_aviary() {
+            use crate::typing::Type::Var;
+            let fun = crate::typing::Type::fun;
+
+            assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("((kestrel x) <- (_ -> x))"));
+            
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(2), Var(3))), 
+                    fun(fun(Var(1), Var(2)), 
+                    fun(Var(1), 
+                    fun(Var(1)
+                    , Var(3))))), type_test("((on f g x y) <- (f (g x) (g y)))"));
+            
+            assert_fmt_eq!(
+                fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test("((bluebird g f x) <- (g (f x)))"));
+            
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
+                type_test("((cardinal f b a) <- (f a b))"));
+            
+            assert_fmt_eq!(
+                fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
+                type_test("(($ f a) <- (f a))"));
+            
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test("((starling fabc gab a) <- (fabc a (gab a)))"));
+            
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
+                type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
+        }
     }
 
     mod lexing {
