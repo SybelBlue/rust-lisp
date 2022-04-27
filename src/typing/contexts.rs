@@ -18,27 +18,13 @@ pub enum UnifyErr { Inf, Mis }
 impl TypeContext {
     pub fn new() -> Self {
         use super::Type::*;
-        type Type_ = super::Type;
         let fun = super::Type::fun;
         
         let mut bound = HashMap::with_capacity(10);
         let mut aliased = HashMap::with_capacity(10);
-        
-        fn type_binding(t: Type_, bound: &mut HashMap<String, Type_>, aliased: &mut HashMap<String, String>) {
-            let al = format!("{}", t);
-            let qual = format!("Prelude.{}", al);
-            bound.insert(qual.clone(), Type);
-            aliased.insert(al, qual);
-        }
-
-        bound.insert(format!("Prelude.->"), fun(Type, fun(Type, Type)));
-        aliased.insert(format!("->"), format!("Prelude.->"));
 
         bound.insert(format!("Prelude.+"), fun(Nat, fun(Nat, Nat)));
         aliased.insert(format!("+"), format!("Prelude.+"));
-        for t in [Type, Unit, Nat, Char] {
-            type_binding(t, &mut bound, &mut aliased);
-        }
         
         Self {
             bound,

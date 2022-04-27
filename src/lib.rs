@@ -38,24 +38,6 @@ mod tests {
             
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"+"));
             assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(+)"));
-            
-            // TODO: these guys            
-            // Str,
-            // Type,
-            // Data(String),
-            // Var(usize),
-        }
-
-        #[test]
-        fn type_fn_basic() {
-            use crate::typing::Type::*;
-
-            assert_eq!(Type, type_test("Unit"));
-            assert_eq!(Type, type_test("(Unit)"));
-            assert_eq!(Type, type_test("Nat"));
-            assert_eq!(Type, type_test("(Nat)"));
-            assert_eq!(Type, type_test("((Nat))"));
-            assert_eq!(Type, type_test("Type"));
         }
 
         #[test]
@@ -69,15 +51,6 @@ mod tests {
             assert_fmt_eq!(fun(fun(Nat, Var(1)), Var(1)), type_test("(f -> (f 3))"));
 
             assert_eq!(fun(fun(Nat, fun(Nat, Nat)), Nat), type_test("(f -> (f (f 1 2) (f 3 4)))"));
-        }
-
-        #[test]
-        fn type_fn_lambdas() {
-            use crate::typing::Type::*;
-            let fun = crate::typing::Type::fun;
-
-            assert_fmt_eq!(fun(fun(Type, Var(1)), Var(1)), type_test("(f -> (f Nat))"));
-            assert_fmt_eq!(fun(fun(Type, fun(Unit, Type)), Type), type_test("(f -> (f (f Nat ()) ()))"));
         }
 
         #[test]
