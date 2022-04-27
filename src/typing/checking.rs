@@ -11,6 +11,9 @@ pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type
             let (ctxt, tvar) = ctxt.bind_to_tvar(name.clone());
             let s = Type::Var(tvar);
             let (t, ctxt) = type_expr(e, ctxt)?;
+            if s == t {
+                return Err(TypeError::new(pos.clone(), InfiniteType(s, t)));
+            }
             match ctxt.unify(&s, &t) {
                 Ok(ctxt) => Ok((t, ctxt)),
                 Err(e) => match e {
