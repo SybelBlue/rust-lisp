@@ -13,6 +13,12 @@ pub enum Value<'a> {
     Type(Type)
 }
 
+impl<'a> Value<'a> {
+    pub fn lam(p: Expr<'a>, r: Expr<'a>) -> Self {
+        Self::Lam(Box::new(p), Box::new(r))
+    }
+}
+
 impl<'a> std::fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {

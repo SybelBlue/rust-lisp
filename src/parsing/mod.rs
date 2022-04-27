@@ -3,7 +3,7 @@ pub mod sources;
 
 use std::collections::HashSet;
 
-use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp}, errors::{ParseResult, ParseError}};
+use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp, Stmt}, errors::{ParseResult, ParseError}};
 
 use crate::errors::ParseErrorBody::*;
 use crate::parsing::lex::Keyword::*;
@@ -11,7 +11,7 @@ use crate::parsing::lex::Keyword::*;
 use self::{lex::{Token, Keyword}, sources::FilePos};
 
 
-pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
+pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
     if ts.is_empty() { return Ok(Vec::new()) }
 
     let mut ts = ts.into_iter();
@@ -21,7 +21,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     let snd = if let Some(t) = ts.next() {
         parse_catch_keyword(t)?
     } else {
-        return Ok(vec![parse_first(fst_tkn)?]);
+        return Ok(vec![Stmt::Expr(parse_first(fst_tkn)?)]);
     };
 
     match snd {
@@ -34,7 +34,7 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
             if let Some(t) = ts.next() {
                 if ts.next().is_none() {
                     let body = parse_simple(t)?;
-                    Ok(vec![Expr::Val(VToken::new(pos, Value::Lam(Box::new(params), Box::new(body))))])
+                    Ok(vec![Stmt::value(pos, Value::lam(params, body))])
                 } else {
                     Err(ParseError::new(pos, ExtraLambdaBody))
                 }
@@ -43,13 +43,28 @@ pub fn parse_tokens<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
             }
         }
         Ok(snd) => {
-            let mut out = vec![parse_first(fst_tkn)?, snd];
+            let mut out = vec![
+                Stmt::Expr(parse_first(fst_tkn)?), 
+                Stmt::Expr(snd)
+            ];
             for t in ts {
-                out.push(parse_simple(t)?);
+                out.push(Stmt::Expr(parse_simple(t)?));
             }
             Ok(out)
         }
     }
+}
+
+fn parse_no_stmts<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
+    let mut out = Vec::new();
+    for t in parse_tokens(ts)? {
+        match t {
+            Stmt::Expr(e) => out.push(e),
+            Stmt::Bind(_, VToken { pos, .. }) => 
+                return Err(ParseError::new(pos, MisplacedKeyword(Backarrow))),
+        }
+    }
+    Ok(out)
 }
 
 fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
@@ -75,7 +90,7 @@ fn parse_catch_keyword<'a>(t: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (Ke
                 Expr::Val(VToken::new(pos, Value::Sym(w)))
             }),
         Token::SExp(SToken { pos: locable, body }) => {
-            let body = parse_tokens(body.0)
+            let body = parse_no_stmts(body.0)
                 .map_err(|e| ParseError::new(locable.clone(), InSExp(Box::new(e))))?;
             Ok(Expr::SExp(SToken::new(locable, SExp(body))))
         },

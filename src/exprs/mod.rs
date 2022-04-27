@@ -61,7 +61,7 @@ impl<'a> Display for Expr<'a> {
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
-    Bind(Loc<'a, String>, Value<'a>),
+    Bind(Loc<'a, String>, VToken<'a>),
 }
 
 impl<'a> Stmt<'a> {
@@ -78,9 +78,9 @@ impl<'a> Display for Stmt<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Expr(e) => e.fmt(f),
-            Self::Bind(lstr, v) => {
+            Self::Bind(lstr, lv) => {
                 lstr.display_simple(f)?;
-                v.fmt(f)
+                lv.display_simple(f)
             }
         }
     }
