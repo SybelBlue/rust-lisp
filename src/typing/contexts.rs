@@ -49,7 +49,6 @@ impl TypeContext {
     }
 
     pub(crate) fn query(&self, t: &Type) -> Type {
-        // println!("Query: {:?}", t);
         match t {
             Type::Unit | Type::Nat | Type::Char | Type::Type => t.clone(),
             Type::Data(_, t) => self.query(t.as_ref()),

@@ -83,6 +83,15 @@ impl Type {
             },
         }
     }
+
+    pub(crate) fn is_concrete(&self) -> bool {
+        match self {
+            Type::Unit | Type::Nat | Type::Char | Type::Type => true,
+            Type::Data(_, _) => todo!("is data concrete?"),
+            Type::Fun(p, r) => p.is_concrete() && r.is_concrete(),
+            Type::Var(_) => false,
+        }
+    }
 }
 
 impl Display for Type {

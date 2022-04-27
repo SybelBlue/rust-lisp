@@ -1,13 +1,45 @@
-use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident}};
+use std::collections::HashMap;
+
+use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident, values::VToken}};
 use crate::exprs::{values::Value, Expr, SToken};
 
 use super::{Type, contexts::{TypeContext, UnifyErr}};
+
+pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'a, TypeContext> {
+    let mut ctxt = ctxt;
+    let mut delayed = HashMap::with_capacity(stmts.len());
+    for s in stmts {
+        if let Stmt::Bind(Ident { body: name, .. }, e) = s {
+            if let Expr::Val(val@VToken { body: Value::Lam(_, _), .. }) = e {
+                let (new, tvar) = ctxt.bind_to_tvar(name.clone());
+                delayed.insert(name, (Type::Var(tvar), val));
+                ctxt = new;
+                continue;
+            }
+        }
+        let (_, new) = type_stmt(s, ctxt)?;
+        ctxt = new;
+    }
+
+    'main: loop {
+        for (_, (t, v)) in delayed.iter_mut() {
+            if t.is_concrete() { continue; }
+            let (new_t, new_ctxt) = type_value(&v.body, ctxt, &v.pos)?;
+            ctxt = new_ctxt;
+            if &new_t != t {
+                *t = new_t;
+                continue 'main;
+            }
+        }
+        return Ok(ctxt);
+    }
+}
 
 pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match s {
         Stmt::Expr(e) => 
             type_expr(e, ctxt),
-        Stmt::Bind(Ident { pos, body: name }, e) => {
+        Stmt::Bind(Ident { body: name, pos }, e) => {
             let (ctxt, tvar) = ctxt.bind_to_tvar(name.clone());
             let s = Type::Var(tvar);
             let (t, ctxt) = type_expr(e, ctxt)?;
@@ -24,7 +56,6 @@ pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type
                 },
             }
         }
-
     }
 }
 
