@@ -2,7 +2,7 @@ use std::{fmt::{Display, Formatter, Result, Write}};
 
 pub mod values;
 
-use crate::errors::Loc;
+use crate::{errors::Loc, parsing::sources::FilePos};
 
 use self::values::{Value, VToken};
 
@@ -55,5 +55,33 @@ impl<'a> Expr<'a> {
 impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         self.display_simple(f)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum Stmt<'a> {
+    Expr(Expr<'a>),
+    Bind(Loc<'a, String>, Value<'a>),
+}
+
+impl<'a> Stmt<'a> {
+    pub(crate) fn value(pos: FilePos<'a>, v: Value<'a>) -> Self {
+        Self::Expr(Expr::Val(VToken { pos, body: v }))
+    }
+    
+    pub(crate) fn sexp(pos: FilePos<'a>, s: Vec<Expr<'a>>) -> Self {
+        Self::Expr(Expr::SExp(SToken { pos, body: SExp(s)}))
+    }
+}
+
+impl<'a> Display for Stmt<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Self::Expr(e) => e.fmt(f),
+            Self::Bind(lstr, v) => {
+                lstr.display_simple(f)?;
+                v.fmt(f)
+            }
+        }
     }
 }
