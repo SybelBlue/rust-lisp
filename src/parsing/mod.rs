@@ -21,7 +21,7 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
     let snd = if let Some(t) = ts.next() {
         parse_catch_keyword(t)?
     } else {
-        return Ok(vec![Stmt::Expr(parse_first(fst_tkn)?)]);
+        return Ok(vec![Stmt::Expr(parse_simple(fst_tkn)?)]);
     };
 
     match snd {
@@ -37,13 +37,13 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
         }
         Err((Arrow, pos)) => {
             check_params(&fst_tkn)?;
-            let params = parse_first(fst_tkn)?;
+            let params = parse_simple(fst_tkn)?;
             let body = get_lambda_body(pos.clone(), ts)?;
             Ok(vec![Stmt::value(pos, Value::lam(params, body))])
         }
         Ok(snd) => {
             let mut out = vec![
-                Stmt::Expr(parse_first(fst_tkn)?), 
+                Stmt::Expr(parse_simple(fst_tkn)?), 
                 Stmt::Expr(snd)
             ];
             for t in ts {
@@ -67,7 +67,7 @@ fn get_lambda_body<'a>(arrpos: FilePos<'a>, ts: IntoIter<Token<'a>>) -> ParseRes
     }
 }
 
-fn parse_no_stmts<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
+fn parse_exprs<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     let mut out = Vec::new();
     for t in parse(ts)? {
         match t {
@@ -84,14 +84,6 @@ fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
         ParseError::new(fp, MisplacedKeyword(kw)))
 }
 
-fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
-    match parse_catch_keyword(t)? {
-        Ok(e) => Ok(e),
-        Err((kw@Arrow, pos)) | Err((kw@Backarrow, pos)) => 
-            Err(ParseError::new(pos, MisplacedKeyword(kw))),
-    }
-}
-
 /// If successful, returns an expr or the direction and location of an arrow
 fn parse_catch_keyword<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Result<Expr<'a>, (Keyword, FilePos<'a>)>> {
     Ok(match body {
@@ -102,7 +94,7 @@ fn parse_catch_keyword<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Re
                 Expr::Val(VToken::new(pos, Value::Sym(w)))
             }),
         TokenBody::SExp(SExp(body)) => {
-            let body = parse_no_stmts(body)
+            let body = parse_exprs(body)
                 .map_err(|e| ParseError::new(pos.clone(), InSExp(Box::new(e))))?;
             Ok(Expr::SExp(SToken::new(pos, SExp(body))))
         },
