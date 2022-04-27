@@ -1,4 +1,4 @@
-use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::Stmt};
+use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident}};
 use crate::exprs::{values::Value, Expr, SToken};
 
 use super::{Type, contexts::{TypeContext, UnifyErr}};
@@ -7,8 +7,21 @@ pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type
     match s {
         Stmt::Expr(e) => 
             type_expr(e, ctxt),
-        Stmt::Bind(_, e) => 
-            type_expr(e, ctxt),
+        Stmt::Bind(Ident { pos, body: name }, e) => {
+            let (ctxt, tvar) = ctxt.bind_to_tvar(name.clone());
+            let s = Type::Var(tvar);
+            let (t, ctxt) = type_expr(e, ctxt)?;
+            match ctxt.unify(&s, &t) {
+                Ok(ctxt) => Ok((t, ctxt)),
+                Err(e) => match e {
+                    UnifyErr::Inf => 
+                        Err(TypeError::new(pos.clone(), InfiniteType(s, t))),
+                    UnifyErr::Mis => 
+                        todo!("shouldn't be possible, unifying var"),
+                },
+            }
+        }
+
     }
 }
 

@@ -81,8 +81,11 @@ impl<'a> Display for Stmt<'a> {
         match self {
             Self::Expr(e) => e.fmt(f),
             Self::Bind(lstr, lv) => {
+                f.write_char('(')?;
                 lstr.display_simple(f)?;
-                lv.display_simple(f)
+                f.write_str(" ")?;
+                lv.display_simple(f)?;
+                f.write_char(')')
             }
         }
     }

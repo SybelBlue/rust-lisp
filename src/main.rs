@@ -5,6 +5,7 @@ use rust_lisp::{parsing::{parse, sources::Source}, typing::{checking::type_stmt,
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
     reader.set_prompt(">> ")?;
+    let mut ctxt = TypeContext::new();
 
     while let ReadResult::Input(input) = reader.read_line()? {
             let ref mut buf = String::new();
@@ -12,7 +13,6 @@ fn main() -> std::io::Result<()> {
             Ok(ts) => {
                 match parse(ts) {
                     Ok(es) => {
-                        let mut ctxt = TypeContext::new();
                         for e in &es {
                             match type_stmt(e, ctxt.clone()) {
                                 Ok((t, new)) => {
