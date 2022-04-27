@@ -75,8 +75,8 @@ fn parse_simple<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
 fn parse_first<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     match parse_catch_keyword(t)? {
         Ok(e) => Ok(e),
-        Err((Arrow, pos)) => Ok(Expr::Val(VToken::new(pos, Value::Sym(String::from("->"))))),
-        Err((Backarrow, pos)) => Err(ParseError::new(pos, MisplacedKeyword(Backarrow))),
+        Err((kw@Arrow, pos)) | Err((kw@Backarrow, pos)) => 
+            Err(ParseError::new(pos, MisplacedKeyword(kw))),
     }
 }
 
