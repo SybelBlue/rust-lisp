@@ -145,6 +145,23 @@ mod tests {
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
                 type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
         }
+
+        #[test]
+        fn mod_test() {
+            use crate::typing::contexts::TypeContext;
+
+            let src = Source::Anon("\
+            ((foo x) <- (baz (+ x y)))\
+            (y <- 7)\
+            ((baz x) <- (foo (foo (+ y x))))");
+            let ref mut buf = String::new();
+            let ts = src.lex(buf).unwrap();
+            let ss = crate::parsing::parse(ts).unwrap();
+            let ctxt = crate::typing::checking::type_mod(&ss, TypeContext::new()).unwrap();
+            let out = ctxt.get(&String::from("foo")).unwrap();
+            assert_eq!(Type::fun(Type::Nat, Type::Nat), out);
+
+        }
     }
 
     mod lexing {

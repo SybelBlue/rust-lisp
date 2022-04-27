@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
+use std::{collections::HashSet, fmt::{Debug, Display, Formatter}, hash::Hash};
 
 use crate::{parsing::{sources::FilePos, lex::Keyword}, exprs::Expr, typing::Type};
 
@@ -23,6 +23,13 @@ impl<'a, T: Display> Display for Loc<'a, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{} ", self.body)?;
         self.pos.write_snippet(f)
+    }
+}
+
+impl<'a, T: Hash> Hash for Loc<'a, T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pos.hash(state);
+        self.body.hash(state);
     }
 }
 

@@ -1,6 +1,6 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{parse, sources::Source}, typing::{checking::type_stmt, contexts::TypeContext}};
+use rust_lisp::{parsing::{parse, sources::Source}, typing::{checking::type_mod, contexts::TypeContext}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
@@ -13,15 +13,13 @@ fn main() -> std::io::Result<()> {
             Ok(ts) => {
                 match parse(ts) {
                     Ok(es) => {
-                        for e in &es {
-                            match type_stmt(e, ctxt.clone()) {
-                                Ok((t, new)) => {
-                                    ctxt = new;
-                                    println!(" | {} :: {}", e, t);
-                                },
-                                Err(e) => println!("** {}", e),
-                            }
+                        match type_mod(&es, ctxt.clone()) {
+                            Ok(new) => {
+                                ctxt = new;
+                            },
+                            Err(e) => println!("** {}", e),
                         }
+                        
                     },
                     Err(e) => println!("** {}", e),
                 }

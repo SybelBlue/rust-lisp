@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::VecDeque;
 
 use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident, values::VToken}};
 use crate::exprs::{values::Value, Expr, SToken};
@@ -7,12 +7,12 @@ use super::{Type, contexts::{TypeContext, UnifyErr}};
 
 pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'a, TypeContext> {
     let mut ctxt = ctxt;
-    let mut delayed = HashMap::with_capacity(stmts.len());
+    let mut delayed = VecDeque::with_capacity(stmts.len());
     for s in stmts {
-        if let Stmt::Bind(Ident { body: name, .. }, e) = s {
+        if let Stmt::Bind(ident, e) = s {
             if let Expr::Val(val@VToken { body: Value::Lam(_, _), .. }) = e {
-                let (new, tvar) = ctxt.bind_to_tvar(name.clone());
-                delayed.insert(name, (Type::Var(tvar), val));
+                let (new, tvar) = ctxt.bind_to_tvar(ident.body.clone());
+                delayed.push_back((ident, Type::Var(tvar), val));
                 ctxt = new;
                 continue;
             }
@@ -21,18 +21,27 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'
         ctxt = new;
     }
 
-    'main: loop {
-        for (_, (t, v)) in delayed.iter_mut() {
-            if t.is_concrete() { continue; }
-            let (new_t, new_ctxt) = type_value(&v.body, ctxt, &v.pos)?;
-            ctxt = new_ctxt;
-            if &new_t != t {
-                *t = new_t;
-                continue 'main;
+    while let Some((ident, t, v)) = delayed.pop_front() {
+        let (new_t, new_ctxt) = type_value(&v.body, ctxt, &v.pos)?;
+        ctxt = new_ctxt;
+        if new_t.improves(&t) {
+            match ctxt.unify(&t, &new_t) {
+                Ok(new_ctxt) => { 
+                    ctxt = new_ctxt;
+                    if !new_t.is_concrete() {
+                        delayed.push_back((ident, new_t, v));
+                    }
+                },
+                Err(e) => return Err(TypeError::new(ident.pos.clone(), match e {
+                    UnifyErr::Inf => 
+                        InfiniteType(t, new_t),
+                    UnifyErr::Mis => 
+                        TypeMismatch { got: new_t, expected: t },
+                })),
             }
         }
-        return Ok(ctxt);
     }
+    return Ok(ctxt);
 }
 
 pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {

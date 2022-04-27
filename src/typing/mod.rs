@@ -92,6 +92,17 @@ impl Type {
             Type::Var(_) => false,
         }
     }
+
+    pub(crate) fn improves(&self, t: &Type) -> bool {
+        match (self, t) {
+            (Type::Var(_), Type::Var(_)) => false,
+            (_, Type::Var(_)) => true,
+            (Type::Fun(sp, sr), Type::Fun(tp, tr)) =>
+                sp.improves(tp) || sr.improves(tr),
+            (x, y) if x == y => false,
+            (x, y) => panic!("comparing concrete mismatch! {} {}", x, y)
+        }
+    }
 }
 
 impl Display for Type {

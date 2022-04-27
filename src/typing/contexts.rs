@@ -33,8 +33,10 @@ impl TypeContext {
         }
     }
 
-    pub(crate) fn get(&self, k: &String) -> Option<&Type> {
-        self.bound.get(self.aliased.get(k).unwrap_or(k))
+    pub(crate) fn get(&self, k: &String) -> Option<Type> {
+        self.bound
+            .get(self.aliased.get(k).unwrap_or(k))
+            .map(|t| self.query(t))
     }
 
     pub(crate) fn query_tvar(&self, var: usize) -> Type {
@@ -43,7 +45,7 @@ impl TypeContext {
             match self.type_vars.get(&curr).unwrap() {
                 None => return Type::Var(curr),
                 Some(Type::Var(next)) => { curr = *next; }
-                Some(t) => return t.clone(),
+                Some(t) => return self.query(t),
             }
         }
     }
@@ -51,7 +53,7 @@ impl TypeContext {
     pub(crate) fn query(&self, t: &Type) -> Type {
         match t {
             Type::Unit | Type::Nat | Type::Char | Type::Type => t.clone(),
-            Type::Data(_, t) => self.query(t.as_ref()),
+            Type::Data(_, _) => todo!("query data"),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 
                 Type::fun(self.query(p), self.query(r)),

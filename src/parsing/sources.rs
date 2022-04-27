@@ -4,7 +4,7 @@ use crate::errors::LexResult;
 
 use super::lex::{SourceIter, Token};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FilePos<'a> {
     pub src: &'a Source<'a>,
     pub row: usize,
@@ -57,7 +57,7 @@ impl<'a> Display for FilePos<'a> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Source<'a> {
     Anon(&'a str),
     File(String),
