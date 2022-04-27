@@ -3,7 +3,7 @@ pub mod sources;
 
 use std::collections::HashSet;
 
-use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp, Stmt}, errors::{ParseResult, ParseError}};
+use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp, Stmt, Ident}, errors::{ParseResult, ParseError}};
 
 use crate::errors::ParseErrorBody::*;
 use crate::parsing::lex::Keyword::*;
@@ -26,7 +26,14 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
 
     match snd {
         Err((Backarrow, pos)) => {
-            Err(ParseError::new(pos, NotYetImplemented("Backarrow bind")))
+            match fst_tkn.body {
+                TokenBody::Keyword(_) => 
+                    Err(ParseError::new(pos, NotYetImplemented("Backarrow bind"))),
+                TokenBody::Word(_) => 
+                    Err(ParseError::new(pos, NotYetImplemented("Backarrow bind"))),
+                TokenBody::SExp(_) => 
+                    Err(ParseError::new(pos, NotYetImplemented("Backarrow bind"))),
+            }
         }
         Err((Arrow, pos)) => {
             check_params(&fst_tkn)?;
@@ -60,7 +67,7 @@ fn parse_no_stmts<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Expr<'a>>> {
     for t in parse(ts)? {
         match t {
             Stmt::Expr(e) => out.push(e),
-            Stmt::Bind(_, VToken { pos, .. }) => 
+            Stmt::Bind(Ident { pos, .. }, _) => 
                 return Err(ParseError::new(pos, MisplacedKeyword(Backarrow))),
         }
     }

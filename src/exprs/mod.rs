@@ -63,7 +63,7 @@ pub type Ident<'a> = Loc<'a, String>;
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
-    Bind(Ident<'a>, VToken<'a>),
+    Bind(Ident<'a>, Expr<'a>),
 }
 
 impl<'a> Stmt<'a> {

@@ -7,8 +7,8 @@ pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type
     match s {
         Stmt::Expr(e) => 
             type_expr(e, ctxt),
-        Stmt::Bind(_, vloc) => 
-            type_value(&vloc.body, ctxt, &vloc.pos),
+        Stmt::Bind(_, e) => 
+            type_expr(e, ctxt),
     }
 }
 
