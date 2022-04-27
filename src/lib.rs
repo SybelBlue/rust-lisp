@@ -40,11 +40,6 @@ mod tests {
         }
 
         #[test]
-        fn debug() {
-            // type_test(&"(x <- 3)");
-        }
-
-        #[test]
         fn lambdas() {
             use crate::typing::Type::*;
             let fun = crate::typing::Type::fun;
