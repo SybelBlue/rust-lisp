@@ -41,7 +41,7 @@ mod tests {
 
         #[test]
         fn debug() {
-            type_test(&"(x <- 3)");
+            // type_test(&"(x <- 3)");
         }
 
         #[test]
