@@ -29,7 +29,7 @@ Current Syntax Spec
 
 todo:
 ------
-1. Implement typing with regular & circular `<-`
+1. Implement typing with circular `<-`
 1. Add an `if`
 1. Work on a compiler?
 1. Add atoms? `(:hi)`
