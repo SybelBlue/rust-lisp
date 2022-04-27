@@ -25,7 +25,7 @@ pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type
     }
 }
 
-pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match e {
         Expr::Val(v) => type_value(&v.body, ctxt, &v.pos),
         Expr::SExp(SToken { pos, body }) => {
@@ -83,7 +83,7 @@ pub fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
     }
 }
 
-pub fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, TypeContext)> {
+fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, TypeContext)> {
     Ok(match v {
         Value::Nat(_) => (Type::Nat, ctxt),
         Value::Type(_) => (Type::Type, ctxt),
