@@ -1,7 +1,7 @@
 pub mod lex;
 pub mod sources;
 
-use std::collections::HashSet;
+use std::{collections::HashSet, vec::IntoIter};
 
 use crate::{exprs::{Expr, values::{Value, VToken}, SToken, SExp, Stmt, Ident}, errors::{ParseResult, ParseError}};
 
@@ -25,29 +25,21 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
     };
 
     match snd {
-        Err((Backarrow, pos)) => {
+        Err((Backarrow, arrpos)) => {
             match fst_tkn.body {
                 TokenBody::Keyword(_) => 
-                    Err(ParseError::new(pos, NotYetImplemented("Backarrow bind"))),
-                TokenBody::Word(_) => 
-                    Err(ParseError::new(pos, NotYetImplemented("Backarrow bind"))),
+                    Err(ParseError::new(arrpos, NotYetImplemented("Backarrow bind"))),
+                TokenBody::Word(body) => 
+                    Ok(vec![Stmt::Bind(Ident { body, pos: fst_tkn.pos }, get_lambda_body(arrpos, ts)?)]),
                 TokenBody::SExp(_) => 
-                    Err(ParseError::new(pos, NotYetImplemented("Backarrow bind"))),
+                    Err(ParseError::new(arrpos, NotYetImplemented("Backarrow bind"))),
             }
         }
         Err((Arrow, pos)) => {
             check_params(&fst_tkn)?;
             let params = parse_first(fst_tkn)?;
-            if let Some(t) = ts.next() {
-                if ts.next().is_none() {
-                    let body = parse_simple(t)?;
-                    Ok(vec![Stmt::value(pos, Value::lam(params, body))])
-                } else {
-                    Err(ParseError::new(pos, ExtraLambdaBody))
-                }
-            } else {
-                Err(ParseError::new(pos, MissingLambdaBody))
-            }
+            let body = get_lambda_body(pos.clone(), ts)?;
+            Ok(vec![Stmt::value(pos, Value::lam(params, body))])
         }
         Ok(snd) => {
             let mut out = vec![
@@ -59,6 +51,19 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
             }
             Ok(out)
         }
+    }
+}
+
+fn get_lambda_body<'a>(arrpos: FilePos<'a>, ts: IntoIter<Token<'a>>) -> ParseResult<'a, Expr<'a>> {
+    let mut ts = ts;
+    if let Some(t) = ts.next() {
+        if ts.next().is_none() {
+            parse_simple(t)
+        } else {
+            Err(ParseError::new(arrpos, ExtraLambdaBody))
+        }
+    } else {
+        Err(ParseError::new(arrpos, MissingLambdaBody))
     }
 }
 
