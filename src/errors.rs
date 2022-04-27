@@ -53,8 +53,6 @@ pub type ParseError<'a> = Loc<'a, ParseErrorBody<'a>>;
 pub enum ParseErrorBody<'a> {
     MisplacedKeyword(Keyword),
     MissingBindingIdentifier,
-    MissingLambdaBody,
-    ExtraLambdaBody,
     BadBinding(String),
     DuplicateLambdaArg(String),
     InSExp(Box<ParseError<'a>>),
@@ -66,8 +64,6 @@ impl<'a> Display for ParseErrorBody<'a> {
         match self {
             Self::MisplacedKeyword(kw) => write!(f, "MisplacedKeyword({})", kw),
             Self::MissingBindingIdentifier => write!(f, "MissingBindingIdentifier"),
-            Self::MissingLambdaBody => write!(f, "MissingLambdaBody"),
-            Self::ExtraLambdaBody => write!(f, "ExtraLambdaBody"),
             Self::BadBinding(w) => write!(f, "BadBinding: {}", w),
             Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
             Self::InSExp(sfp) => write!(f, "{}Inside SExpression", sfp.as_ref()),
