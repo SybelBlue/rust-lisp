@@ -29,11 +29,11 @@ Current Syntax Spec
 
 todo:
 ------
-1. Partition datatype names into own namespace (including `->`)
 1. Implement typing with regular & circular `<-`
 1. Add an `if`
 1. Work on a compiler?
 1. Add atoms? `(:hi)`
+1. Create namespace for datatypes and traits (including `->`)
 1. Add datatypes
 
 
