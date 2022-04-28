@@ -143,7 +143,6 @@ fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeCo
 fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, TypeContext)> {
     Ok(match v {
         Value::Nat(_) => (Type::Nat, ctxt),
-        Value::Type(_) => (Type::Type, ctxt),
         Value::Sym(k) => (
             ctxt.get(k).ok_or(TypeError::new(pos.clone(), UndefinedSymbol(k)))?.concretize(&ctxt),
             ctxt,

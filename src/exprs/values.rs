@@ -1,7 +1,6 @@
 use crate::errors::Loc;
 
 use super::Expr;
-use crate::typing::Type;
 
 pub type VToken<'a> = Loc<'a, Value<'a>>;
 
@@ -10,7 +9,6 @@ pub enum Value<'a> {
     Nat(usize),
     Sym(String),
     Lam(Box<Expr<'a>>, Box<Expr<'a>>),
-    Type(Type)
 }
 
 impl<'a> Value<'a> {
@@ -20,7 +18,7 @@ impl<'a> Value<'a> {
 
     pub(crate) fn free_symbols(&self) -> Vec<&String> {
         match self {
-            Value::Nat(_) | Value::Type(_) => vec![],
+            Value::Nat(_) => vec![],
             Value::Sym(s) => vec![s],
             Value::Lam(p, r) => {
                 let params = p.free_symbols();
@@ -36,7 +34,6 @@ impl<'a> std::fmt::Display for Value<'a> {
             Value::Nat(n) => write!(f, "{}", n),
             Value::Sym(s) => write!(f, "{}", s),
             Value::Lam(p, b) => write!(f, "{} -> {}", p, b),
-            Value::Type(t) => write!(f, "{}", t),
         }
     }
 }
