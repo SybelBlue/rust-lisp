@@ -25,7 +25,7 @@ impl TypeContext {
 
         bound.insert(format!("Prelude.+"), fun(Nat, fun(Nat, Nat)));
         aliased.insert(format!("+"), format!("Prelude.+"));
-        
+
         Self {
             bound,
             aliased,
@@ -52,7 +52,7 @@ impl TypeContext {
 
     pub(crate) fn query(&self, t: &Type) -> Type {
         match t {
-            Type::Unit | Type::Nat | Type::Char | Type::Type => t.clone(),
+            Type::Unit | Type::Nat | Type::Char => t.clone(),
             Type::Data(_, _) => todo!("query data"),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 

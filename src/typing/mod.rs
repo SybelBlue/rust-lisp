@@ -11,7 +11,6 @@ pub enum Type {
     Unit,
     Nat,
     Char,
-    Type,
     Data(String, Box<Type>), // eg Data("Vec", [Nat -> Type -> Type])
     Var(usize),
     Fun(Box<Type>, Box<Type>),
@@ -34,7 +33,7 @@ impl Type {
 
     pub(crate) fn concretize(&self, ctxt: &TypeContext) -> Self {
         let out = match self {
-            Self::Unit | Self::Nat | Self::Char | Self::Type => self.clone(),
+            Self::Unit | Self::Nat | Self::Char => self.clone(),
             Self::Data(_, t) => t.as_ref().clone(),
             Self::Fun(p, r) => 
                 Self::fun(p.concretize(ctxt), r.concretize(ctxt)),
@@ -71,7 +70,7 @@ impl Type {
 
     pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, char>, wrap: bool) -> std::fmt::Result {
         match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Type | Type::Data(_, _) => self.fmt(f),
+            Type::Unit | Type::Nat | Type::Char | Type::Data(_, _) => self.fmt(f),
             Type::Var(n) => f.write_char(*map.get(n).unwrap()),
             Type::Fun(p, r) => {
                 if wrap { f.write_str("(-> ")?; }
@@ -86,7 +85,7 @@ impl Type {
 
     pub(crate) fn is_concrete(&self) -> bool {
         match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Type => true,
+            Type::Unit | Type::Nat | Type::Char => true,
             Type::Data(_, _) => todo!("is data concrete?"),
             Type::Fun(p, r) => p.is_concrete() && r.is_concrete(),
             Type::Var(_) => false,
@@ -111,7 +110,6 @@ impl Display for Type {
             Type::Unit => write!(f, "Unit"),
             Type::Nat => write!(f, "Nat"),
             Type::Char => write!(f, "Char"),
-            Type::Type => write!(f, "Type"),
             Type::Data(s, _) => write!(f, "{}", s),
             Type::Fun(_, _) => {
                 let mut vals = HashSet::new();
@@ -129,7 +127,6 @@ impl std::fmt::Debug for Type {
             Self::Unit => write!(f, "Unit"),
             Self::Nat => write!(f, "Nat"),
             Self::Char => write!(f, "Char"),
-            Self::Type => write!(f, "Type"),
             Self::Data(arg0, _) => f.write_str(arg0),
             Self::Var(arg0) => write!(f, "t_{}", arg0),
             Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),
