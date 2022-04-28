@@ -10,7 +10,7 @@ Language Goals
 - Complete Static Type Inference
 - Sound Type System
 - Type Erasure
-- Compiled
+- Compiled (!?)
 
 Implies
 - _No Dependent Types_
@@ -30,10 +30,12 @@ Current Syntax Spec
 todo:
 ------
 1. Add an `if`
-1. Work on a compiler?
-1. Add atoms? `(:hi)`
+1. Imports/modules
 1. Create namespace for datatypes and traits (including `->`)
 1. Add datatypes
+1. pattern matching
+1. Work on a compiler?
+1. Add atoms? `(:hi)`
 
 
 (Eventual) Spec for Datatypes
