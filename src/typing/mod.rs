@@ -11,7 +11,7 @@ pub enum Type {
     Unit,
     Nat,
     Char,
-    Data(String, Box<Type>), // eg Data("Vec", [Nat -> Type -> Type])
+    Data(String, Vec<Type>), // eg Data("Either", [a, Data("List", [Nat])])
     Var(usize),
     Fun(Box<Type>, Box<Type>),
 }
@@ -34,7 +34,8 @@ impl Type {
     pub(crate) fn concretize(&self, ctxt: &TypeContext) -> Self {
         let out = match self {
             Self::Unit | Self::Nat | Self::Char => self.clone(),
-            Self::Data(_, t) => t.as_ref().clone(),
+            Self::Data(nm, ts) => 
+                Self::Data(nm.clone(), ts.iter().map(|t| t.concretize(ctxt)).collect()),
             Self::Fun(p, r) => 
                 Self::fun(p.concretize(ctxt), r.concretize(ctxt)),
             Self::Var(id) => ctxt.query_tvar(*id),
@@ -53,8 +54,9 @@ impl Type {
                 p.variable_values(out);
                 r.variable_values(out);
             },
-            Self::Data(_, t) => t.variable_values(out),
-            _ => {}
+            Self::Data(_, ts) => 
+                ts.iter().for_each(|t| t.variable_values(out)),
+            Self::Unit | Self::Nat | Self::Char => {}
         }
     }
 
