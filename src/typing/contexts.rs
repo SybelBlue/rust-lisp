@@ -53,7 +53,8 @@ impl TypeContext {
     pub(crate) fn query(&self, t: &Type) -> Type {
         match t {
             Type::Unit | Type::Nat | Type::Char => t.clone(),
-            Type::Data(_, _) => todo!("query data"),
+            Type::Data(nm, ts) => 
+                Type::Data(nm.clone(), ts.iter().map(|t| self.query(t)).collect()),
             Type::Var(v) => self.query_tvar(*v),
             Type::Fun(p, r) => 
                 Type::fun(self.query(p), self.query(r)),

@@ -75,7 +75,7 @@ pub(crate) fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a
                     UnifyErr::Inf => 
                         Err(TypeError::new(pos.clone(), InfiniteType(s, t))),
                     UnifyErr::Mis => 
-                        todo!("shouldn't be possible, unifying var"),
+                        Err(TypeError::new(pos.clone(), TypeMismatch { expected: s, got: t })),
                 },
             }
         }
@@ -159,8 +159,12 @@ fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> Type
             let ret_type_var = Type::Var(ret_type_var);
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
             match ctxt.unify(&ret_type, &ret_type_var) {
-                Err(UnifyErr::Inf) => return Err(TypeError::new(pos.clone(), InfiniteType(ret_type, ret_type_var))),
-                Err(UnifyErr::Mis) => todo!("Mismatch should be impossible with var & __"),
+                Err(UnifyErr::Inf) => 
+                    return Err(TypeError::new(pos.clone(), 
+                        InfiniteType(ret_type, ret_type_var))),
+                Err(UnifyErr::Mis) => 
+                    return Err(TypeError::new(pos.clone(), 
+                        TypeMismatch { got: ret_type_var, expected: ret_type })),
                 Ok(ctxt) => {
                     // undoes reversal!
                     let lam_type = expr_type

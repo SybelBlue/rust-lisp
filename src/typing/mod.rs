@@ -60,20 +60,27 @@ impl Type {
         }
     }
 
-    pub(crate) fn var_to_char_map(mut vals: Vec<usize>) -> HashMap<usize, char> {
-        vals.sort();
-        let map: HashMap<usize, char> = vals.into_iter()
-            .enumerate()
-            .map(|(i, l)| (l, (i as u8 + 'a' as u8) as char))
-            .collect();
-        if map.len() > 26 { todo!("sooooo many vars") }
-        map
+    fn to_type_string(i: usize, max: usize) -> String {
+        if max < 26 {
+            String::from((i as u8 + 'a' as u8) as char)
+        } else {
+            format!("t{}", i)
+        }
     }
 
-    pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, char>, wrap: bool) -> std::fmt::Result {
+    pub(crate) fn var_to_char_map(mut vals: Vec<usize>) -> HashMap<usize, String> {
+        let max = vals.len();
+        vals.sort();
+        vals.into_iter()
+            .enumerate()
+            .map(|(i, l)| (l, Self::to_type_string(i, max)))
+            .collect()
+    }
+
+    pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, String>, wrap: bool) -> std::fmt::Result {
         match self {
             Type::Unit | Type::Nat | Type::Char | Type::Data(_, _) => self.fmt(f),
-            Type::Var(n) => f.write_char(*map.get(n).unwrap()),
+            Type::Var(n) => f.write_str(map.get(n).unwrap().as_str()),
             Type::Fun(p, r) => {
                 if wrap { f.write_str("(-> ")?; }
                 p.display_with(f, map, true)?;
@@ -88,7 +95,7 @@ impl Type {
     pub(crate) fn is_concrete(&self) -> bool {
         match self {
             Type::Unit | Type::Nat | Type::Char => true,
-            Type::Data(_, _) => todo!("is data concrete?"),
+            Type::Data(_, ts) => ts.iter().all(Type::is_concrete),
             Type::Fun(p, r) => p.is_concrete() && r.is_concrete(),
             Type::Var(_) => false,
         }
