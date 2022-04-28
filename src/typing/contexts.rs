@@ -103,4 +103,9 @@ impl TypeContext {
             _ => Err(UnifyErr::Mis)
         }
     }
+
+    pub(crate) fn has(&self, k: &String) -> bool {
+        self.bound
+            .contains_key(self.aliased.get(k).unwrap_or(k))
+    }
 }

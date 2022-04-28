@@ -31,7 +31,7 @@ pub enum Expr<'a> {
 }
 
 impl<'a> Expr<'a> {
-    pub(crate) fn get_symbols(&'a self) -> Vec<String> {
+    pub(crate) fn get_lambda_param_names(&'a self) -> Vec<String> {
         let mut symbols = Vec::new();
         let mut to_check = vec![self];
         while let Some(next) = to_check.pop() {
@@ -42,6 +42,13 @@ impl<'a> Expr<'a> {
             }
         }
         symbols
+    }
+
+    pub(crate) fn free_symbols(&self) -> Vec<&String> {
+        match self {
+            Expr::Val(v) => v.body.free_symbols(),
+            Expr::SExp(s) => s.body.0.iter().flat_map(|e| e.free_symbols()).collect(),
+        }
     }
 
     pub(crate) fn display_simple(&self, f: &mut Formatter<'_>) -> Result {
@@ -74,19 +81,28 @@ impl<'a> Stmt<'a> {
     pub(crate) fn sexp(pos: FilePos<'a>, v: Vec<Expr<'a>>) -> Self {
         Self::Expr(Expr::SExp(SToken { pos, body: SExp(v) }))
     }
+
+    pub(crate) fn free_symbols(&self) -> Vec<&String> {
+        match self {
+            Stmt::Expr(e) => e.free_symbols(),
+            Stmt::Bind(name, l) => {
+                let mut out = Vec::new();
+                for s in l.free_symbols() {
+                    if s != &name.body {
+                        out.push(s);
+                    }
+                }
+                out
+            }
+        }
+    }
 }
 
 impl<'a> Display for Stmt<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Self::Expr(e) => e.fmt(f),
-            Self::Bind(lstr, lv) => {
-                f.write_char('(')?;
-                lstr.display_simple(f)?;
-                f.write_str(" ")?;
-                lv.display_simple(f)?;
-                f.write_char(')')
-            }
+            Self::Bind(lstr, _) => lstr.display_simple(f),
         }
     }
 }

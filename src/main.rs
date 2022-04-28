@@ -14,8 +14,11 @@ fn main() -> std::io::Result<()> {
                 match parse(ts) {
                     Ok(es) => {
                         match type_mod(&es, ctxt.clone()) {
-                            Ok(new) => {
+                            Ok((ts, new)) => {
                                 ctxt = new;
+                                for (e, t) in es.iter().zip(ts) {
+                                    println!(" | {} :: {}", e, t);
+                                }
                             },
                             Err(e) => println!("** {}", e),
                         }

@@ -157,9 +157,9 @@ mod tests {
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            let ctxt = crate::typing::checking::type_mod(&ss, TypeContext::new()).unwrap();
-            let out = ctxt.get(&String::from("foo")).unwrap();
-            assert_eq!(Type::fun(Type::Nat, Type::Nat), out);
+            let (types, _) = crate::typing::checking::type_mod(&ss, TypeContext::new()).unwrap();
+            let n_fn = Type::fun(Type::Nat, Type::Nat);
+            assert_eq!(vec![n_fn.clone(), Type::Nat, n_fn], types);
 
         }
     }

@@ -1,50 +1,64 @@
 use std::collections::VecDeque;
 
-use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident, values::VToken}};
+use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident}};
 use crate::exprs::{values::Value, Expr, SToken};
 
 use super::{Type, contexts::{TypeContext, UnifyErr}};
 
-pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'a, TypeContext> {
+pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'a, (Vec<Type>, TypeContext)> {
     let mut ctxt = ctxt;
     let mut delayed = VecDeque::with_capacity(stmts.len());
-    for s in stmts {
-        if let Stmt::Bind(ident, e) = s {
-            if let Expr::Val(val@VToken { body: Value::Lam(_, _), .. }) = e {
-                let (new, tvar) = ctxt.bind_to_tvar(ident.body.clone());
-                delayed.push_back((ident, Type::Var(tvar), val));
-                ctxt = new;
-                continue;
-            }
+    let mut types = Vec::new();
+    for (i, s) in stmts.iter().enumerate() {
+        if s.free_symbols().into_iter().all(|n| ctxt.has(n)) {
+            let (t, new) = type_stmt(s, ctxt)?;
+            ctxt = new;
+            types.push((i, t));
+        } else {
+            let (new, tvar) = if let Stmt::Bind(ident, _) = s {
+                ctxt.bind_to_tvar(ident.body.clone())
+            } else {
+                ctxt.new_tvar()
+            };
+            ctxt = new;
+            delayed.push_back((i, s, Type::Var(tvar)));
         }
-        let (_, new) = type_stmt(s, ctxt)?;
-        ctxt = new;
     }
 
-    while let Some((ident, t, v)) = delayed.pop_front() {
-        let (new_t, new_ctxt) = type_value(&v.body, ctxt, &v.pos)?;
-        ctxt = new_ctxt;
-        if new_t.improves(&t) {
-            match ctxt.unify(&t, &new_t) {
-                Ok(new_ctxt) => { 
-                    ctxt = new_ctxt;
-                    if !new_t.is_concrete() {
-                        delayed.push_back((ident, new_t, v));
+    while let Some((i, stmt, t)) = delayed.pop_front() {
+        match stmt {
+            Stmt::Expr(e) => {
+                ctxt = type_expr(e, ctxt)?.1;
+            }
+            Stmt::Bind(ident, e) => {
+                let (new_t, new_ctxt) = type_expr(e, ctxt)?;
+                ctxt = new_ctxt;
+                if new_t.improves(&t) {
+                    match ctxt.unify(&t, &new_t) {
+                        Ok(new_ctxt) => { 
+                            ctxt = new_ctxt;
+                            if !new_t.is_concrete() {
+                                delayed.push_back((i, stmt, new_t));
+                            } else{
+                                types.push((i, new_t));
+                            }
+                        },
+                        Err(e) => return Err(TypeError::new(ident.pos.clone(), match e {
+                            UnifyErr::Inf => 
+                                InfiniteType(t, new_t),
+                            UnifyErr::Mis => 
+                                TypeMismatch { got: new_t, expected: t },
+                        })),
                     }
-                },
-                Err(e) => return Err(TypeError::new(ident.pos.clone(), match e {
-                    UnifyErr::Inf => 
-                        InfiniteType(t, new_t),
-                    UnifyErr::Mis => 
-                        TypeMismatch { got: new_t, expected: t },
-                })),
+                }
             }
         }
     }
-    return Ok(ctxt);
+    types.sort_by_key(|(i, _)| *i);
+    return Ok((types.into_iter().map(|(_, t)| t).collect(), ctxt));
 }
 
-pub fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+pub(crate) fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match s {
         Stmt::Expr(e) => 
             type_expr(e, ctxt),
@@ -137,8 +151,8 @@ fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> Type
         Value::Lam(ps, b) => {
             let mut ctxt = ctxt.clone();
             let mut expr_type = Vec::new(); // in reverse order!
-            for p in ps.as_ref().get_symbols() {
-                let (new, var) = ctxt.bind_to_tvar(p);
+            for p in ps.as_ref().get_lambda_param_names() {
+                let (new, var) = ctxt.bind_to_tvar(p.clone());
                 ctxt = new;
                 expr_type.push(Type::Var(var));
             }
