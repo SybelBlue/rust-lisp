@@ -14,7 +14,8 @@ pub enum TokenBody<'a> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword { 
     Backarrow, 
-    Arrow 
+    Arrow,
+    Import,
 }
 
 impl Keyword {
@@ -32,6 +33,7 @@ impl std::fmt::Display for Keyword {
         f.write_str(match self {
             Self::Backarrow => "<-",
             Self::Arrow => "->",
+            Self::Import => "import",
         })
     }
 }

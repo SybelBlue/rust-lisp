@@ -51,6 +51,8 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     };
 
     match kw {
+        Import =>
+            Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Arrow => 
             Ok(Stmt::value(arr_pos, parse_lambda(head, body)?)),
         Backarrow => {
