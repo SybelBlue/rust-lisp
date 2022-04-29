@@ -14,7 +14,7 @@ pub struct Context {
 }
 
 #[derive(Debug, Clone)]
-pub struct Solver {
+pub(crate) struct Solver {
     /// required on instantiation, released on destruction
     ctxt: Context,
     locals: HashMap<Identifier, Type>,
@@ -41,6 +41,10 @@ impl Context {
         }
     }
 
+    pub(crate) fn insert(&mut self, k: String, v: Type) {
+        self.bound.insert(k, v.flattened());
+    }
+
     pub(crate) fn get(&self, k: &String) -> Option<&Type> {
         self.bound
             .get(self.aliased.get(k).unwrap_or(k))
@@ -53,6 +57,22 @@ impl Context {
 }
 
 impl Solver {
+    pub(crate) fn new(ctxt: Context) -> Self {
+        Self {
+            ctxt,
+            locals: HashMap::new(),
+            type_vars: HashMap::new()
+        }
+    }
+
+    pub(crate) fn finish(self) -> Context {
+        let mut out = self.ctxt;
+        for (k, v) in self.locals.into_iter() {
+            out.insert(k, v);
+        }
+        out
+    }
+
     pub(crate) fn get(self, k: &String) -> (Self, Option<Type>) {
         let t = self.locals.get(k)
             .map(|t| self.query(t))
