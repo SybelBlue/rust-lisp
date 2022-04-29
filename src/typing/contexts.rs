@@ -13,13 +13,15 @@ pub struct Context {
     aliased: HashMap<Identifier, QualifiedIdentifier>,
 }
 
+type VarMap = HashMap<usize, Option<Type>>;
+
 #[derive(Debug, Clone)]
 pub(crate) struct Solver {
     /// required on instantiation, released on destruction
     ctxt: Context,
     locals: HashMap<Identifier, Type>,
     /// acyclic mapping from Var(_n_) to more concrete type in type_vars
-    type_vars: HashMap<usize, Option<Type>>,
+    type_vars: VarMap,
 }
 
 pub enum UnifyErr { Inf, Mis }
@@ -66,10 +68,15 @@ impl Solver {
     }
 
     pub(crate) fn finish(self) -> Context {
-        let mut out = self.ctxt;
-        for (k, v) in self.locals.into_iter() {
-            out.insert(k, v);
+        let Self { 
+            ctxt: mut out, 
+            locals, 
+            type_vars } = self;
+        
+        for (k, v) in locals.iter() {
+            out.insert(k.clone(), Self::_query(&type_vars, v));
         }
+        
         out
     }
 
@@ -88,25 +95,29 @@ impl Solver {
         self.locals.contains_key(k) || self.ctxt.has(k)
     }
 
-    pub(crate) fn query_tvar(&self, var: usize) -> Type {
+    fn query_tvar(type_vars: &VarMap, var: usize) -> Type {
         let mut curr = var;
         loop {
-            match self.type_vars.get(&curr).unwrap() {
+            match type_vars.get(&curr).unwrap() {
                 None => return Type::Var(curr),
                 Some(Type::Var(next)) => { curr = *next; }
-                Some(t) => return self.query(t),
+                Some(t) => return Self::_query(type_vars, t),
             }
         }
     }
 
     pub(crate) fn query(&self, t: &Type) -> Type {
+        Self::_query(&self.type_vars, t)
+    }
+
+    fn _query(type_vars: &VarMap, t: &Type) -> Type {
         match t {
             Type::Unit | Type::Nat | Type::Char => t.clone(),
             Type::Data(nm, ts) => 
-                Type::Data(nm.clone(), ts.iter().map(|t| self.query(t)).collect()),
-            Type::Var(v) => self.query_tvar(*v),
+                Type::Data(nm.clone(), ts.iter().map(|t| Self::_query(type_vars, t)).collect()),
+            Type::Var(v) => Self::query_tvar(type_vars, *v),
             Type::Fun(p, r) => 
-                Type::fun(self.query(p), self.query(r)),
+                Type::fun(Self::_query(type_vars, p), Self::_query(type_vars, r)),
         }
     }
 

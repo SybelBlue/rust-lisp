@@ -38,7 +38,7 @@ impl Type {
                 Self::Data(nm.clone(), ts.iter().map(|t| t.concretize(slvr)).collect()),
             Self::Fun(p, r) => 
                 Self::fun(p.concretize(slvr), r.concretize(slvr)),
-            Self::Var(id) => slvr.query_tvar(*id),
+            s@Self::Var(_) => slvr.query(s),
         };
         if out == *self {
             out
