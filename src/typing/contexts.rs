@@ -65,6 +65,10 @@ impl Solver {
         }
     }
 
+    pub(crate) fn has(&self, k: &String) -> bool {
+        self.locals.contains_key(k) || self.ctxt.has(k)
+    }
+
     pub(crate) fn query_tvar(&self, var: usize) -> Type {
         let mut curr = var;
         loop {
