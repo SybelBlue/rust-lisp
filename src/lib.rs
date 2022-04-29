@@ -9,13 +9,13 @@ mod tests {
         use crate::{typing::*, parsing::sources::Source};
 
         fn type_test<'a>(s: &'a str) -> Type {
-            use crate::typing::{contexts::TypeContext, checking::type_mod};
+            use crate::typing::{contexts::Context, checking::type_mod};
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            type_mod(&ss, TypeContext::new()).unwrap().0.pop().unwrap()
+            type_mod(&ss, Context::new()).unwrap().0.pop().unwrap()
         }
         
         macro_rules! assert_fmt_eq {
@@ -144,7 +144,7 @@ mod tests {
 
         #[test]
         fn mod_test() {
-            use crate::typing::contexts::TypeContext;
+            use crate::typing::contexts::Context;
 
             let src = Source::Anon("\
             ((foo x) <- (baz (+ x y)))\
@@ -153,7 +153,7 @@ mod tests {
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            let (types, _) = crate::typing::checking::type_mod(&ss, TypeContext::new()).unwrap();
+            let (types, _) = crate::typing::checking::type_mod(&ss, Context::new()).unwrap();
             let n_fn = Type::fun(Type::Nat, Type::Nat);
             assert_eq!(vec![n_fn.clone(), Type::Nat, n_fn], types);
 
