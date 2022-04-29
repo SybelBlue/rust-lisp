@@ -2,20 +2,29 @@ use std::collections::HashMap;
 
 use super::Type;
 
-pub type Ident = String;
-pub type QualifiedIdent = String;
+type Identifier = String;
+type QualifiedIdentifier = String;
 
 
 #[derive(Debug, Clone)]
-pub struct TypeContext {
-    bound: HashMap<QualifiedIdent, Type>,
-    aliased: HashMap<Ident, QualifiedIdent>,
+pub struct Context {
+    /// Types are compressed, ie all Var(_n_) inside the type start a 0
+    bound: HashMap<QualifiedIdentifier, Type>, 
+    aliased: HashMap<Identifier, QualifiedIdentifier>,
+}
+
+#[derive(Debug, Clone)]
+pub struct Solver {
+    /// required on instantiation, released on destruction
+    ctxt: Context,
+    locals: HashMap<Identifier, Type>,
+    /// acyclic mapping from Var(_n_) to more concrete type in type_vars
     type_vars: HashMap<usize, Option<Type>>,
 }
 
 pub enum UnifyErr { Inf, Mis }
 
-impl TypeContext {
+impl Context {
     pub fn new() -> Self {
         use super::Type::*;
         let fun = super::Type::fun;
@@ -29,14 +38,25 @@ impl TypeContext {
         Self {
             bound,
             aliased,
-            type_vars: HashMap::with_capacity(1000),
         }
     }
 
-    pub(crate) fn get(&self, k: &String) -> Option<Type> {
+    pub(crate) fn get(&self, k: &String) -> Option<&Type> {
         self.bound
             .get(self.aliased.get(k).unwrap_or(k))
+    }
+
+    pub(crate) fn has(&self, k: &String) -> bool {
+        self.bound
+            .contains_key(self.aliased.get(k).unwrap_or(k))
+    }
+}
+
+impl Solver {
+    pub(crate) fn get(&self, k: &String) -> Option<Type> {
+        self.locals.get(k)
             .map(|t| self.query(t))
+            .or_else(|| self.ctxt.get(k).instanced())
     }
 
     pub(crate) fn query_tvar(&self, var: usize) -> Type {
@@ -70,9 +90,9 @@ impl TypeContext {
         }
     }
 
-    pub(crate) fn bind_to_tvar(self, name: Ident) -> (Self, usize) {
+    pub(crate) fn bind_to_tvar(self, name: String) -> (Self, usize) {
         let (mut slf, k) = self.new_tvar();
-        slf.bound.insert(name, Type::Var(k));
+        slf.locals.insert(name, Type::Var(k));
         (slf, k)
     }
 
@@ -103,10 +123,5 @@ impl TypeContext {
             // unequal, and neither are vars, so not unification possible
             _ => Err(UnifyErr::Mis)
         }
-    }
-
-    pub(crate) fn has(&self, k: &String) -> bool {
-        self.bound
-            .contains_key(self.aliased.get(k).unwrap_or(k))
     }
 }
