@@ -60,6 +60,24 @@ impl Type {
         }
     }
 
+    pub(crate) fn flattened(self) -> Self {
+        self._flattened(&mut HashMap::new())
+    }
+
+    fn _flattened(self, bound: &mut HashMap<usize, usize>) -> Self {
+        match self {
+            Self::Var(n) => {
+                let new = bound.len();
+                Self::Var(*bound.entry(n).or_insert(new))
+            }
+            Self::Fun(p, r) =>
+                Self::fun(p._flattened(bound), r._flattened(bound)),
+            Self::Data(nm, ts) =>
+                Self::Data(nm, ts.into_iter().map(|t| t._flattened(bound)).collect()),
+            s@Self::Unit | s@Self::Nat | s@Self::Char => s
+        }
+    }
+
     pub(crate) fn instanced(&self, slvr: Solver) -> (Solver, Self) {
         self._instanced(&mut HashMap::new(), slvr)
     }
