@@ -53,10 +53,16 @@ impl Context {
 }
 
 impl Solver {
-    pub(crate) fn get(&self, k: &String) -> Option<Type> {
-        self.locals.get(k)
+    pub(crate) fn get(self, k: &String) -> (Self, Option<Type>) {
+        let t = self.locals.get(k)
             .map(|t| self.query(t))
-            .or_else(|| self.ctxt.get(k).instanced())
+            .or_else(|| self.ctxt.get(k).map(Type::clone));
+        if let Some(t) = t {
+            let (slf, t) = t.instanced(self);
+            (slf, Some(t))
+        } else {
+            (self, None)
+        }
     }
 
     pub(crate) fn query_tvar(&self, var: usize) -> Type {

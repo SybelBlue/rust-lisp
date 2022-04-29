@@ -4,7 +4,7 @@ pub mod contexts;
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
 
 
-use self::contexts::TypeContext;
+use self::contexts::{TypeContext, Solver};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -49,14 +49,48 @@ impl Type {
 
     pub(crate) fn variable_values(&self, out: &mut HashSet<usize>) {
         match self {
-            Self::Var(n) => { out.insert(*n); },
+            Self::Var(n) => { out.insert(*n); }
             Self::Fun(p, r) => {
                 p.variable_values(out);
                 r.variable_values(out);
-            },
+            }
             Self::Data(_, ts) => 
                 ts.iter().for_each(|t| t.variable_values(out)),
             Self::Unit | Self::Nat | Self::Char => {}
+        }
+    }
+
+    pub(crate) fn instanced(&self, slvr: Solver) -> (Solver, Self) {
+        self._instanced(&mut HashMap::new(), slvr)
+    }
+
+    fn _instanced(&self, bound: &mut HashMap<usize, usize>, slvr: Solver) -> (Solver, Self) {
+        match self {
+            Self::Var(n) => {
+                if let Some(tvar) = bound.get(n) {
+                    (slvr, Self::Var(*tvar))
+                } else {
+                    let (slvr, tvar) = slvr.new_tvar();
+                    (slvr, Self::Var(tvar))
+                }
+            },
+            Self::Fun(p, r) => {
+                let (slvr, p) = p._instanced(bound, slvr);
+                let (slvr, r) = r._instanced(bound, slvr);
+                (slvr, Type::fun(p, r))
+            }
+            Self::Data(nm, ts) => {
+                let mut slvr = slvr;
+                let mut out = Vec::with_capacity(ts.len());
+                for t in ts {
+                    let (new, t) = t._instanced(bound, slvr);
+                    slvr = new;
+                    out.push(t);
+                }
+                (slvr, Type::Data(nm.clone(), out))
+            },
+            s@Self::Unit | s@Self::Nat | s@Self::Char => 
+                (slvr, s.clone()),
         }
     }
 
