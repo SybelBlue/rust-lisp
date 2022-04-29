@@ -4,7 +4,7 @@ pub mod contexts;
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
 
 
-use self::contexts::{TypeContext, Solver};
+use self::contexts::Solver;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -31,19 +31,19 @@ impl Type {
         }
     }
 
-    pub(crate) fn concretize(&self, ctxt: &TypeContext) -> Self {
+    pub(crate) fn concretize(&self, slvr: &Solver) -> Self {
         let out = match self {
             Self::Unit | Self::Nat | Self::Char => self.clone(),
             Self::Data(nm, ts) => 
-                Self::Data(nm.clone(), ts.iter().map(|t| t.concretize(ctxt)).collect()),
+                Self::Data(nm.clone(), ts.iter().map(|t| t.concretize(slvr)).collect()),
             Self::Fun(p, r) => 
-                Self::fun(p.concretize(ctxt), r.concretize(ctxt)),
-            Self::Var(id) => ctxt.query_tvar(*id),
+                Self::fun(p.concretize(slvr), r.concretize(slvr)),
+            Self::Var(id) => slvr.query_tvar(*id),
         };
         if out == *self {
             out
         } else {
-            out.concretize(ctxt)
+            out.concretize(slvr)
         }
     }
 
