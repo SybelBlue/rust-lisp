@@ -1,5 +1,7 @@
 pub mod parsing;
+pub mod values;
 pub mod exprs;
+pub mod stmts;
 pub mod errors;
 pub mod typing;
 

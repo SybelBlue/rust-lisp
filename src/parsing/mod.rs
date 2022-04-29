@@ -5,7 +5,9 @@ use std::collections::HashSet;
 
 use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
-    exprs::{Stmt, Expr, values::{Value, VToken}, Ident}
+    exprs::{Expr, Ident},
+    stmts::Stmt,
+    values::{Value, VToken}
 };
 
 use self::lex::{Token, TokenBody::*, Keyword::*};

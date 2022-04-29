@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 
-use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident}};
-use crate::exprs::{values::Value, Expr, SToken};
+use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Expr, Ident, SToken}, stmts::Stmt, values::Value};
 
 use super::{Type, contexts::{Solver, Context, UnifyErr}};
 
