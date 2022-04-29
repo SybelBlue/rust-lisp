@@ -92,10 +92,8 @@ pub enum TypeErrorBody<'a> {
 impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::TooManyArgs(e) => {
-                f.write_str("Too Many Arguments: ")?;
-                e.display_simple(f)
-            }
+            Self::TooManyArgs(e) =>
+                write!(f, "Too Many Arguments: {}", e),
             Self::TypeMismatch { got, expected } => 
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
             Self::UndefinedSymbol(s) => write!(f, "Undefined Symbol: {}", s),

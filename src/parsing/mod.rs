@@ -32,7 +32,7 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Word(w) => 
             return Ok(Stmt::value(pos, parse_string(w))),
-        SExp(crate::exprs::SExp(ts)) => ts,
+        SExp(ts) => ts,
     };
 
     if ts.len() != 3 {
@@ -61,7 +61,7 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                     Ok(Stmt::Bind(Ident { pos: arr_pos, body: name }, parse_expr(body)?)),
                 Keyword(kw) => 
                     Err(ParseError::new(arr_pos, MisplacedKeyword(kw))),
-                SExp(crate::exprs::SExp(ts)) => {
+                SExp(ts) => {
                     if ts.is_empty() {
                         return Err(ParseError::new(arr_pos, MissingBindingIdentifier))
                     }
@@ -76,7 +76,7 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                     }?;
                     let head = Token { 
                         pos: arr_pos.clone(), 
-                        body: SExp(crate::exprs::SExp(ts)) 
+                        body: SExp(ts) 
                     };
                     Ok(Stmt::Bind(
                         Ident { pos: head_pos, body: name }, 
@@ -120,7 +120,7 @@ fn parse_lambda<'a>(head: Token<'a>, body: Token<'a>) -> ParseResult<'a, Value<'
                     found.insert(w.clone());
                 }
             }
-            SExp(crate::exprs::SExp(ts)) => {
+            SExp(ts) => {
                 to_check.extend(ts);
             }
         }

@@ -181,7 +181,7 @@ mod tests {
                 fn from(t: &'a Token<'a>) -> Self {
                     match &t.body {
                         TokenBody::Word(s) => W(s.as_str()),
-                        TokenBody::SExp(body) => S(body.0.iter().map(QSW::from).collect()),
+                        TokenBody::SExp(body) => S(body.iter().map(QSW::from).collect()),
                         TokenBody::Keyword(kw) => K(*kw),
                     }
                 }

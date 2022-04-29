@@ -85,7 +85,7 @@ fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
     match e {
         Expr::Val(v) => type_value(&v.body, slvr, &v.pos),
         Expr::SExp(SToken { pos, body }) => {
-            if let Some((fst, rst)) = body.0.split_first() {
+            if let Some((fst, rst)) = body.split_first() {
                 let (mut target_type, mut ctxt) = type_expr(fst, slvr)?;
                 let mut rest = rst.into_iter();
                 while let Some(curr_argument) = rest.next() {

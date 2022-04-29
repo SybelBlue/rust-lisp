@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, SToken, SExp}, values::{Value, VToken}};
+use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, SToken}, values::{Value, VToken}};
 
 
 
@@ -16,7 +16,7 @@ impl<'a> Stmt<'a> {
     }
     
     pub(crate) fn sexp(pos: FilePos<'a>, v: Vec<Expr<'a>>) -> Self {
-        Self::Expr(Expr::SExp(SToken { pos, body: SExp(v) }))
+        Self::Expr(Expr::SExp(SToken { pos, body: v }))
     }
 
     pub(crate) fn free_symbols(&self) -> Vec<&String> {

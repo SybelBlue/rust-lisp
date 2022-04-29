@@ -1,6 +1,6 @@
 use std::str::Chars;
 
-use crate::{exprs::SExp, errors::{LexError, LexResult, LexErrorBody, Loc}};
+use crate::{errors::{LexError, LexResult, LexErrorBody, Loc}};
 
 use super::sources::FilePos;
 
@@ -10,7 +10,7 @@ pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 pub enum TokenBody<'a> {
     Keyword(Keyword),
     Word(String),
-    SExp(SExp<Token<'a>>),
+    SExp(Vec<Token<'a>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -123,7 +123,7 @@ impl<'a> LexStack<'a> {
             body.push(self.dump_curr());
         }
 
-        self.push_token(Token { pos, body: TokenBody::SExp(SExp(body)) });
+        self.push_token(Token { pos, body: TokenBody::SExp(body) });
         Ok(self)
     }
 
