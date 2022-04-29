@@ -1,4 +1,4 @@
-use crate::{errors::Loc, exprs::Expr};
+use crate::{parsing::sources::Loc, exprs::Expr};
 
 pub type VToken<'a> = Loc<'a, Value<'a>>;
 

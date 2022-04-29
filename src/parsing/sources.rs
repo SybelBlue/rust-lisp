@@ -1,8 +1,37 @@
-use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}};
+use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}, hash::Hash};
 
-use crate::errors::LexResult;
+use crate::{errors::LexResult, parsing::lex::{SourceIter, Token}};
 
-use super::lex::{SourceIter, Token};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Loc<'a, T> {
+    pub pos: FilePos<'a>,
+    pub body: T,
+}
+
+impl<'a, T: Display> Loc<'a, T> {
+    pub(crate) fn new(pos: FilePos<'a>, body: T) -> Self {
+        Self { pos, body }
+    }
+
+    pub(crate) fn display_simple(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.body, f)
+    }
+}
+
+impl<'a, T: Display> Display for Loc<'a, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{} ", self.body)?;
+        self.pos.write_snippet(f)
+    }
+}
+
+impl<'a, T: Hash> Hash for Loc<'a, T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.pos.hash(state);
+        self.body.hash(state);
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FilePos<'a> {

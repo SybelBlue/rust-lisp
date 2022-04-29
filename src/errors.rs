@@ -1,37 +1,7 @@
-use std::{collections::HashSet, fmt::{Debug, Display, Formatter}, hash::Hash};
+use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::FilePos, lex::Keyword}, exprs::Expr, typing::Type};
+use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::Type};
 
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Loc<'a, T> {
-    pub pos: FilePos<'a>,
-    pub body: T,
-}
-
-impl<'a, T: Display> Loc<'a, T> {
-    pub(crate) fn new(pos: FilePos<'a>, body: T) -> Self {
-        Self { pos, body }
-    }
-
-    pub(crate) fn display_simple(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.body, f)
-    }
-}
-
-impl<'a, T: Display> Display for Loc<'a, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{} ", self.body)?;
-        self.pos.write_snippet(f)
-    }
-}
-
-impl<'a, T: Hash> Hash for Loc<'a, T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.pos.hash(state);
-        self.body.hash(state);
-    }
-}
 
 pub type LexError<'a> = Loc<'a, LexErrorBody<'a>>;
 

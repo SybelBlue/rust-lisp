@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Formatter, Result, Write}};
 
-use crate::{errors::Loc, values::{Value, VToken}};
+use crate::{parsing::sources::Loc, values::{Value, VToken}};
 
 pub type Ident<'a> = Loc<'a, String>;
 

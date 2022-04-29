@@ -1,8 +1,6 @@
 use std::str::Chars;
 
-use crate::{errors::{LexError, LexResult, LexErrorBody, Loc}};
-
-use super::sources::FilePos;
+use crate::{errors::{LexError, LexResult, LexErrorBody}, parsing::sources::{FilePos, Loc}};
 
 pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 
