@@ -1,11 +1,11 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{parse, sources::Source}, typing::{checking::type_mod, contexts::TypeContext}};
+use rust_lisp::{parsing::{parse, sources::Source}, typing::{checking::type_mod, contexts::Context}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
     reader.set_prompt(">> ")?;
-    let mut ctxt = TypeContext::new();
+    let mut ctxt = Context::new();
 
     while let ReadResult::Input(input) = reader.read_line()? {
             let ref mut buf = String::new();
