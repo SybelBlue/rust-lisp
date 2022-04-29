@@ -37,6 +37,12 @@ impl Context {
         bound.insert(format!("Prelude.+"), fun(Nat, fun(Nat, Nat)));
         aliased.insert(format!("+"), format!("Prelude.+"));
 
+        bound.insert(format!("Prelude.chr"), fun(Nat, Char));
+        aliased.insert(format!("chr"), format!("Prelude.chr"));
+
+        bound.insert(format!("Prelude.ord"), fun(Char, Nat));
+        aliased.insert(format!("ord"), format!("Prelude.ord"));
+
         Self {
             bound,
             aliased,
