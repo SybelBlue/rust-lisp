@@ -142,6 +142,7 @@ fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
 fn type_value<'a>(v: &'a Value, slvr: Solver, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, Solver)> {
     Ok(match v {
         Value::Nat(_) => (Type::Nat, slvr),
+        Value::Char(_) => (Type::Char, slvr),
         Value::Sym(k) => {
             let (slvr, op_t) = slvr.get(k);
             let t = op_t

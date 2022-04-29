@@ -6,6 +6,7 @@ pub type VToken<'a> = Loc<'a, Value<'a>>;
 pub enum Value<'a> {
     Nat(usize),
     Sym(String),
+    Char(char),
     Lam(Box<Expr<'a>>, Box<Expr<'a>>),
 }
 
@@ -16,7 +17,7 @@ impl<'a> Value<'a> {
 
     pub(crate) fn free_symbols(&self) -> Vec<&String> {
         match self {
-            Value::Nat(_) => vec![],
+            Value::Nat(_) | Value::Char(_) => vec![],
             Value::Sym(s) => vec![s],
             Value::Lam(p, r) => {
                 let params = p.free_symbols();
@@ -29,6 +30,7 @@ impl<'a> Value<'a> {
 impl<'a> std::fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Value::Char(c) => write!(f, "'{}'", c),
             Value::Nat(n) => write!(f, "{}", n),
             Value::Sym(s) => write!(f, "{}", s),
             Value::Lam(p, b) => write!(f, "{} -> {}", p, b),
