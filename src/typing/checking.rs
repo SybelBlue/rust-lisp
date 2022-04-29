@@ -3,24 +3,24 @@ use std::collections::VecDeque;
 use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Stmt, Ident}};
 use crate::exprs::{values::Value, Expr, SToken};
 
-use super::{Type, contexts::{TypeContext, UnifyErr}};
+use super::{Type, contexts::{Solver, Context, UnifyErr}};
 
-pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'a, (Vec<Type>, TypeContext)> {
-    let mut ctxt = ctxt;
+pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (Vec<Type>, Context)> {
+    let mut slvr = Solver::new(ctxt);
     let mut delayed = VecDeque::with_capacity(stmts.len());
     let mut types = Vec::new();
     for (i, s) in stmts.iter().enumerate() {
-        if s.free_symbols().into_iter().all(|n| ctxt.has(n)) {
-            let (t, new) = type_stmt(s, ctxt)?;
-            ctxt = new;
+        if s.free_symbols().into_iter().all(|n| slvr.has(n)) {
+            let (t, new) = type_stmt(s, slvr)?;
+            slvr = new;
             types.push((i, t));
         } else {
             let (new, tvar) = if let Stmt::Bind(ident, _) = s {
-                ctxt.bind_to_tvar(ident.body.clone())
+                slvr.bind_to_tvar(ident.body.clone())
             } else {
-                ctxt.new_tvar()
+                slvr.new_tvar()
             };
-            ctxt = new;
+            slvr = new;
             delayed.push_back((i, s, Type::Var(tvar)));
         }
     }
@@ -28,15 +28,15 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'
     while let Some((i, stmt, t)) = delayed.pop_front() {
         match stmt {
             Stmt::Expr(e) => {
-                ctxt = type_expr(e, ctxt)?.1;
+                slvr = type_expr(e, slvr)?.1;
             }
             Stmt::Bind(ident, e) => {
-                let (new_t, new_ctxt) = type_expr(e, ctxt)?;
-                ctxt = new_ctxt;
+                let (new_t, new_ctxt) = type_expr(e, slvr)?;
+                slvr = new_ctxt;
                 if new_t.improves(&t) {
-                    match ctxt.unify(&t, &new_t) {
+                    match slvr.unify(&t, &new_t) {
                         Ok(new_ctxt) => { 
-                            ctxt = new_ctxt;
+                            slvr = new_ctxt;
                             if !new_t.is_concrete() {
                                 delayed.push_back((i, stmt, new_t));
                             } else{
@@ -55,15 +55,15 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'
         }
     }
     types.sort_by_key(|(i, _)| *i);
-    return Ok((types.into_iter().map(|(_, t)| t).collect(), ctxt));
+    return Ok((types.into_iter().map(|(_, t)| t).collect(), slvr.finish()));
 }
 
-fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+fn type_stmt<'a>(s: &'a Stmt<'a>, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
     match s {
         Stmt::Expr(e) => 
-            type_expr(e, ctxt),
+            type_expr(e, slvr),
         Stmt::Bind(Ident { body: name, pos }, e) => {
-            let (ctxt, tvar) = ctxt.bind_to_tvar(name.clone());
+            let (ctxt, tvar) = slvr.bind_to_tvar(name.clone());
             let s = Type::Var(tvar);
             let (t, ctxt) = type_expr(e, ctxt)?;
             if s == t {
@@ -82,12 +82,12 @@ fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, Ty
     }
 }
 
-fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
     match e {
-        Expr::Val(v) => type_value(&v.body, ctxt, &v.pos),
+        Expr::Val(v) => type_value(&v.body, slvr, &v.pos),
         Expr::SExp(SToken { pos, body }) => {
             if let Some((fst, rst)) = body.0.split_first() {
-                let (mut target_type, mut ctxt) = type_expr(fst, ctxt)?;
+                let (mut target_type, mut ctxt) = type_expr(fst, slvr)?;
                 let mut rest = rst.into_iter();
                 while let Some(curr_argument) = rest.next() {
                     let (arg_type, new) = type_expr(curr_argument, ctxt)?;
@@ -134,21 +134,24 @@ fn type_expr<'a>(e: &'a Expr, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeCo
                 }
                 Ok((target_type.concretize(&ctxt), ctxt))
             } else {
-                Ok((Type::Unit, ctxt))
+                Ok((Type::Unit, slvr))
             }
         }
     }
 }
 
-fn type_value<'a>(v: &'a Value, ctxt: TypeContext, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, TypeContext)> {
+fn type_value<'a>(v: &'a Value, slvr: Solver, pos: &'a FilePos<'a>) -> TypeResult<'a, (Type, Solver)> {
     Ok(match v {
-        Value::Nat(_) => (Type::Nat, ctxt),
-        Value::Sym(k) => (
-            ctxt.get(k).ok_or(TypeError::new(pos.clone(), UndefinedSymbol(k)))?.concretize(&ctxt),
-            ctxt,
-        ),
+        Value::Nat(_) => (Type::Nat, slvr),
+        Value::Sym(k) => {
+            let (slvr, op_t) = slvr.get(k);
+            let t = op_t
+                .ok_or(TypeError::new(pos.clone(), UndefinedSymbol(k)))?
+                .concretize(&slvr);
+            (t, slvr)
+        }
         Value::Lam(ps, b) => {
-            let mut ctxt = ctxt.clone();
+            let mut ctxt = slvr.clone();
             let mut expr_type = Vec::new(); // in reverse order!
             for p in ps.as_ref().get_lambda_param_names() {
                 let (new, var) = ctxt.bind_to_tvar(p.clone());
