@@ -39,7 +39,7 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (
                             slvr = new_ctxt;
                             if !new_t.is_concrete() {
                                 delayed.push_back((i, stmt, new_t));
-                            } else{
+                            } else {
                                 types.push((i, new_t));
                             }
                         },
