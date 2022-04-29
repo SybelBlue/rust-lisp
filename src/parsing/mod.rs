@@ -7,10 +7,9 @@ use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
     exprs::{Expr, Ident},
     stmts::Stmt,
-    values::{Value, VToken}
+    values::{Value, VToken},
+    parsing::lex::{Token, TokenBody::*, Keyword::*}
 };
-
-use self::lex::{Token, TokenBody::*, Keyword::*};
 
 fn try_collect<T, E, I: Iterator<Item=Result<T, E>>>(itr: I) -> Result<Vec<T>, E> {
     let mut out = Vec::new();
