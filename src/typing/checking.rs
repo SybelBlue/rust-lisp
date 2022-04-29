@@ -58,7 +58,7 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: TypeContext) -> TypeResult<'
     return Ok((types.into_iter().map(|(_, t)| t).collect(), ctxt));
 }
 
-pub(crate) fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
+fn type_stmt<'a>(s: &'a Stmt<'a>, ctxt: TypeContext) -> TypeResult<'a, (Type, TypeContext)> {
     match s {
         Stmt::Expr(e) => 
             type_expr(e, ctxt),

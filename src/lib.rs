@@ -9,17 +9,13 @@ mod tests {
         use crate::{typing::*, parsing::sources::Source};
 
         fn type_test<'a>(s: &'a str) -> Type {
-            use crate::typing::contexts::TypeContext;
+            use crate::typing::{contexts::TypeContext, checking::type_mod};
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            ss.iter().try_fold(
-                (Type::Unit, TypeContext::new()), 
-                |(_, ctxt), s| crate::typing::checking::type_stmt(&s, ctxt)
-            ).unwrap().0
-
+            type_mod(&ss, TypeContext::new()).unwrap().0.pop().unwrap()
         }
         
         macro_rules! assert_fmt_eq {
