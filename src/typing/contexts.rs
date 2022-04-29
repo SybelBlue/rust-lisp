@@ -74,12 +74,11 @@ impl Solver {
     }
 
     pub(crate) fn get(self, k: &String) -> (Self, Option<Type>) {
-        let t = self.locals.get(k)
-            .map(|t| self.query(t))
-            .or_else(|| self.ctxt.get(k).map(Type::clone));
-        if let Some(t) = t {
-            let (slf, t) = t.instanced(self);
-            (slf, Some(t))
+        let t = self.locals.get(k).map(|t| self.query(t));
+        if t.is_some() { return (self, t); }
+        if let Some(t) = self.ctxt.get(k) {
+            let (slvr, t) = t.clone().instanced(self);
+            (slvr, Some(t))
         } else {
             (self, None)
         }
