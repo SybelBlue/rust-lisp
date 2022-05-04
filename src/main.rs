@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use linefeed::{Interface, ReadResult};
 
 use rust_lisp::{parsing::{parse, sources::Source}, typing::{checking::type_mod, contexts::Context}, errors::{LexError, LexErrorBody}};
@@ -6,6 +8,7 @@ fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
     reader.set_prompt(">> ")?;
     let mut ctxt = Context::new();
+    reader.set_completer(Arc::new(ctxt.clone()));
     let mut lines = Vec::new();
 
     while let ReadResult::Input(input) = reader.read_line()? {
@@ -16,11 +19,12 @@ fn main() -> std::io::Result<()> {
             match Source::Anon(instr.as_str()).lex(buf) {
             Ok(ts) => {
                 match parse(ts) {
-                    Ok(es) => {
-                        match type_mod(&es, ctxt.clone()) {
+                    Ok(stmts) => {
+                        match type_mod(&stmts, ctxt.clone()) {
                             Ok((ts, new)) => {
                                 ctxt = new;
-                                for (e, t) in es.iter().zip(ts) {
+                                reader.set_completer(Arc::new(ctxt.clone()));
+                                for (e, t) in stmts.iter().zip(ts) {
                                     println!(" | {} :: {}", e, t);
                                 }
                             },

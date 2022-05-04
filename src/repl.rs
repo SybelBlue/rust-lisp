@@ -1,13 +1,18 @@
-use linefeed::{Terminal, Completer};
+use linefeed::{Terminal, Completer, Completion};
 
 use crate::typing::contexts::Context;
 
-
-struct ReplCompleter(Context);
-
-impl<Term: Terminal> Completer<Term> for ReplCompleter {
-    fn complete(&self, word: &str, prompter: &linefeed::Prompter<Term>,
-        start: usize, end: usize) -> Option<Vec<linefeed::Completion>> {
-        todo!()
+impl<Term: Terminal> Completer<Term> for Context {
+    fn complete(&self, word: &str, _prompter: &linefeed::Prompter<Term>,
+        _start: usize, _end: usize) -> Option<Vec<Completion>> {
+        let mut out = Vec::new();
+        for k in self.keys() {
+            if k.starts_with(word) {
+                out.push(
+                    Completion::simple(k.clone())
+                );
+            }
+        }
+        Some(out)
     }
 }
