@@ -1,12 +1,10 @@
-use std::collections::VecDeque;
-
 use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Expr, Ident, SToken}, stmts::Stmt, values::Value};
 
 use super::{Type, contexts::{Solver, Context, UnifyErr}};
 
 pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (Vec<Type>, Context)> {
     let mut slvr = Solver::new(ctxt);
-    let mut delayed = VecDeque::with_capacity(stmts.len());
+    let mut delayed = Vec::with_capacity(stmts.len());
     let mut types = Vec::new();
     for (i, s) in stmts.iter().enumerate() {
         if s.free_symbols().into_iter().all(|n| slvr.has(n)) {
@@ -20,48 +18,60 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (
                 slvr.new_tvar()
             };
             slvr = new;
-            delayed.push_back((i, s, Type::Var(tvar)));
+            delayed.push((i, s, Type::Var(tvar)));
         }
     }
 
-    while let Some((i, stmt, t)) = delayed.pop_front() {
-        match stmt {
-            Stmt::Expr(e) => {
-                slvr = type_expr(e, slvr)?.1;
-            }
-            Stmt::Bind(ident, e) => {
-                let (new_t, new_ctxt) = type_expr(e, slvr)?;
-                slvr = new_ctxt;
-                let new_t = new_t.concretize(&slvr);
-                if new_t.improves(&t) {
-                    println!("improving {} :: {}", ident.body, new_t);
-                    match slvr.unify(&t, &new_t) {
-                        Ok(new_ctxt) => { 
-                            slvr = new_ctxt;
-                            if new_t.is_concrete() {
-                                types.push((i, new_t));
-                                continue;
-                            }
-                        },
-                        Err(e) => {
-                            return Err(
-                                TypeError::new(ident.pos.clone(), 
-                                    match e {
-                                        UnifyErr::Inf => 
-                                            InfiniteType(t, new_t),
-                                        UnifyErr::Mis => 
-                                            TypeMismatch { got: new_t, expected: t },
-                                    })
-                            )
-                        },
-                    }
+    loop {
+        let mut found = false;
+        let mut next_delayed = Vec::new();
+        for (i, stmt, t) in delayed {
+            match stmt {
+                Stmt::Expr(e) => {
+                    let (new_t, new_slvr) = type_expr(e, slvr)?;
+                    slvr = new_slvr;
+                    types.push((i, new_t));
                 }
-                delayed.push_back((i, stmt, new_t));
+                Stmt::Bind(ident, e) => {
+                    let (new_t, new_ctxt) = type_expr(e, slvr)?;
+                    slvr = new_ctxt;
+                    let new_t = new_t.concretize(&slvr);
+                    if new_t.improves(&t) {
+                        match slvr.unify(&t, &new_t) {
+                            Ok(new_ctxt) => { 
+                                slvr = new_ctxt;
+                                found = true;
+                                if new_t.is_concrete() {
+                                    types.push((i, new_t));
+                                    continue;
+                                }
+                            },
+                            Err(e) => {
+                                return Err(
+                                    TypeError::new(ident.pos.clone(), 
+                                        match e {
+                                            UnifyErr::Inf => 
+                                                InfiniteType(t, new_t),
+                                            UnifyErr::Mis => 
+                                                TypeMismatch { got: new_t, expected: t },
+                                        })
+                                )
+                            },
+                        }
+                    }
+                    next_delayed.push((i, stmt, new_t));
+                }
             }
         }
+
+        if found && !next_delayed.is_empty() {
+            delayed = next_delayed;
+        } else {
+            types.extend(next_delayed.into_iter().map(|(i, _, t)| (i, t)));
+            types.sort_by_key(|(i, _)| *i);
+            return Ok((types.into_iter().map(|(_, t)| t.concretize(&slvr)).collect(), slvr.finish()));
+        }
     }
-    types.sort_by_key(|(i, _)| *i);
-    return Ok((types.into_iter().map(|(_, t)| t.concretize(&slvr)).collect(), slvr.finish()));
 }
 
 fn type_stmt<'a>(s: &'a Stmt<'a>, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {

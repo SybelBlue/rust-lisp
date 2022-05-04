@@ -22,7 +22,7 @@ mod tests {
         
         macro_rules! assert_fmt_eq {
             ($a:expr, $b:expr) => {
-                assert_eq!(format!("{}", $a), format!("{}", $b));
+                assert_eq!(format!("{}", $a), format!("{}", $b))
             };
         }
 
@@ -150,6 +150,7 @@ mod tests {
             use crate::typing::checking::type_mod;
 
             let src = Source::Anon("\
+            (z <- (foo 4))
             ((foo x) <- (baz (+ x y)))\
             (y <- 7)\
             ((baz x) <- (foo (foo (+ y x))))");
@@ -158,9 +159,10 @@ mod tests {
             let ss = crate::parsing::parse(ts).unwrap();
             let (types, _) = type_mod(&ss, Context::new()).unwrap();
             let n_fn = Type::fun(Type::Nat, Type::Nat);
-            assert_eq!(vec![n_fn.clone(), Type::Nat, n_fn], types);
+            assert_eq!(vec![Type::Nat, n_fn.clone(), Type::Nat, n_fn], types);
 
             let src = Source::Anon("\
+            (c <- (baz 3 5))
             ((foo x) <- (bar x)) \
             ((bar x) <- (baz (foo x) x)) \
             ((baz x y) <- (foo (+ x (bar y))))");
@@ -169,7 +171,22 @@ mod tests {
             let ss = crate::parsing::parse(ts).unwrap();
             let (types, _) = type_mod(&ss, Context::new()).unwrap();
             let n_fn = Type::fun(Type::Nat, Type::Nat);
-            assert_eq!(vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Nat, n_fn)], types);
+            assert_eq!(vec![Type::Nat, n_fn.clone(), n_fn.clone(), Type::fun(Type::Nat, n_fn)], types);
+
+            let src = Source::Anon("\
+            ((foo q) <- (bar q)) \
+            ((bar z) <- (baz (foo z) z)) \
+            ((baz x y) <- (foo (baz x (bar y))))");
+            let ref mut buf = String::new();
+            let ts = src.lex(buf).unwrap();
+            let ss = crate::parsing::parse(ts).unwrap();
+            let (types, _) = type_mod(&ss, Context::new()).unwrap();
+            let n_fn = Type::fun(Type::Var(0), Type::Var(0));
+            assert_eq!(3, types.len());
+            vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Var(0), n_fn)]
+                .into_iter()
+                .zip(types)
+                .for_each(|(e, g)| assert_fmt_eq!(e, g));
         }
     }
 
