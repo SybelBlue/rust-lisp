@@ -4,6 +4,7 @@ pub mod exprs;
 pub mod stmts;
 pub mod errors;
 pub mod typing;
+pub mod repl;
 
 #[cfg(test)]
 mod tests {
