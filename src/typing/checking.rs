@@ -32,29 +32,36 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (
             Stmt::Bind(ident, e) => {
                 let (new_t, new_ctxt) = type_expr(e, slvr)?;
                 slvr = new_ctxt;
+                let new_t = new_t.concretize(&slvr);
                 if new_t.improves(&t) {
+                    println!("improving {} :: {}", ident.body, new_t);
                     match slvr.unify(&t, &new_t) {
                         Ok(new_ctxt) => { 
                             slvr = new_ctxt;
-                            if !new_t.is_concrete() {
-                                delayed.push_back((i, stmt, new_t));
-                            } else {
+                            if new_t.is_concrete() {
                                 types.push((i, new_t));
+                                continue;
                             }
                         },
-                        Err(e) => return Err(TypeError::new(ident.pos.clone(), match e {
-                            UnifyErr::Inf => 
-                                InfiniteType(t, new_t),
-                            UnifyErr::Mis => 
-                                TypeMismatch { got: new_t, expected: t },
-                        })),
+                        Err(e) => {
+                            return Err(
+                                TypeError::new(ident.pos.clone(), 
+                                    match e {
+                                        UnifyErr::Inf => 
+                                            InfiniteType(t, new_t),
+                                        UnifyErr::Mis => 
+                                            TypeMismatch { got: new_t, expected: t },
+                                    })
+                            )
+                        },
                     }
                 }
+                delayed.push_back((i, stmt, new_t));
             }
         }
     }
     types.sort_by_key(|(i, _)| *i);
-    return Ok((types.into_iter().map(|(_, t)| t).collect(), slvr.finish()));
+    return Ok((types.into_iter().map(|(_, t)| t.concretize(&slvr)).collect(), slvr.finish()));
 }
 
 fn type_stmt<'a>(s: &'a Stmt<'a>, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {

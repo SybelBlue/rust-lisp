@@ -147,6 +147,7 @@ mod tests {
         #[test]
         fn mod_test() {
             use crate::typing::contexts::Context;
+            use crate::typing::checking::type_mod;
 
             let src = Source::Anon("\
             ((foo x) <- (baz (+ x y)))\
@@ -155,10 +156,20 @@ mod tests {
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            let (types, _) = crate::typing::checking::type_mod(&ss, Context::new()).unwrap();
+            let (types, _) = type_mod(&ss, Context::new()).unwrap();
             let n_fn = Type::fun(Type::Nat, Type::Nat);
             assert_eq!(vec![n_fn.clone(), Type::Nat, n_fn], types);
 
+            let src = Source::Anon("\
+            ((foo x) <- (bar x)) \
+            ((bar x) <- (baz (foo x) x)) \
+            ((baz x y) <- (foo (+ x (bar y))))");
+            let ref mut buf = String::new();
+            let ts = src.lex(buf).unwrap();
+            let ss = crate::parsing::parse(ts).unwrap();
+            let (types, _) = type_mod(&ss, Context::new()).unwrap();
+            let n_fn = Type::fun(Type::Nat, Type::Nat);
+            assert_eq!(vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Nat, n_fn)], types);
         }
     }
 
