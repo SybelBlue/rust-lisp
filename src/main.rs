@@ -9,6 +9,7 @@ fn main() -> std::io::Result<()> {
     let mut lines = Vec::new();
 
     while let ReadResult::Input(input) = reader.read_line()? {
+            reader.add_history(input.clone());
             lines.push(input);
             let instr = lines.join("\n");
             let ref mut buf = String::new();
