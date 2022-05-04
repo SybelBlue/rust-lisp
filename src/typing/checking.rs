@@ -1,6 +1,6 @@
 use crate::{errors::{TypeResult, TypeErrorBody::*, TypeError}, parsing::sources::FilePos, exprs::{Expr, Ident, SToken}, stmts::Stmt, values::Value};
 
-use super::{Type, contexts::{Solver, Context, UnifyErr}};
+use super::{Type, contexts::{Solver, Context}};
 
 pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (Vec<Type>, Context)> {
     let mut slvr = Solver::new(ctxt);
@@ -46,17 +46,8 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (
                                     continue;
                                 }
                             },
-                            Err(e) => {
-                                return Err(
-                                    TypeError::new(ident.pos.clone(), 
-                                        match e {
-                                            UnifyErr::Inf => 
-                                                InfiniteType(t, new_t),
-                                            UnifyErr::Mis => 
-                                                TypeMismatch { got: new_t, expected: t },
-                                        })
-                                )
-                            },
+                            Err(e) => 
+                                return Err(TypeError::new(ident.pos.clone(), e)),
                         }
                     }
                     next_delayed.push((i, stmt, new_t));
@@ -87,12 +78,7 @@ fn type_stmt<'a>(s: &'a Stmt<'a>, slvr: Solver) -> TypeResult<'a, (Type, Solver)
             }
             match ctxt.unify(&s, &t) {
                 Ok(ctxt) => Ok((t, ctxt)),
-                Err(e) => match e {
-                    UnifyErr::Inf => 
-                        Err(TypeError::new(pos.clone(), InfiniteType(s, t))),
-                    UnifyErr::Mis => 
-                        Err(TypeError::new(pos.clone(), TypeMismatch { expected: s, got: t })),
-                },
+                Err(e) => Err(TypeError::new(pos.clone(), e)),
             }
         }
     }
@@ -115,15 +101,8 @@ fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
                                     target_type = *ret_type;
                                     ctxt = new;
                                 }
-                                Err(UnifyErr::Mis) => {
-                                    return Err(TypeError::new(pos.clone(), TypeMismatch {
-                                        got: arg_type,
-                                        expected: *param_type,
-                                    }));
-                                }
-                                Err(UnifyErr::Inf) => {
-                                    return Err(TypeError::new(pos.clone(), InfiniteType(param_type.as_ref().clone(), arg_type)));
-                                }
+                                Err(e) => 
+                                    return Err(TypeError::new(pos.clone(), e)),
                             }
                         }
                         Type::Var(_) => {
@@ -134,15 +113,8 @@ fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
                                     target_type = Type::Var(ret_type_id);
                                     ctxt = new;
                                 }
-                                Err(UnifyErr::Mis) => {
-                                    return Err(TypeError::new(pos.clone(), TypeMismatch {
-                                        got: curr_expr_type,
-                                        expected: target_type,
-                                    }));
-                                }
-                                Err(UnifyErr::Inf) => {
-                                    return Err(TypeError::new(pos.clone(), InfiniteType(target_type, curr_expr_type)));
-                                }
+                                Err(e) => 
+                                    return Err(TypeError::new(pos.clone(), e)),
                             }
                         }
                         _ => return Err(TypeError::new(pos.clone(), TooManyArgs(fst))),
@@ -179,12 +151,6 @@ fn type_value<'a>(v: &'a Value, slvr: Solver, pos: &'a FilePos<'a>) -> TypeResul
             let ret_type_var = Type::Var(ret_type_var);
             let (ret_type, ctxt) = type_expr(b, ctxt)?;
             match ctxt.unify(&ret_type, &ret_type_var) {
-                Err(UnifyErr::Inf) => 
-                    return Err(TypeError::new(pos.clone(), 
-                        InfiniteType(ret_type, ret_type_var))),
-                Err(UnifyErr::Mis) => 
-                    return Err(TypeError::new(pos.clone(), 
-                        TypeMismatch { got: ret_type_var, expected: ret_type })),
                 Ok(ctxt) => {
                     // undoes reversal!
                     let lam_type = expr_type
@@ -192,6 +158,8 @@ fn type_value<'a>(v: &'a Value, slvr: Solver, pos: &'a FilePos<'a>) -> TypeResul
                         .fold(ret_type, |arr, curr| Type::fun(curr, arr));
                     (lam_type.concretize(&ctxt), ctxt)
                 }
+                Err(e) => 
+                    return Err(TypeError::new(pos.clone(), e)),
             }
         }
     })

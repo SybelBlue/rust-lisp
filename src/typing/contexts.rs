@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::errors::TypeErrorBody;
+
 use super::Type;
 
 type Identifier = String;
@@ -23,8 +25,6 @@ pub(crate) struct Solver {
     /// acyclic mapping from Var(_n_) to more concrete type in type_vars
     type_vars: VarMap,
 }
-
-pub enum UnifyErr { Inf, Mis }
 
 impl Context {
     pub fn new() -> Self {
@@ -131,10 +131,10 @@ impl Solver {
         }
     }
 
-    fn put_eq(mut self, var: usize, t: Type) -> Result<Self, UnifyErr> {
+    fn put_eq(mut self, var: usize, t: Type) -> Self {
         if Some(&None) == self.type_vars.get(&var) {
             self.type_vars.insert(var, Some(t.clone()));
-            Ok(self)
+            self
         } else {
             panic!("bad eq: var {} ~ {:?}", var, t)
         }
@@ -152,26 +152,26 @@ impl Solver {
         (self, k)
     }
 
-    pub(crate) fn unify(self, expected: &Type, got: &Type) -> Result<Self, UnifyErr> {
+    pub(crate) fn unify<'a>(self, expected: &Type, got: &Type) -> Result<Self, TypeErrorBody<'a>> {
         match (self.query(expected), self.query(got)) {
             // if both are functions, unpack and recurse
             (Type::Fun(p0, r0), Type::Fun(p1, r1)) =>
             self.unify(&p0, &p1)
                     .and_then(|new| new.unify(&r0, &r1)),
             // if equal, done.
-            (slf, got) if slf == got => Ok(self),
+            (expected, got) if expected == got => Ok(self),
             // if inf, err.
-            (slf, got) if slf.contains(&got) || got.contains(&slf) => 
-                Err(UnifyErr::Inf),
+            (expected, got) if expected.contains(&got) || got.contains(&expected) => 
+                Err(TypeErrorBody::InfiniteType(expected, got)),
             // if both are tvars, register greatest equivalence
             (Type::Var(s), Type::Var(o)) =>
-                self.put_eq(s.min(o), Type::Var(s.max(o))),
+                Ok(self.put_eq(s.min(o), Type::Var(s.max(o)))),
             // if either is a tvar, register an equivalency on the other
             (Type::Var(v), o) 
                 | (o, Type::Var(v)) =>
-                    self.put_eq(v, o.clone()),
+                    Ok(self.put_eq(v, o.clone())),
             // unequal, and neither are vars, so not unification possible
-            _ => Err(UnifyErr::Mis)
+            _ => Err(TypeErrorBody::TypeMismatch { got: got.clone() , expected: expected.clone() })
         }
     }
 }
