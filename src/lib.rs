@@ -152,8 +152,8 @@ mod tests {
 
             let src = Source::Anon("\
             (z <- (foo 4))
-            ((foo x) <- (baz (+ x y)))\
-            (y <- 7)\
+            ((foo x) <- (baz (+ x y)))
+            (y <- 7)
             ((baz x) <- (foo (foo (+ y x))))");
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
@@ -164,8 +164,8 @@ mod tests {
 
             let src = Source::Anon("\
             (c <- (baz 3 5))
-            ((foo x) <- (bar x)) \
-            ((bar x) <- (baz (foo x) x)) \
+            ((foo x) <- (bar x))
+            ((bar x) <- (baz (foo x) x))
             ((baz x y) <- (foo (+ x (bar y))))");
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
@@ -175,8 +175,8 @@ mod tests {
             assert_eq!(vec![Type::Nat, n_fn.clone(), n_fn.clone(), Type::fun(Type::Nat, n_fn)], types);
 
             let src = Source::Anon("\
-            ((foo q) <- (bar q)) \
-            ((bar z) <- (baz (foo z) z)) \
+            ((foo q) <- (bar q))
+            ((bar z) <- (baz (foo z) z))
             ((baz x y) <- (foo (baz x (bar y))))");
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
@@ -185,6 +185,21 @@ mod tests {
             let n_fn = Type::fun(Type::Var(0), Type::Var(0));
             assert_eq!(3, types.len());
             vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Var(0), n_fn)]
+                .into_iter()
+                .zip(types)
+                .for_each(|(e, g)| assert_fmt_eq!(e, g));
+            
+
+            let src = Source::Anon("\
+            ((id x) <- x)
+            ((bux z) <- 5)
+            ((foo x y) <- (+ (id 3) (bux (id ()))))");
+            let ref mut buf = String::new();
+            let ts = src.lex(buf).unwrap();
+            let ss = crate::parsing::parse(ts).unwrap();
+            let (types, _) = type_mod(&ss, Context::new()).unwrap();
+            assert_eq!(3, types.len());
+            vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(Type::Nat, Type::fun(Type::Unit, Type::Var(1)))]
                 .into_iter()
                 .zip(types)
                 .for_each(|(e, g)| assert_fmt_eq!(e, g));
