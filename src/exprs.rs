@@ -44,7 +44,7 @@ impl<'a> Display for Expr<'a> {
                     rst.into_iter().try_for_each(|e| write!(f, " {}", e))?;
                     f.write_char(')')
                 } else {
-                    Ok(())
+                    f.write_str("()")
                 }
             }
         }
