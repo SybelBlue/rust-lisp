@@ -33,13 +33,13 @@ pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (
                     types.push((i, new_t));
                 }
                 Stmt::Bind(ident, e) => {
-                    let (new_t, new_ctxt) = type_expr(e, slvr)?;
-                    slvr = new_ctxt;
+                    let (new_t, new_slvr) = type_expr(e, slvr)?;
+                    slvr = new_slvr;
                     let new_t = new_t.concretize(&slvr);
                     if new_t.improves(&t) {
                         match slvr.unify(&t, &new_t) {
-                            Ok(new_ctxt) => { 
-                                slvr = new_ctxt;
+                            Ok(new_slvr) => { 
+                                slvr = new_slvr;
                                 found = true;
                                 if new_t.is_concrete() {
                                     types.push((i, new_t));
@@ -70,14 +70,14 @@ fn type_stmt<'a>(s: &'a Stmt<'a>, slvr: Solver) -> TypeResult<'a, (Type, Solver)
         Stmt::Expr(e) => 
             type_expr(e, slvr),
         Stmt::Bind(Ident { body: name, pos }, e) => {
-            let (ctxt, tvar) = slvr.bind_to_tvar(name.clone());
+            let (slvr, tvar) = slvr.bind_to_tvar(name.clone());
             let s = Type::Var(tvar);
-            let (t, ctxt) = type_expr(e, ctxt)?;
+            let (t, slvr) = type_expr(e, slvr)?;
             if s == t {
                 return Err(TypeError::new(pos.clone(), InfiniteType(s, t)));
             }
-            match ctxt.unify(&s, &t) {
-                Ok(ctxt) => Ok((t, ctxt)),
+            match slvr.unify(&s, &t) {
+                Ok(slvr) => Ok((t, slvr)),
                 Err(e) => Err(TypeError::new(pos.clone(), e)),
             }
         }
@@ -89,29 +89,29 @@ fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
         Expr::Val(v) => type_value(&v.body, slvr, &v.pos),
         Expr::SExp(SToken { pos, body }) => {
             if let Some((fst, rst)) = body.split_first() {
-                let (mut target_type, mut ctxt) = type_expr(fst, slvr)?;
+                let (mut target_type, mut slvr) = type_expr(fst, slvr)?;
                 let mut rest = rst.into_iter();
                 while let Some(curr_argument) = rest.next() {
-                    let (arg_type, new) = type_expr(curr_argument, ctxt)?;
-                    ctxt = new;
+                    let (arg_type, new) = type_expr(curr_argument, slvr)?;
+                    slvr = new;
                     match target_type {
                         Type::Fun(param_type, ret_type) => {
-                            match ctxt.unify(param_type.as_ref(), &arg_type) {
+                            match slvr.unify(param_type.as_ref(), &arg_type) {
                                 Ok(new) => {
                                     target_type = *ret_type;
-                                    ctxt = new;
+                                    slvr = new;
                                 }
                                 Err(e) => 
                                     return Err(TypeError::new(pos.clone(), e)),
                             }
                         }
                         Type::Var(_) => {
-                            let (new, ret_type_id) = ctxt.new_tvar();
+                            let (new, ret_type_id) = slvr.new_tvar();
                             let curr_expr_type = Type::fun(arg_type, Type::Var(ret_type_id));
                             match new.unify(&target_type, &curr_expr_type) {
                                 Ok(new) => {
                                     target_type = Type::Var(ret_type_id);
-                                    ctxt = new;
+                                    slvr = new;
                                 }
                                 Err(e) => 
                                     return Err(TypeError::new(pos.clone(), e)),
@@ -120,7 +120,7 @@ fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
                         _ => return Err(TypeError::new(pos.clone(), TooManyArgs(fst))),
                     }
                 }
-                Ok((target_type.concretize(&ctxt), ctxt))
+                Ok((target_type.concretize(&slvr), slvr))
             } else {
                 Ok((Type::Unit, slvr))
             }
@@ -140,23 +140,23 @@ fn type_value<'a>(v: &'a Value, slvr: Solver, pos: &'a FilePos<'a>) -> TypeResul
             (t, slvr)
         }
         Value::Lam(ps, b) => {
-            let mut ctxt = slvr.clone();
+            let mut slvr = slvr.clone();
             let mut expr_type = Vec::new(); // in reverse order!
             for p in ps.as_ref().get_lambda_param_names() {
-                let (new, var) = ctxt.bind_to_tvar(p.clone());
-                ctxt = new;
+                let (new, var) = slvr.bind_to_tvar(p.clone());
+                slvr = new;
                 expr_type.push(Type::Var(var));
             }
-            let (ctxt, ret_type_var) = ctxt.new_tvar();
+            let (slvr, ret_type_var) = slvr.new_tvar();
             let ret_type_var = Type::Var(ret_type_var);
-            let (ret_type, ctxt) = type_expr(b, ctxt)?;
-            match ctxt.unify(&ret_type, &ret_type_var) {
-                Ok(ctxt) => {
+            let (ret_type, slvr) = type_expr(b, slvr)?;
+            match slvr.unify(&ret_type, &ret_type_var) {
+                Ok(slvr) => {
                     // undoes reversal!
                     let lam_type = expr_type
                         .into_iter()
                         .fold(ret_type, |arr, curr| Type::fun(curr, arr));
-                    (lam_type.concretize(&ctxt), ctxt)
+                    (lam_type.concretize(&slvr), slvr)
                 }
                 Err(e) => 
                     return Err(TypeError::new(pos.clone(), e)),
