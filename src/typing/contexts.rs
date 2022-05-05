@@ -58,11 +58,6 @@ impl Context {
             .get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub(crate) fn has(&self, k: &String) -> bool {
-        self.bound
-            .contains_key(self.aliased.get(k).unwrap_or(k))
-    }
-
     pub fn keys(&self) -> Vec<&String> {
         self.aliased.keys().chain(self.bound.keys()).collect()
     }
@@ -99,10 +94,6 @@ impl Solver {
         } else {
             (self, None)
         }
-    }
-
-    pub(crate) fn has(&self, k: &String) -> bool {
-        self.locals.contains_key(k) || self.ctxt.has(k)
     }
 
     fn query_tvar(type_vars: &VarMap, var: usize) -> Type {

@@ -144,35 +144,6 @@ impl Type {
             },
         }
     }
-
-    pub(crate) fn is_concrete(&self) -> bool {
-        let ref mut ts = HashSet::new();
-        self._type_vars(ts, true);
-        ts.is_empty()
-    }
-
-    fn _type_vars(&self, ts: &mut HashSet<usize>, adding: bool) {
-        match self {
-            Type::Var(n) => if adding { ts.insert(*n); } else { ts.remove(n); },
-            Type::Fun(p, r) => {
-                r._type_vars(ts, adding);
-                p._type_vars(ts, false);
-            }
-            Type::Data(_, its) => its.iter().for_each(|t| t._type_vars(ts, adding)),
-            Type::Unit | Type::Nat | Type::Char => {},
-        }
-    }
-
-    pub(crate) fn improves(&self, t: &Type) -> bool {
-        match (self, t) {
-            (Type::Var(_), Type::Var(_)) => false,
-            (_, Type::Var(_)) => true,
-            (Type::Fun(sp, sr), Type::Fun(tp, tr)) =>
-                sp.improves(tp) || sr.improves(tr),
-            (x, y) if x == y => false,
-            (x, y) => panic!("comparing concrete mismatch! {} {}", x, y)
-        }
-    }
 }
 
 impl Display for Type {

@@ -4,84 +4,36 @@ use super::{Type, contexts::{Solver, Context}};
 
 pub fn type_mod<'a>(stmts: &'a Vec<Stmt<'a>>, ctxt: Context) -> TypeResult<'a, (Vec<Type>, Context)> {
     let mut slvr = Solver::new(ctxt);
-    let mut delayed = Vec::with_capacity(stmts.len());
+    let mut delayed = Vec::new();
+    
+    for s in stmts {
+        delayed.push(match s {
+            Stmt::Expr(e) => (e, None),
+            Stmt::Bind(Ident { body: name, pos }, e) => {
+                let (new, tvar) = slvr.bind_to_tvar(name.clone());
+                slvr = new;
+                (e, Some((pos, Type::Var(tvar))))
+            }
+        });
+    }
+    
     let mut types = Vec::new();
-    for (i, s) in stmts.iter().enumerate() {
-        if s.free_symbols().into_iter().all(|n| slvr.has(n)) {
-            let (t, new) = type_stmt(s, slvr)?;
-            slvr = new;
-            types.push((i, t));
-        } else {
-            let (new, tvar) = if let Stmt::Bind(ident, _) = s {
-                slvr.bind_to_tvar(ident.body.clone())
-            } else {
-                slvr.new_tvar()
-            };
-            slvr = new;
-            delayed.push((i, s, Type::Var(tvar)));
-        }
-    }
 
-    loop {
-        let mut found = false;
-        let mut next_delayed = Vec::new();
-        for (i, stmt, t) in delayed {
-            match stmt {
-                Stmt::Expr(e) => {
-                    let (new_t, new_slvr) = type_expr(e, slvr)?;
-                    slvr = new_slvr;
-                    types.push((i, new_t));
-                }
-                Stmt::Bind(ident, e) => {
-                    let (new_t, new_slvr) = type_expr(e, slvr)?;
-                    slvr = new_slvr;
-                    let new_t = new_t.concretize(&slvr);
-                    if new_t.improves(&t) {
-                        match slvr.unify(&t, &new_t) {
-                            Ok(new_slvr) => { 
-                                slvr = new_slvr;
-                                found = true;
-                                if new_t.is_concrete() {
-                                    types.push((i, new_t));
-                                    continue;
-                                }
-                            },
-                            Err(e) => 
-                                return Err(TypeError::new(ident.pos.clone(), e)),
-                        }
-                    }
-                    next_delayed.push((i, stmt, new_t));
-                }
+    for (e, op) in delayed {
+        let (t, new) = type_expr(e, slvr)?;
+        slvr = new;
+        if let Some((pos, old_t)) = op {
+            match slvr.unify(&old_t, &t) {
+                Ok(new) => 
+                    slvr = new,
+                Err(e) => 
+                    return Err(TypeError::new(pos.clone(), e)),
             }
         }
-
-        if found && !next_delayed.is_empty() {
-            delayed = next_delayed;
-        } else {
-            types.extend(next_delayed.into_iter().map(|(i, _, t)| (i, t)));
-            types.sort_by_key(|(i, _)| *i);
-            return Ok((types.into_iter().map(|(_, t)| t.concretize(&slvr)).collect(), slvr.finish()));
-        }
+        types.push(t);
     }
-}
 
-fn type_stmt<'a>(s: &'a Stmt<'a>, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {
-    match s {
-        Stmt::Expr(e) => 
-            type_expr(e, slvr),
-        Stmt::Bind(Ident { body: name, pos }, e) => {
-            let (slvr, tvar) = slvr.bind_to_tvar(name.clone());
-            let s = Type::Var(tvar);
-            let (t, slvr) = type_expr(e, slvr)?;
-            if s == t {
-                return Err(TypeError::new(pos.clone(), InfiniteType(s, t)));
-            }
-            match slvr.unify(&s, &t) {
-                Ok(slvr) => Ok((t, slvr)),
-                Err(e) => Err(TypeError::new(pos.clone(), e)),
-            }
-        }
-    }
+    Ok((types.into_iter().map(|t| t.concretize(&slvr)).collect(), slvr.finish()))
 }
 
 fn type_expr<'a>(e: &'a Expr, slvr: Solver) -> TypeResult<'a, (Type, Solver)> {

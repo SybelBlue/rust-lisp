@@ -25,13 +25,6 @@ impl<'a> Expr<'a> {
         }
         symbols
     }
-
-    pub(crate) fn free_symbols(&self) -> Vec<&String> {
-        match self {
-            Expr::Val(v) => v.body.free_symbols(),
-            Expr::SExp(s) => s.body.iter().flat_map(|e| e.free_symbols()).collect(),
-        }
-    }
 }
 
 impl<'a> Display for Expr<'a> {

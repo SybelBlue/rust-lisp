@@ -18,21 +18,6 @@ impl<'a> Stmt<'a> {
     pub(crate) fn sexp(pos: FilePos<'a>, v: Vec<Expr<'a>>) -> Self {
         Self::Expr(Expr::SExp(SToken { pos, body: v }))
     }
-
-    pub(crate) fn free_symbols(&self) -> Vec<&String> {
-        match self {
-            Stmt::Expr(e) => e.free_symbols(),
-            Stmt::Bind(name, l) => {
-                let mut out = Vec::new();
-                for s in l.free_symbols() {
-                    if s != &name.body {
-                        out.push(s);
-                    }
-                }
-                out
-            }
-        }
-    }
 }
 
 impl<'a> Display for Stmt<'a> {
