@@ -89,9 +89,10 @@ impl Type {
                     (slvr, Self::Var(*tvar))
                 } else {
                     let (slvr, tvar) = slvr.new_tvar();
+                    bound.insert(*n, tvar);
                     (slvr, Self::Var(tvar))
                 }
-            },
+            }
             Self::Fun(p, r) => {
                 let (slvr, p) = p._instanced(bound, slvr);
                 let (slvr, r) = r._instanced(bound, slvr);
@@ -106,7 +107,7 @@ impl Type {
                     out.push(t);
                 }
                 (slvr, Type::Data(nm.clone(), out))
-            },
+            }
             s@Self::Unit | s@Self::Nat | s@Self::Char => 
                 (slvr, s.clone()),
         }
