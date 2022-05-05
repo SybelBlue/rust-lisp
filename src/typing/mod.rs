@@ -145,11 +145,20 @@ impl Type {
     }
 
     pub(crate) fn is_concrete(&self) -> bool {
+        let ref mut ts = HashSet::new();
+        self._type_vars(ts, true);
+        ts.is_empty()
+    }
+
+    fn _type_vars(&self, ts: &mut HashSet<usize>, adding: bool) {
         match self {
-            Type::Unit | Type::Nat | Type::Char => true,
-            Type::Data(_, ts) => ts.iter().all(Type::is_concrete),
-            Type::Fun(p, r) => p.is_concrete() && r.is_concrete(),
-            Type::Var(_) => false,
+            Type::Var(n) => if adding { ts.insert(*n); } else { ts.remove(n); },
+            Type::Fun(p, r) => {
+                r._type_vars(ts, adding);
+                p._type_vars(ts, false);
+            }
+            Type::Data(_, its) => its.iter().for_each(|t| t._type_vars(ts, adding)),
+            Type::Unit | Type::Nat | Type::Char => {},
         }
     }
 
