@@ -188,8 +188,13 @@ mod tests {
                 .into_iter()
                 .zip(types)
                 .for_each(|(e, g)| assert_fmt_eq!(e, g));
-            
+        }
 
+        #[test]
+        fn mod_parapoly() {
+            use crate::typing::contexts::Context;
+            use crate::typing::checking::type_mod;
+            
             let src = Source::Anon("\
             ((id x) <- x)
             ((bux z) <- 5)
