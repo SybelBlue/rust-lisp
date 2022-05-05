@@ -63,7 +63,7 @@ impl Context {
             .contains_key(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub(crate) fn keys(&self) -> Vec<&String> {
+    pub fn keys(&self) -> Vec<&String> {
         self.aliased.keys().chain(self.bound.keys()).collect()
     }
 }

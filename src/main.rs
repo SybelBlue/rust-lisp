@@ -13,6 +13,14 @@ fn main() -> std::io::Result<()> {
 
     while let ReadResult::Input(input) = reader.read_line()? {
             reader.add_history(input.clone());
+            if lines.is_empty() && input.starts_with(":") {
+                match input.as_bytes() {
+                    b":ctxt" => println!("{:?}", ctxt),
+                    b":dir" => println!("{:?}", ctxt.keys()),
+                    _ => println!("** Unrecognized repl cmd '{}'", input),
+                }
+                continue;
+            }
             lines.push(input);
             let instr = lines.join("\n");
             let ref mut buf = String::new();
