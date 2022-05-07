@@ -69,8 +69,23 @@ impl<'a> SourceIter<'a> {
                         Err(body) => return Err(self.error(body))
                     },
                 Some('\'') if stack.curr_word.is_empty() => {
-                    let p = self.pos.clone();
-                    stack.push_char_literal_attempt(self.try_lex_char_literal(), p);
+                    // must capture pos before self.try_lex_char_literal()!
+                    let mut pos = self.pos.clone();
+                    match self.try_lex_char_literal() {
+                        Ok(c) =>
+                            stack.push_token(Token { pos, body: TokenBody::Literal(c) } ),
+                        Err(s) => {
+                            for c in s.chars() {
+                                match c {
+                                    ')' => stack = stack.close_sexp().map_err(|body| LexError::new(pos.clone(), body))?,
+                                    '(' => stack.open_sexp(pos.clone()),
+                                    c if c.is_whitespace() => stack.try_push_word(),
+                                    ch => stack.push_char(ch, &pos),
+                                }
+                                pos.advance(&Some(c));
+                            }
+                        }
+                    }
                 }
                 Some(ch) => stack.push_char(ch, &self.pos),
             }
@@ -105,7 +120,7 @@ impl<'a> SourceIter<'a> {
 
     fn try_lex_char_literal(&mut self) -> Result<char, String> {
         let c = match (self.next(), self.next()) {
-            (None, _) => return Err(String::new()),
+            (None, _) => return Err(String::from('\'')),
             (Some(c), None) => return Err(format!("'{}", c)),
             (Some('\\'), Some(c@'\'')) |
             (Some('\\'), Some(c@'\"')) |
@@ -118,9 +133,9 @@ impl<'a> SourceIter<'a> {
             (Some(c), Some(d)) => return Err(format!("'{}{}", c, d)),
         };
         match self.next() {
-            None => Err(format!("'{}", c)),
+            None => return Err(format!("'{}", c)),
             Some('\'') => Ok(c),
-            Some(x) => Err(match c {
+            Some(x) => return Err(match c {
                 '\"' |
                 '\\' => format!("'\\{}{}", c, x),
                 '\n' => format!("'\\n{}", x),
@@ -204,17 +219,6 @@ impl<'a> LexStack<'a> {
             Err(LexErrorBody::Unclosed(file_pos))
         } else {
             Ok(self.finished)
-        }
-    }
-
-    fn push_char_literal_attempt(&mut self, try_char: Result<char, String>, pos: FilePos<'a>) {
-        match try_char {
-            Ok(c) => 
-                self.push_token(Token { pos, body: TokenBody::Literal(c) } ),
-            Err(s) => {
-                self.try_push_word();
-                self.curr_word.push_str(s.as_str());
-            }
         }
     }
 }

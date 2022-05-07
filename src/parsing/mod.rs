@@ -29,8 +29,8 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     let ts = match t.body {
         Keyword(kw) => 
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Literal(_) => 
-            return Err(ParseError::new(pos, MisplacedLiteral)),
+        Literal(c) => 
+            return Ok(Stmt::value(pos, Value::Char(c))),
         Word(w) => 
             return Ok(Stmt::value(pos, parse_string(w))),
         SExp(ts) => ts,
