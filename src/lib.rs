@@ -222,7 +222,8 @@ mod tests {
             enum QSW<'a> {
                 K(Keyword),
                 S(Vec<QSW<'a>>),
-                W(&'a str)
+                W(&'a str),
+                L(char)
             }
             use QSW::*;
             use Keyword::*;
@@ -232,6 +233,7 @@ mod tests {
                         TokenBody::Word(s) => W(s.as_str()),
                         TokenBody::SExp(body) => S(body.iter().map(QSW::from).collect()),
                         TokenBody::Keyword(kw) => K(*kw),
+                        TokenBody::Literal(c) => L(*c),
                     }
                 }
             }
@@ -239,7 +241,9 @@ mod tests {
             let src = Source::Anon("()\nhello\n(+ 12 34 53) (  ->    
                 test\n\t\n\n (2 hi)  ) (x <- 4) 
                 (<- bad) 
-                (test0(test1)test-2(test3 -> test4)) (0 (1 (2 (3)) ((4) 5)) 6)");
+                ('h' '\\n' 'ok hi't'here)
+                (test0(test1)test-2(test3 -> test4)) 
+                (0 (1 (2 (3)) ((4) 5)) 6)");
             let test = vec!
                 [ S(vec![])
                 , W("hello")
@@ -247,6 +251,7 @@ mod tests {
                 , S(vec![K(Arrow), W("test"), S(vec![W("2"), W("hi")])])
                 , S(vec![W("x"), K(Backarrow), W("4")])
                 , S(vec![K(Backarrow), W("bad")])
+                , S(vec![L('h'), L('\n'), W("'ok"), W("hi't'here")])
                 , S(vec![W("test0"), S(vec![W("test1")]), W("test-2"), S(vec![W("test3"), K(Arrow), W("test4")])])
                 , S(vec![W("0")
                     , S(vec![W("1")

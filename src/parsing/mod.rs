@@ -29,6 +29,8 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     let ts = match t.body {
         Keyword(kw) => 
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
+        Literal(_) => 
+            return Err(ParseError::new(pos, MisplacedLiteral)),
         Word(w) => 
             return Ok(Stmt::value(pos, parse_string(w))),
         SExp(ts) => ts,
@@ -62,6 +64,8 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                     Ok(Stmt::Bind(Ident { pos: arr_pos, body: name }, parse_expr(body)?)),
                 Keyword(kw) => 
                     Err(ParseError::new(arr_pos, MisplacedKeyword(kw))),
+                Literal(_) => 
+                    return Err(ParseError::new(pos, MisplacedLiteral)),
                 SExp(ts) => {
                     if ts.is_empty() {
                         return Err(ParseError::new(arr_pos, MissingBindingIdentifier))
@@ -74,6 +78,8 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                             Err(ParseError::new(pos, MisplacedKeyword(kw))),
                         Token { pos, body: SExp(_) } =>
                             Err(ParseError::new(pos, MissingBindingIdentifier)),
+                        Token { pos, body: Literal(_) } =>
+                            Err(ParseError::new(pos, MisplacedLiteral)),
                     }?;
                     let head = Token { 
                         pos: arr_pos.clone(), 
@@ -112,6 +118,8 @@ fn parse_lambda<'a>(head: Token<'a>, body: Token<'a>) -> ParseResult<'a, Value<'
     let mut to_check = vec![&head];
     while let Some(chk) = to_check.pop() {
         match &chk.body {
+            Literal(_) => 
+                return Err(ParseError::new(chk.pos.clone(), MisplacedLiteral)),
             Keyword(kw) => 
                 return Err(ParseError::new(chk.pos.clone(), MisplacedKeyword(*kw))),
             Word(w) => {
