@@ -58,7 +58,7 @@ impl<'a> FilePos<'a> {
 
     fn col_arrow(&self) -> String {
         let mut out = String::new();
-        out.extend((0..(self.col - 2)).map(|_| ' '));
+        out.extend((0..self.col.saturating_sub(2)).map(|_| ' '));
         out.push('^');
         out
     }
