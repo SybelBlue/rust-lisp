@@ -80,15 +80,17 @@ impl<'a> SourceIter<'a> {
     fn advance(&mut self) -> (bool, Option<char>) {
         let n = self.txt.next();
         self.pos.advance(&n);
-        if !matches!(n, Some(c) if c.is_whitespace()) {
-            return (false, n);
-        }
-        loop {
-            let n = self.txt.next();
-            self.pos.advance(&n);
-            if !matches!(n, Some(c) if c.is_whitespace()) {
-                return (true, n);
+        match n {
+            Some(c) if c.is_whitespace() => {
+                loop {
+                    let n = self.txt.next();
+                    self.pos.advance(&n);
+                    if !matches!(n, Some(c) if c.is_whitespace()) {
+                        return (true, n);
+                    }
+                }
             }
+            n => (false, n)
         }
     }
 }
