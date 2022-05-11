@@ -30,6 +30,10 @@ mod tests {
                 .map(|v| v.tipe)
                 .collect()
         }
+
+        fn agg(t: Type) -> Type {
+            Type::fun(t.clone(), Type::fun(t.clone(), t))
+        }
         
         macro_rules! assert_fmt_eq {
             ($a:expr, $b:expr) => {
@@ -48,20 +52,20 @@ mod tests {
             assert_eq!(Type::nat(), type_test("(3)"));
             assert_eq!(Type::nat(), type_test("((3))"));
             
-            assert_eq!(fun(Type::nat(), fun(Type::nat(), Type::nat())), type_test(r"+"));
-            assert_eq!(fun(Type::nat(), fun(Type::nat(), Type::nat())), type_test(r"(+)"));
+            assert_eq!(agg(Type::nat()), type_test(r"+"));
+            assert_eq!(agg(Type::nat()), type_test(r"(+)"));
         }
 
         #[test]
         fn lambdas() {
             let fun = crate::typing::Type::fun;
             
-            assert_eq!(fun(Type::nat(), fun(Type::nat(), Type::nat())), type_test("(x -> (+ x))"));
+            assert_eq!(agg(Type::nat()), type_test("(x -> (+ x))"));
 
             assert_fmt_eq!(fun(Var(1), Var(1)), type_test("(x -> x)"));
             assert_fmt_eq!(fun(fun(Type::nat(), Var(1)), Var(1)), type_test("(f -> (f 3))"));
 
-            assert_eq!(fun(fun(Type::nat(), fun(Type::nat(), Type::nat())), Type::nat()), type_test("(f -> (f (f 1 2) (f 3 4)))"));
+            assert_eq!(fun(agg(Type::nat()), Type::nat()), type_test("(f -> (f (f 1 2) (f 3 4)))"));
         }
 
         #[test]
