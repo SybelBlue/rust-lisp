@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::Value, parsing::sources::{FilePos, bodies}, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::Value, parsing::sources::{FilePos, bodies}, stmts::Stmt};
 
-use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, UNIT_TYPE};
+use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve};
 
 type Env = HashMap<String, Scheme>;
 
@@ -31,7 +31,7 @@ pub struct Infer {
 impl Infer {
     pub fn new() -> Self {
         Self { 
-            env: vec![(format!("+"), Scheme { forall: vec![], tipe: Type::fun(NAT_TYPE.clone(), Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone())) })]
+            env: vec![(format!("+"), Scheme { forall: vec![], tipe: Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat())) })]
                     .into_iter()
                     .collect(), 
             var_count: 0 
@@ -73,8 +73,8 @@ impl Infer {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref NULL: Vec<Constraint<'static>> = Vec::with_capacity(0);
+fn null<'a>() -> Vec<Constraint<'a>> {
+     Vec::with_capacity(0)
 }
 
 pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, Vec<Scheme>> {
@@ -105,17 +105,16 @@ fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
     Ok((infr, sc))
 }
 
-fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint<'a>>)> {
-    let Expr { pos, body } = e;    
+fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint<'a>>)> {
     match body {
         ExprBody::Val(v) => {
             use Value::*;
             match v {
-                Nat(_)  => Ok((infr, (NAT_TYPE.clone(), NULL.clone()))),
-                Char(_) => Ok((infr, (CHAR_TYPE.clone(), NULL.clone()))),
+                Nat(_)  => Ok((infr, (Type::nat(), null()))),
+                Char(_) => Ok((infr, (Type::char(), null()))),
                 Sym(k) => 
                     infr.lookup_env(k, pos)
-                        .map(|(i, t)| (i, (t, NULL.clone()))),
+                        .map(|(i, t)| (i, (t, null()))),
                 Lam(x, e) => {
                     let name = match x.as_ref() {
                         Expr { body: ExprBody::Val(Sym(name)), .. } => 
@@ -137,7 +136,7 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
             let f_expr = if let Some(fst) = es.next() {
                 fst
             } else {
-                return Ok((infr, (UNIT_TYPE.clone(), NULL.clone())));
+                return Ok((infr, (Type::unit(), null())));
             };
             let (mut infr, (f_type, mut cs)) = infer(infr, f_expr)?;
             let mut arg_types = Vec::new();

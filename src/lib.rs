@@ -42,38 +42,38 @@ mod tests {
             use crate::typing::Type;
             let fun = Type::fun;
 
-            assert_eq!(UNIT_TYPE.clone(), type_test("()"));
-            assert_eq!(UNIT_TYPE.clone(), type_test("(())"));
-            assert_eq!(NAT_TYPE.clone(), type_test("3"));
-            assert_eq!(NAT_TYPE.clone(), type_test("(3)"));
-            assert_eq!(NAT_TYPE.clone(), type_test("((3))"));
+            assert_eq!(Type::unit(), type_test("()"));
+            assert_eq!(Type::unit(), type_test("(())"));
+            assert_eq!(Type::nat(), type_test("3"));
+            assert_eq!(Type::nat(), type_test("(3)"));
+            assert_eq!(Type::nat(), type_test("((3))"));
             
-            assert_eq!(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), type_test(r"+"));
-            assert_eq!(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), type_test(r"(+)"));
+            assert_eq!(fun(Type::nat(), fun(Type::nat(), Type::nat())), type_test(r"+"));
+            assert_eq!(fun(Type::nat(), fun(Type::nat(), Type::nat())), type_test(r"(+)"));
         }
 
         #[test]
         fn lambdas() {
             let fun = crate::typing::Type::fun;
             
-            assert_eq!(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), type_test("(x -> (+ x))"));
+            assert_eq!(fun(Type::nat(), fun(Type::nat(), Type::nat())), type_test("(x -> (+ x))"));
 
             assert_fmt_eq!(fun(Var(1), Var(1)), type_test("(x -> x)"));
-            assert_fmt_eq!(fun(fun(NAT_TYPE.clone(), Var(1)), Var(1)), type_test("(f -> (f 3))"));
+            assert_fmt_eq!(fun(fun(Type::nat(), Var(1)), Var(1)), type_test("(f -> (f 3))"));
 
-            assert_eq!(fun(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), NAT_TYPE.clone()), type_test("(f -> (f (f 1 2) (f 3 4)))"));
+            assert_eq!(fun(fun(Type::nat(), fun(Type::nat(), Type::nat())), Type::nat()), type_test("(f -> (f (f 1 2) (f 3 4)))"));
         }
 
         #[test]
         fn basic_binds() {
-            assert_eq!(UNIT_TYPE.clone(), type_test("(unit <- ())"));
-            assert_eq!(UNIT_TYPE.clone(), type_test("(unit <- (()))"));
-            assert_eq!(UNIT_TYPE.clone(), type_test("(unit <- (())) unit"));
-            assert_eq!(NAT_TYPE.clone(), type_test("(x <- 3)"));
-            assert_eq!(NAT_TYPE.clone(), type_test("(x <- (3))"));
-            assert_eq!(NAT_TYPE.clone(), type_test("(x <- 3) x"));
-            assert_eq!(Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone()), type_test("((double x) <- (+ x x))"));
-            assert_eq!(NAT_TYPE.clone(), type_test("(x <- 3) ((double x) <- (+ x x)) (double x)"));
+            assert_eq!(Type::unit(), type_test("(unit <- ())"));
+            assert_eq!(Type::unit(), type_test("(unit <- (()))"));
+            assert_eq!(Type::unit(), type_test("(unit <- (())) unit"));
+            assert_eq!(Type::nat(), type_test("(x <- 3)"));
+            assert_eq!(Type::nat(), type_test("(x <- (3))"));
+            assert_eq!(Type::nat(), type_test("(x <- 3) x"));
+            assert_eq!(Type::fun(Type::nat(), Type::nat()), type_test("((double x) <- (+ x x))"));
+            assert_eq!(Type::nat(), type_test("(x <- 3) ((double x) <- (+ x x)) (double x)"));
         }
 
         #[test]
@@ -160,16 +160,16 @@ mod tests {
             ((foo x) <- (baz (+ x y)))
             (y <- 7)
             ((baz x) <- (foo (foo (+ y x))))");
-            let n_fn = Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone());
-            assert_eq!(vec![NAT_TYPE.clone(), n_fn.clone(), NAT_TYPE.clone(), n_fn], types);
+            let n_fn = Type::fun(Type::nat(), Type::nat());
+            assert_eq!(vec![Type::nat(), n_fn.clone(), Type::nat(), n_fn], types);
 
             let types = type_test_all("\
             (c <- (baz 3 5))
             ((foo x) <- (bar x))
             ((bar x) <- (baz (foo x) x))
             ((baz x y) <- (foo (+ x (bar y))))");
-            let n_fn = Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone());
-            assert_eq!(vec![NAT_TYPE.clone(), n_fn.clone(), n_fn.clone(), Type::fun(NAT_TYPE.clone(), n_fn)], types);
+            let n_fn = Type::fun(Type::nat(), Type::nat());
+            assert_eq!(vec![Type::nat(), n_fn.clone(), n_fn.clone(), Type::fun(Type::nat(), n_fn)], types);
 
             let types = type_test_all("\
             ((foo q) <- (bar q))
@@ -190,7 +190,7 @@ mod tests {
             ((bux z) <- 5)
             ((foo x y) <- (+ (id 3) (bux (id ()))))");
             assert_eq!(3, types.len());
-            vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(NAT_TYPE.clone(), Type::fun(UNIT_TYPE.clone(), Type::Var(1)))]
+            vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(Type::nat(), Type::fun(Type::unit(), Type::Var(1)))]
                 .into_iter()
                 .zip(types)
                 .for_each(|(e, g)| assert_fmt_eq!(e, g));
