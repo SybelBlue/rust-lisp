@@ -1,4 +1,4 @@
-use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
+use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -8,10 +8,6 @@ pub enum Type {
 }
 
 impl Type {
-    pub(crate) fn fun(p: Self, r: Self) -> Self {
-        Self::Fun(Box::new(p), Box::new(r))
-    }
-
     pub(crate) fn variable_values(&self, out: &mut HashSet<usize>) {
         match self {
             Self::Var(n) => { out.insert(*n); }
@@ -43,7 +39,7 @@ impl Type {
 
     pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, String>, wrap: bool) -> std::fmt::Result {
         match self {
-            Type::Data(_, _) => self.fmt(f),
+            Type::Data(_, _) => Display::fmt(self, f),
             Type::Var(n) => f.write_str(map.get(n).unwrap().as_str()),
             Type::Fun(p, r) => {
                 if wrap { f.write_str("(-> ")?; }
@@ -71,12 +67,24 @@ impl Display for Type {
     }
 }
 
-impl std::fmt::Debug for Type {
+impl Debug for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Data(arg0, _) => f.write_str(arg0),
             Self::Var(arg0) => write!(f, "t_{}", arg0),
             Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),
         }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Scheme {
+    forall: Vec<usize>,
+    tipe: Type,
+}
+
+impl Display for Scheme {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(forall {:?} {})", self.forall, self.tipe)
     }
 }
