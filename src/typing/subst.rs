@@ -9,6 +9,10 @@ impl Subst {
         Self(HashMap::new())
     }
 
+    pub(crate) fn singleton(var: usize, t: Type) -> Self {
+        Self(vec![(var, t)].into_iter().collect())
+    }
+
     pub(crate) fn compose(mut self, other: Self) -> Self {
         self.0.extend(other.0.into_iter());
         self
@@ -44,7 +48,7 @@ impl<T: Substitutable> Substitutable for VecDeque<T> {
     }
 }
 
-pub(crate) fn occurs_check<T: Substitutable>(var: &usize, t: T) -> bool {
+pub(crate) fn occurs_check<T: Substitutable>(var: &usize, t: &T) -> bool {
     let mut used = HashSet::new();
     t.ftv(&mut used);
     used.contains(var)

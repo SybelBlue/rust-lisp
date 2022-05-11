@@ -1,8 +1,8 @@
 use std::collections::{VecDeque, HashSet};
 
-use crate::{errors::{TypeResult, TypeError, TypeErrorBody}, parsing::sources::Loc};
+use crate::{errors::{TypeResult, TypeError, TypeErrorBody}, parsing::sources::{Loc, FilePos}};
 
-use super::{subst::{Subst, Substitutable}, Type};
+use super::{subst::{Subst, Substitutable, occurs_check}, Type};
 
 type Unifier<'a> = (Subst, VecDeque<Constraint<'a>>);
 
@@ -46,7 +46,7 @@ fn unifies(c: Constraint) -> SubstResult {
         (t1, t2) if t1 == t2 => 
             Ok(Subst::empty()),
         (Var(v), t) | (t, Var(v)) =>
-            bind(v, t),
+            bind(pos, v, t),
         (Type::Fun(t1, t2), Type::Fun(t3, t4)) =>
             unifyMany(vec![*t1, *t2], vec![*t3, *t4]),
         (t1, t2) =>
@@ -58,6 +58,12 @@ fn unifyMany<'a>(ls: Vec<Type>, rs: Vec<Type>) -> SubstResult<'a> {
     todo!()
 }
 
-fn bind<'a>(v: usize, t: Type) -> SubstResult<'a> {
-    todo!()
+fn bind(pos: FilePos, var: usize, t: Type) -> SubstResult {
+    if t == Type::Var(var) {
+        Ok(Subst::empty())
+    } else if occurs_check(&var, &t) {
+        Err(TypeError::new(pos, TypeErrorBody::InfiniteType(Type::Var(var), t)))
+    } else {
+        Ok(Subst::singleton(var, t)) 
+    }
 }
