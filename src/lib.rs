@@ -44,7 +44,6 @@ mod tests {
         #[test]
         fn basic() {
             use crate::typing::Type;
-            let fun = Type::fun;
 
             assert_eq!(Type::unit(), type_test("()"));
             assert_eq!(Type::unit(), type_test("(())"));

@@ -1,6 +1,4 @@
-use crate::{parsing::sources::Loc, exprs::Expr};
-
-pub type VToken<'a> = Loc<'a, Value<'a>>;
+use crate::exprs::Expr;
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
