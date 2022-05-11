@@ -22,6 +22,7 @@ type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
 
 use crate::errors::TypeErrorBody::*;
 
+#[derive(Debug)]
 pub struct Infer {
     env: Env,
     var_count: usize,
@@ -43,9 +44,8 @@ impl Infer {
         out
     }
 
-    fn insert(&mut self, name: String, sc: Scheme) {
-        self.env.entry(name)
-            .and_modify(|s| *s = sc);
+    fn in_env(&mut self, name: String, sc: Scheme) {
+        self.env.insert(name, sc);
     }
 
     fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
@@ -90,7 +90,7 @@ pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, V
             Stmt::Bind(Ident { body: name, .. }, body) => {
                 let (new, sc) = infer_expr(infr, body)?;
                 infr = new;
-                infr.insert(name.clone(), sc.clone());
+                infr.in_env(name.clone(), sc.clone());
                 out.push(sc)
             }
         }
@@ -125,8 +125,9 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
                     };
                     let mut infr = infr;
                     let tv = Type::Var(infr.fresh());
-                    let (mut infr, (body_type, cs)) = infer(infr, e)?;
-                    infr.insert(name.clone(), Scheme { forall: vec![], tipe: tv.clone() });
+                    infr.in_env(name.clone(), Scheme { forall: vec![], tipe: tv.clone() });
+                    println!("lam out {:?}", infr);
+                    let (infr, (body_type, cs)) = infer(infr, e)?;
                     Ok((infr, (Type::fun(tv, body_type), cs)))
                 }
             }
