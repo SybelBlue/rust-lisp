@@ -17,7 +17,7 @@ impl Subst {
     /// Provides a self-biased composition when duplicate keys are encountered,
     /// and applys self over other's values.
     /// 
-    /// s0 `compose` s1 = update s1 (apply s0 <$> s1)
+    /// s0 `compose` s1 = update (apply s0 <$> s1) s0
     pub(crate) fn compose(mut self, other: &Self) -> Self {
         let ref cln = self.clone();
         for (i, v) in other.0.iter() {

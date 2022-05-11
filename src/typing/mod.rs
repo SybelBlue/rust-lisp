@@ -14,6 +14,12 @@ pub enum Type {
     Fun(Box<Type>, Box<Type>),
 }
 
+lazy_static::lazy_static! {
+    pub static ref UNIT_TYPE: Type = Type::Data(String::from("Unit"), Vec::with_capacity(0));
+    pub static ref NAT_TYPE: Type = Type::Data(String::from("Nat"), Vec::with_capacity(0));
+    pub static ref CHAR_TYPE: Type = Type::Data(String::from("Char"), Vec::with_capacity(0));
+}
+
 impl Type {
     pub fn fun(p: Self, b: Self) -> Self {
         Self::Fun(Box::new(p), Box::new(b))

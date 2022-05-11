@@ -9,206 +9,192 @@ pub mod repl;
 #[cfg(test)]
 mod tests {
     mod types {
-        // use crate::{typing::*, parsing::sources::Source};
+        use crate::{typing::*, parsing::sources::Source};
+        use crate::typing::Type::*;
 
-        // fn type_test<'a>(s: &'a str) -> Type {
-        //     use crate::typing::{contexts::Context, checking::type_mod};
+        fn type_test<'a>(s: &'a str) -> Type {
+            type_test_all(s).pop().unwrap()
+        }
 
-        //     let src = Source::Anon(s);
-        //     let ref mut buf = String::new();
-        //     let ts = src.lex(buf).unwrap();
-        //     let ss = crate::parsing::parse(ts).unwrap();
-        //     type_mod(&ss, Context::new()).unwrap().0.pop().unwrap()
-        // }
+        fn type_test_all<'a>(s: &'a str) -> Vec<Type> {
+            use crate::typing::infer::{Infer, infer_top};
+
+            let src = Source::Anon(s);
+            let ref mut buf = String::new();
+            let ts = src.lex(buf).unwrap();
+            let ss = crate::parsing::parse(ts).unwrap();
+            infer_top(Infer::new(), &ss)
+                .unwrap()
+                .1
+                .into_iter()
+                .map(|v| v.tipe)
+                .collect()
+        }
         
-        // macro_rules! assert_fmt_eq {
-        //     ($a:expr, $b:expr) => {
-        //         assert_eq!(format!("{}", $a), format!("{}", $b))
-        //     };
-        // }
+        macro_rules! assert_fmt_eq {
+            ($a:expr, $b:expr) => {
+                assert_eq!(format!("{}", $a), format!("{}", $b))
+            };
+        }
 
-        // #[test]
-        // fn basic() {
-        //     use crate::typing::Type::{*, self};
-        //     let fun = Type::fun;
+        #[test]
+        fn basic() {
+            use crate::typing::Type;
+            let fun = Type::fun;
 
-        //     assert_eq!(Unit, type_test("()"));
-        //     assert_eq!(Unit, type_test("(())"));
-        //     assert_eq!(Nat, type_test("3"));
-        //     assert_eq!(Nat, type_test("(3)"));
-        //     assert_eq!(Nat, type_test("((3))"));
+            assert_eq!(UNIT_TYPE.clone(), type_test("()"));
+            assert_eq!(UNIT_TYPE.clone(), type_test("(())"));
+            assert_eq!(NAT_TYPE.clone(), type_test("3"));
+            assert_eq!(NAT_TYPE.clone(), type_test("(3)"));
+            assert_eq!(NAT_TYPE.clone(), type_test("((3))"));
             
-        //     assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"+"));
-        //     assert_eq!(fun(Nat, fun(Nat, Nat)), type_test(r"(+)"));
-        // }
+            assert_eq!(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), type_test(r"+"));
+            assert_eq!(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), type_test(r"(+)"));
+        }
 
-        // #[test]
-        // fn lambdas() {
-        //     use crate::typing::Type::*;
-        //     let fun = crate::typing::Type::fun;
+        #[test]
+        fn lambdas() {
+            let fun = crate::typing::Type::fun;
             
-        //     assert_eq!(fun(Nat, fun(Nat, Nat)), type_test("(x -> (+ x))"));
+            assert_eq!(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), type_test("(x -> (+ x))"));
 
-        //     assert_fmt_eq!(fun(Var(1), Var(1)), type_test("(x -> x)"));
-        //     assert_fmt_eq!(fun(fun(Nat, Var(1)), Var(1)), type_test("(f -> (f 3))"));
+            assert_fmt_eq!(fun(Var(1), Var(1)), type_test("(x -> x)"));
+            assert_fmt_eq!(fun(fun(NAT_TYPE.clone(), Var(1)), Var(1)), type_test("(f -> (f 3))"));
 
-        //     assert_eq!(fun(fun(Nat, fun(Nat, Nat)), Nat), type_test("(f -> (f (f 1 2) (f 3 4)))"));
-        // }
+            assert_eq!(fun(fun(NAT_TYPE.clone(), fun(NAT_TYPE.clone(), NAT_TYPE.clone())), NAT_TYPE.clone()), type_test("(f -> (f (f 1 2) (f 3 4)))"));
+        }
 
-        // #[test]
-        // fn basic_binds() {
-        //     use crate::typing::Type::{self, *};
-        //     assert_eq!(Unit, type_test("(unit <- ())"));
-        //     assert_eq!(Unit, type_test("(unit <- (()))"));
-        //     assert_eq!(Unit, type_test("(unit <- (())) unit"));
-        //     assert_eq!(Nat, type_test("(x <- 3)"));
-        //     assert_eq!(Nat, type_test("(x <- (3))"));
-        //     assert_eq!(Nat, type_test("(x <- 3) x"));
-        //     assert_eq!(Type::fun(Nat, Nat), type_test("((double x) <- (+ x x))"));
-        //     assert_eq!(Nat, type_test("(x <- 3) ((double x) <- (+ x x)) (double x)"));
-        // }
+        #[test]
+        fn basic_binds() {
+            assert_eq!(UNIT_TYPE.clone(), type_test("(unit <- ())"));
+            assert_eq!(UNIT_TYPE.clone(), type_test("(unit <- (()))"));
+            assert_eq!(UNIT_TYPE.clone(), type_test("(unit <- (())) unit"));
+            assert_eq!(NAT_TYPE.clone(), type_test("(x <- 3)"));
+            assert_eq!(NAT_TYPE.clone(), type_test("(x <- (3))"));
+            assert_eq!(NAT_TYPE.clone(), type_test("(x <- 3) x"));
+            assert_eq!(Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone()), type_test("((double x) <- (+ x x))"));
+            assert_eq!(NAT_TYPE.clone(), type_test("(x <- 3) ((double x) <- (+ x x)) (double x)"));
+        }
 
-        // #[test]
-        // fn aviary() {
-        //     use crate::typing::Type::Var;
-        //     let fun = crate::typing::Type::fun;
+        #[test]
+        fn aviary() {
+            let fun = crate::typing::Type::fun;
 
-        //     // kestrel (const)
-        //     assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("(x -> (_ -> x))"));
+            // kestrel (const)
+            assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("(x -> (_ -> x))"));
             
-        //     // psi (on)
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(2), fun(Var(2), Var(3))), 
-        //             fun(fun(Var(1), Var(2)), 
-        //             fun(Var(1), 
-        //             fun(Var(1)
-        //             , Var(3))))), type_test("((f g x y) -> (f (g x) (g y)))"));
+            // psi (on)
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(2), Var(3))), 
+                    fun(fun(Var(1), Var(2)), 
+                    fun(Var(1), 
+                    fun(Var(1)
+                    , Var(3))))), type_test("((f g x y) -> (f (g x) (g y)))"));
             
-        //     // bluebird (.)
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
-        //         type_test("((g f x) -> (g (f x)))"));
+            // bluebird (.)
+            assert_fmt_eq!(
+                fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test("((g f x) -> (g (f x)))"));
             
-        //     // cardinal (flip)
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
-        //         type_test("((f b a) -> (f a b))"));
+            // cardinal (flip)
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
+                type_test("((f b a) -> (f a b))"));
             
-        //     // applicator ($)
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
-        //         type_test("((f a) -> (f a))"));
+            // applicator ($)
+            assert_fmt_eq!(
+                fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
+                type_test("((f a) -> (f a))"));
             
-        //     // starling (<*> over (->))
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
-        //         type_test("((fabc gab a) -> (fabc a (gab a)))"));
+            // starling (<*> over (->))
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test("((fabc gab a) -> (fabc a (gab a)))"));
             
-        //     // pheonix/starling' (liftA2/liftM2 over (->))
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
-        //         type_test("((fbcd gab hac a) -> (fbcd (gab a) (hac a)))"));
-        // }
+            // pheonix/starling' (liftA2/liftM2 over (->))
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
+                type_test("((fbcd gab hac a) -> (fbcd (gab a) (hac a)))"));
+        }
 
-        // #[test]
-        // fn named_aviary() {
-        //     use crate::typing::Type::Var;
-        //     let fun = crate::typing::Type::fun;
+        #[test]
+        fn named_aviary() {
+            use crate::typing::Type::Var;
+            let fun = crate::typing::Type::fun;
 
-        //     assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("((kestrel x) <- (_ -> x))"));
+            assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("((kestrel x) <- (_ -> x))"));
             
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(2), fun(Var(2), Var(3))), 
-        //             fun(fun(Var(1), Var(2)), 
-        //             fun(Var(1), 
-        //             fun(Var(1)
-        //             , Var(3))))), type_test("((on f g x y) <- (f (g x) (g y)))"));
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(2), Var(3))), 
+                    fun(fun(Var(1), Var(2)), 
+                    fun(Var(1), 
+                    fun(Var(1)
+                    , Var(3))))), type_test("((on f g x y) <- (f (g x) (g y)))"));
             
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
-        //         type_test("((bluebird g f x) <- (g (f x)))"));
+            assert_fmt_eq!(
+                fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test("((bluebird g f x) <- (g (f x)))"));
             
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
-        //         type_test("((cardinal f b a) <- (f a b))"));
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
+                type_test("((cardinal f b a) <- (f a b))"));
             
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
-        //         type_test("(($ f a) <- (f a))"));
+            assert_fmt_eq!(
+                fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
+                type_test("(($ f a) <- (f a))"));
             
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
-        //         type_test("((starling fabc gab a) <- (fabc a (gab a)))"));
+            assert_fmt_eq!(
+                fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
+                type_test("((starling fabc gab a) <- (fabc a (gab a)))"));
             
-        //     assert_fmt_eq!(
-        //         fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
-        //         type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
-        // }
+            assert_fmt_eq!(
+                fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
+                type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
+        }
 
-        // #[test]
-        // fn mod_test() {
-        //     use crate::typing::contexts::Context;
-        //     use crate::typing::checking::type_mod;
+        #[test]
+        fn mod_test() {
 
-        //     let src = Source::Anon("\
-        //     (z <- (foo 4))
-        //     ((foo x) <- (baz (+ x y)))
-        //     (y <- 7)
-        //     ((baz x) <- (foo (foo (+ y x))))");
-        //     let ref mut buf = String::new();
-        //     let ts = src.lex(buf).unwrap();
-        //     let ss = crate::parsing::parse(ts).unwrap();
-        //     let (types, _) = type_mod(&ss, Context::new()).unwrap();
-        //     let n_fn = Type::fun(Type::Nat, Type::Nat);
-        //     assert_eq!(vec![Type::Nat, n_fn.clone(), Type::Nat, n_fn], types);
+            let types = type_test_all("\
+            (z <- (foo 4))
+            ((foo x) <- (baz (+ x y)))
+            (y <- 7)
+            ((baz x) <- (foo (foo (+ y x))))");
+            let n_fn = Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone());
+            assert_eq!(vec![NAT_TYPE.clone(), n_fn.clone(), NAT_TYPE.clone(), n_fn], types);
 
-        //     let src = Source::Anon("\
-        //     (c <- (baz 3 5))
-        //     ((foo x) <- (bar x))
-        //     ((bar x) <- (baz (foo x) x))
-        //     ((baz x y) <- (foo (+ x (bar y))))");
-        //     let ref mut buf = String::new();
-        //     let ts = src.lex(buf).unwrap();
-        //     let ss = crate::parsing::parse(ts).unwrap();
-        //     let (types, _) = type_mod(&ss, Context::new()).unwrap();
-        //     let n_fn = Type::fun(Type::Nat, Type::Nat);
-        //     assert_eq!(vec![Type::Nat, n_fn.clone(), n_fn.clone(), Type::fun(Type::Nat, n_fn)], types);
+            let types = type_test_all("\
+            (c <- (baz 3 5))
+            ((foo x) <- (bar x))
+            ((bar x) <- (baz (foo x) x))
+            ((baz x y) <- (foo (+ x (bar y))))");
+            let n_fn = Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone());
+            assert_eq!(vec![NAT_TYPE.clone(), n_fn.clone(), n_fn.clone(), Type::fun(NAT_TYPE.clone(), n_fn)], types);
 
-        //     let src = Source::Anon("\
-        //     ((foo q) <- (bar q))
-        //     ((bar z) <- (baz (foo z) z))
-        //     ((baz x y) <- (foo (baz x (bar y))))");
-        //     let ref mut buf = String::new();
-        //     let ts = src.lex(buf).unwrap();
-        //     let ss = crate::parsing::parse(ts).unwrap();
-        //     let (types, _) = type_mod(&ss, Context::new()).unwrap();
-        //     let n_fn = Type::fun(Type::Var(0), Type::Var(0));
-        //     assert_eq!(3, types.len());
-        //     vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Var(0), n_fn)]
-        //         .into_iter()
-        //         .zip(types)
-        //         .for_each(|(e, g)| assert_fmt_eq!(e, g));
-        // }
+            let types = type_test_all("\
+            ((foo q) <- (bar q))
+            ((bar z) <- (baz (foo z) z))
+            ((baz x y) <- (foo (baz x (bar y))))");
+            let n_fn = Type::fun(Type::Var(0), Type::Var(0));
+            assert_eq!(3, types.len());
+            vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Var(0), n_fn)]
+                .into_iter()
+                .zip(types)
+                .for_each(|(e, g)| assert_fmt_eq!(e, g));
+        }
 
-        // #[test]
-        // fn mod_parapoly() {
-        //     use crate::typing::contexts::Context;
-        //     use crate::typing::checking::type_mod;
-            
-        //     let src = Source::Anon("\
-        //     ((id x) <- x)
-        //     ((bux z) <- 5)
-        //     ((foo x y) <- (+ (id 3) (bux (id ()))))");
-        //     let ref mut buf = String::new();
-        //     let ts = src.lex(buf).unwrap();
-        //     let ss = crate::parsing::parse(ts).unwrap();
-        //     let (types, _) = type_mod(&ss, Context::new()).unwrap();
-        //     assert_eq!(3, types.len());
-        //     vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(Type::Nat, Type::fun(Type::Unit, Type::Var(1)))]
-        //         .into_iter()
-        //         .zip(types)
-        //         .for_each(|(e, g)| assert_fmt_eq!(e, g));
-        // }
+        #[test]
+        fn mod_parapoly() {            
+            let types = type_test_all("\
+            ((id x) <- x)
+            ((bux z) <- 5)
+            ((foo x y) <- (+ (id 3) (bux (id ()))))");
+            assert_eq!(3, types.len());
+            vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(NAT_TYPE.clone(), Type::fun(UNIT_TYPE.clone(), Type::Var(1)))]
+                .into_iter()
+                .zip(types)
+                .for_each(|(e, g)| assert_fmt_eq!(e, g));
+        }
     }
 
     mod lexing {

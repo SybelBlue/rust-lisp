@@ -1,8 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, SToken}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos, stmts::Stmt, typing::contraint::Constraint};
+use crate::{exprs::{Expr, SToken, Ident}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
 
-use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve};
+use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, UNIT_TYPE};
 
 type Env = HashMap<String, Scheme>;
 
@@ -18,16 +18,20 @@ impl Substitutable for Env {
     }
 }
 
-pub(crate) type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
+type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
 
 use crate::errors::TypeErrorBody::*;
 
-pub(crate) struct Infer {
+pub struct Infer {
     env: Env,
     var_count: usize,
 }
 
 impl Infer {
+    pub fn new() -> Self {
+        Self { env: HashMap::new(), var_count: 0 }
+    }
+
     pub(crate) fn fresh(&mut self) -> usize {
         let out = self.var_count;
         self.var_count += 1;
@@ -66,27 +70,27 @@ impl Infer {
 
 lazy_static::lazy_static! {
     static ref NULL: Vec<Constraint<'static>> = Vec::with_capacity(0);
-    static ref UNIT_TYPE: Type = Type::Data(String::from("Unit"), Vec::with_capacity(0));
-    static ref NAT_TYPE: Type = Type::Data(String::from("Nat"), Vec::with_capacity(0));
-    static ref CHAR_TYPE: Type = Type::Data(String::from("Char"), Vec::with_capacity(0));
 }
 
-#[allow(dead_code)]
-pub(crate) fn infer_top<'a>(infr: Infer, stmts: Vec<&'a Stmt<'a>>) -> InferResult<'a, ()> {
+pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, Vec<Scheme>> {
     let mut infr = infr;
+    let mut out = Vec::new();
     for s in stmts {
         match s {
             Stmt::Expr(e) => {
-                let (new, _) = infer(infr, e)?;
+                let (new, sc) = infer_expr(infr, e)?;
                 infr = new;
+                out.push(sc);
             }
-            Stmt::Bind(_, body) => {
-                let (new, _) = infer_expr(infr, body)?;
+            Stmt::Bind(Ident { body: name, .. }, body) => {
+                let (new, sc) = infer_expr(infr, body)?;
                 infr = new;
+                infr.insert(name.clone(), sc.clone());
+                out.push(sc)
             }
         }
     }
-    Ok((infr, ()))
+    Ok((infr, out))
 }
 
 fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
