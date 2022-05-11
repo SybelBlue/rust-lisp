@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::Value, parsing::sources::FilePos, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
 
 use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, UNIT_TYPE};
 

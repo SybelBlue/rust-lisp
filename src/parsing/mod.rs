@@ -7,7 +7,7 @@ use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
-    values::{Value, VToken},
+    values::{Value},
     parsing::lex::{Token, TokenBody::*, Keyword::*}
 };
 

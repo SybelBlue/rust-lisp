@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::{Value, VToken}};
+use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::Value};
 
 
 
