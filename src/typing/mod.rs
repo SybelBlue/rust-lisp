@@ -1,10 +1,11 @@
 pub mod infer;
 pub mod subst;
 pub mod scheme;
+pub mod contraint;
 
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
 
-use self::{subst::{Substitutable, Subst}, scheme::Scheme, infer::Infer};
+use self::subst::{Substitutable, Subst};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -18,20 +19,16 @@ impl Type {
         Self::Fun(Box::new(p), Box::new(b))
     }
 
-    pub(crate) fn normalize(&self) -> Self {
-        self.normalize_(&mut HashMap::new())
-    }
-
-    fn normalize_(&self, map: &mut HashMap<usize, usize>) -> Self {
+    pub(crate) fn normalize(&self, map: &mut HashMap<usize, usize>) -> Self {
         match self {
             Type::Data(d, ts) => 
-                Type::Data(d.clone(), ts.into_iter().map(|t| t.normalize_(map)).collect()),
+                Type::Data(d.clone(), ts.into_iter().map(|t| t.normalize(map)).collect()),
             Type::Var(k) => {
                 let n = map.len();
                 Type::Var(*map.entry(*k).or_insert(n))
             }
             Type::Fun(p, b) => 
-                Type::fun(p.normalize_(map), b.normalize_(map))
+                Type::fun(p.normalize(map), b.normalize(map))
         }
     }
 

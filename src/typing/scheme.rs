@@ -22,6 +22,15 @@ impl Scheme {
         );
         tipe.apply(&sub)
     }
+
+    pub(crate) fn normalize(&self) -> Scheme {
+        let mut mapping = HashMap::new();
+        let tipe = self.tipe.normalize(&mut mapping);
+        Self { 
+            forall: mapping.values().map(|x| *x).collect(), 
+            tipe
+        }
+    }
 }
 
 impl Substitutable for Scheme {

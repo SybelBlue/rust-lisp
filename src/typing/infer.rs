@@ -1,10 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, SToken}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos};
+use crate::{exprs::{Expr, SToken}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos, stmts::Stmt, typing::contraint::Constraint};
 
-use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}};
-
-type Constraint = (Type, Type);
+use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve};
 
 type Env = HashMap<String, Scheme>;
 
@@ -60,6 +58,10 @@ impl Infer {
             tipe 
         }
     }
+
+    fn close_over(&mut self, t: Type) -> Scheme {
+        self.generalize(t).normalize()
+    }
 }
 
 lazy_static::lazy_static! {
@@ -70,16 +72,41 @@ lazy_static::lazy_static! {
 }
 
 #[allow(dead_code)]
-pub(crate) fn infer_expr<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint>)> {
+pub(crate) fn infer_top<'a>(infr: Infer, stmts: Vec<&'a Stmt<'a>>) -> InferResult<'a, ()> {
+    let mut infr = infr;
+    for s in stmts {
+        match s {
+            Stmt::Expr(e) => {
+                let (new, _) = infer(infr, e)?;
+                infr = new;
+            }
+            Stmt::Bind(ident, body) => {
+                let (new, _) = infer_expr(infr, body)?;
+                infr = new;
+                todo!()
+            }
+        }
+    }
+    Ok((infr, ()))
+}
+
+fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
+    let (mut infr, (t, cs)) = infer(infr, e)?;
+    let sub = solve(cs)?;
+    let sc = infr.close_over(t.apply(&sub));
+    Ok((infr, sc))
+}
+
+fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint>)> {
     match e {
         Expr::Val(v) => {
             use Value::*;
             let VToken { body, pos } = v;
             match body {
-                Nat(_)  => Ok((infer, (NAT_TYPE.clone(), NULL.clone()))),
-                Char(_) => Ok((infer, (CHAR_TYPE.clone(), NULL.clone()))),
+                Nat(_)  => Ok((infr, (NAT_TYPE.clone(), NULL.clone()))),
+                Char(_) => Ok((infr, (CHAR_TYPE.clone(), NULL.clone()))),
                 Sym(k) => 
-                    infer.lookup_env(k, pos)
+                    infr.lookup_env(k, pos)
                         .map(|(i, t)| (i, (t, NULL.clone()))),
                 Lam(x, e) => {
                     let name = match x.as_ref() {
@@ -88,11 +115,11 @@ pub(crate) fn infer_expr<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (
                             body@Expr::SExp(SToken { pos, .. }) => 
                                 return Err(TypeError::new(pos.clone(), NotYetImplemented(format!("SExp lambda typing {:?}", body)))),
                     };
-                    let mut infer = infer;
-                    let tv = Type::Var(infer.fresh());
-                    let (mut infer, (body_type, cs)) = infer_expr(infer, e)?;
-                    infer.insert(name.clone(), Scheme { forall: vec![], tipe: tv.clone() });
-                    Ok((infer, (Type::fun(tv, body_type), cs)))
+                    let mut infr = infr;
+                    let tv = Type::Var(infr.fresh());
+                    let (mut infr, (body_type, cs)) = infer(infr, e)?;
+                    infr.insert(name.clone(), Scheme { forall: vec![], tipe: tv.clone() });
+                    Ok((infr, (Type::fun(tv, body_type), cs)))
                 }
             }
         }
@@ -101,17 +128,17 @@ pub(crate) fn infer_expr<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (
             let f_expr = if let Some(fst) = es.next() {
                 fst
             } else {
-                return Ok((infer, (UNIT_TYPE.clone(), NULL.clone())));
+                return Ok((infr, (UNIT_TYPE.clone(), NULL.clone())));
             };
-            let (mut infer, (f_type, mut cs)) = infer_expr(infer, f_expr)?;
+            let (mut infr, (f_type, mut cs)) = infer(infr, f_expr)?;
             let mut arg_types = Vec::new();
             for e in es {
-                let (new_infer, (b_type, b_cs)) = infer_expr(infer, e)?;
-                infer = new_infer;
+                let (new_infer, (b_type, b_cs)) = infer(infr, e)?;
+                infr = new_infer;
                 cs.extend(b_cs.into_iter());
                 arg_types.push(b_type);
             }
-            let ret_type = Type::Var(infer.fresh());
+            let ret_type = Type::Var(infr.fresh());
             let full_f_type = 
                 arg_types.into_iter()
                     .rev()
@@ -122,7 +149,7 @@ pub(crate) fn infer_expr<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (
             
             cs.push((f_type, full_f_type));
 
-            Ok((infer, (ret_type, cs)))
+            Ok((infr, (ret_type, cs)))
         },
     }
 }
