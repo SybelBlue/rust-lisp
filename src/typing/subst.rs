@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::Type;
 
+#[derive(Debug, Clone)]
 pub(crate) struct Subst(pub(crate) HashMap<usize, Type>);
 
 impl Subst {
@@ -13,8 +14,18 @@ impl Subst {
         Self(vec![(var, t)].into_iter().collect())
     }
 
-    pub(crate) fn compose(mut self, other: Self) -> Self {
-        self.0.extend(other.0.into_iter());
+    /// Provides a self-biased composition when duplicate keys are encountered,
+    /// and applys self over other's values.
+    /// 
+    /// s0 `compose` s1 = update s1 (apply s0 <$> s1)
+    pub(crate) fn compose(mut self, other: &Self) -> Self {
+        let ref cln = self.clone();
+        for (i, v) in other.0.iter() {
+            self.0
+                .entry(i.clone())
+                .and_modify(|v| *v = v.apply(cln))
+                .or_insert_with(|| v.clone());
+        }
         self
     }
 
