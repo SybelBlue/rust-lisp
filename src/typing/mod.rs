@@ -1,4 +1,9 @@
+pub mod infer;
+pub mod subst;
+
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
+
+use self::{infer::{Infer, InferResult}, subst::{Substitutable, Subst}};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -8,6 +13,9 @@ pub enum Type {
 }
 
 impl Type {
+    pub fn fun(p: Self, r: Self) -> Self {
+        Self::Fun(Box::new(p), Box::new(r))
+    }
     pub(crate) fn variable_values(&self, out: &mut HashSet<usize>) {
         match self {
             Self::Var(n) => { out.insert(*n); }
@@ -77,7 +85,34 @@ impl Debug for Type {
     }
 }
 
-#[derive(Debug)]
+impl Substitutable for Type {
+    fn apply(&self, sub: &Subst) -> Self {
+        match self {
+            data@Type::Data(_, _) => 
+                data.clone(),
+            default@Type::Var(k) => 
+                sub.get_default(k, default).clone(),
+            Type::Fun(p, r) => 
+                Type::fun(p.apply(sub), r.apply(sub)),
+        }
+    }
+
+    fn ftv(&self, used: &mut HashSet<usize>) {
+        match self {
+            Type::Data(_, ts) => 
+                ts.iter().for_each(|t| t.ftv(used)),
+            Type::Var(x) => {
+                used.insert(*x);
+            }
+            Type::Fun(p, r) => {
+                p.ftv(used);
+                r.ftv(used);
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct Scheme {
     forall: Vec<usize>,
     tipe: Type,
@@ -86,5 +121,28 @@ pub(crate) struct Scheme {
 impl Display for Scheme {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "(forall {:?} {})", self.forall, self.tipe)
+    }
+}
+
+impl Scheme {
+    pub(crate) fn instantiate<'a>(&self, infer: Infer) -> InferResult<'a, Type> {
+        let mut infer = infer;
+        let Self { forall, tipe } = self;
+        // let forall = forall.iter().map(|_| infer.fresh()).collect();
+        todo!()
+    }
+}
+
+impl Substitutable for Scheme {
+    fn apply(&self, sub: &Subst) -> Self {
+        Self { 
+            forall: self.forall.clone(),
+            tipe: self.tipe.apply(&sub.delete_all(&self.forall)),
+        }
+    }
+
+    fn ftv(&self, used: &mut HashSet<usize>) {
+        self.tipe.ftv(used);
+        self.forall.iter().for_each(|v| { used.remove(v); });
     }
 }
