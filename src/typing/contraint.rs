@@ -1,6 +1,6 @@
 use std::collections::{VecDeque, HashSet};
 
-use crate::{errors::TypeResult, parsing::sources::Loc};
+use crate::{errors::{TypeResult, TypeError, TypeErrorBody}, parsing::sources::Loc};
 
 use super::{subst::{Subst, Substitutable}, Type};
 
@@ -25,13 +25,13 @@ impl<'a> Substitutable for Constraint<'a> {
     }
 }
 
-pub(crate) fn solve<'a>(cs: Vec<Constraint<'_>>) -> SubstResult<'a> {
+pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
     solver((Subst::empty(), VecDeque::from(cs)))
 }
 
-fn solver<'a>((s, mut cs): Unifier<'_>) -> SubstResult<'a> {
-    if let Some(Constraint { body: (l, r), .. }) = cs.pop_front() {
-        let s2 = unifies(l, r)?;
+fn solver((s, mut cs): Unifier) -> SubstResult {
+    if let Some(c) = cs.pop_front() {
+        let s2 = unifies(c)?;
         let new_cs = Substitutable::apply(&cs, &s2);
         solver((s.compose(s2), new_cs))
     } else {
@@ -39,7 +39,8 @@ fn solver<'a>((s, mut cs): Unifier<'_>) -> SubstResult<'a> {
     }
 }
 
-fn unifies<'a>(t1: Type, t2: Type) -> SubstResult<'a> {
+fn unifies(c: Constraint) -> SubstResult {
+    let Constraint { pos, body: (t1, t2) } = c;
     use Type::*;
     match (t1, t2) {
         (t1, t2) if t1 == t2 => 
@@ -49,7 +50,7 @@ fn unifies<'a>(t1: Type, t2: Type) -> SubstResult<'a> {
         (Type::Fun(t1, t2), Type::Fun(t3, t4)) =>
             unifyMany(vec![*t1, *t2], vec![*t3, *t4]),
         (t1, t2) =>
-            todo!("unification fail")
+            Err(TypeError::new(pos, TypeErrorBody::TypeMismatch { got: t1, expected: t2 }))
     }
 }
 
