@@ -33,7 +33,7 @@ fn solver((s, mut cs): Unifier) -> SubstResult {
     if let Some(c) = cs.pop_front() {
         let s2 = unifies(c)?;
         let new_cs = Substitutable::apply(&cs, &s2);
-        solver((s.compose(s2), new_cs))
+        solver((s.compose(&s2), new_cs))
     } else {
         Ok(s)
     }
@@ -48,14 +48,31 @@ fn unifies(c: Constraint) -> SubstResult {
         (Var(v), t) | (t, Var(v)) =>
             bind(pos, v, t),
         (Type::Fun(t1, t2), Type::Fun(t3, t4)) =>
-            unifyMany(vec![*t1, *t2], vec![*t3, *t4]),
+            unify_many(pos, VecDeque::from(vec![*t1, *t2]), VecDeque::from(vec![*t3, *t4])),
         (t1, t2) =>
             Err(TypeError::new(pos, TypeErrorBody::TypeMismatch { got: t1, expected: t2 }))
     }
 }
 
-fn unifyMany<'a>(ls: Vec<Type>, rs: Vec<Type>) -> SubstResult<'a> {
-    todo!()
+fn unify_many(pos: FilePos, mut ls: VecDeque<Type>, mut rs: VecDeque<Type>) -> SubstResult {
+    if ls.len() != rs.len() { 
+        panic!("unification mismatch");
+    } else if ls.is_empty() {
+        return Ok(Subst::empty());
+    }
+
+    let t1 = ls.pop_front().unwrap();
+    let t2 = rs.pop_front().unwrap();
+
+    let c = Constraint {
+        pos: pos.clone(),
+        body: (t1, t2)
+    };
+    
+    let su1 = unifies(c)?;
+    let su2 = unify_many(pos.clone(), ls, rs)?;
+
+    Ok(su2.compose(&su1))
 }
 
 fn bind(pos: FilePos, var: usize, t: Type) -> SubstResult {
