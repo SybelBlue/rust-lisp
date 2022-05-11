@@ -1,36 +1,37 @@
 use std::collections::{VecDeque, HashSet};
 
-use crate::errors::TypeResult;
+use crate::{errors::TypeResult, parsing::sources::Loc};
 
 use super::{subst::{Subst, Substitutable}, Type};
 
-type Unifier = (Subst, VecDeque<Constraint>);
+type Unifier<'a> = (Subst, VecDeque<Constraint<'a>>);
 
-pub(crate) type Constraint = (Type, Type);
+pub(crate) type Constr = (Type, Type);
+pub(crate) type Constraint<'a> = Loc<'a, Constr>;
 
 type SubstResult<'a> = TypeResult<'a, Subst>;
 
-impl Substitutable for Constraint {
+impl<'a> Substitutable for Constraint<'a> {
     fn apply(&self, sub: &Subst) -> Self {
-        let (t1, t2) = self;
-        (t1.apply(sub), t2.apply(sub))
+        let Self { pos, body: (l , r) } = self;
+        Self { pos: pos.clone(), body: (l.apply(sub), r.apply(sub)) }
     }
 
     fn ftv(&self, used: &mut HashSet<usize>) {
-        self.0.ftv(used);
+        self.body.0.ftv(used);
         let mut other = HashSet::new();
-        self.1.ftv(&mut other);
+        self.body.1.ftv(&mut other);
         other.iter().for_each(|v| { used.remove(v); });
     }
 }
 
-pub(crate) fn solve<'a>(cs: Vec<Constraint>) -> SubstResult<'a> {
+pub(crate) fn solve<'a>(cs: Vec<Constraint<'_>>) -> SubstResult<'a> {
     solver((Subst::empty(), VecDeque::from(cs)))
 }
 
-fn solver<'a>((s, mut cs): Unifier) -> SubstResult<'a> {
-    if let Some((t1, t2)) = cs.pop_front() {
-        let s2 = unifies(t1, t2)?;
+fn solver<'a>((s, mut cs): Unifier<'_>) -> SubstResult<'a> {
+    if let Some(Constraint { body: (l, r), .. }) = cs.pop_front() {
+        let s2 = unifies(l, r)?;
         let new_cs = Substitutable::apply(&cs, &s2);
         solver((s.compose(s2), new_cs))
     } else {

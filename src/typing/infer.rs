@@ -65,7 +65,7 @@ impl Infer {
 }
 
 lazy_static::lazy_static! {
-    static ref NULL: Vec<Constraint> = Vec::with_capacity(0);
+    static ref NULL: Vec<Constraint<'static>> = Vec::with_capacity(0);
     static ref UNIT_TYPE: Type = Type::Data(String::from("Unit"), Vec::with_capacity(0));
     static ref NAT_TYPE: Type = Type::Data(String::from("Nat"), Vec::with_capacity(0));
     static ref CHAR_TYPE: Type = Type::Data(String::from("Char"), Vec::with_capacity(0));
@@ -96,7 +96,7 @@ fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
     Ok((infr, sc))
 }
 
-fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint>)> {
+fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint<'a>>)> {
     match e {
         Expr::Val(v) => {
             use Value::*;
@@ -122,7 +122,7 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
                 }
             }
         }
-        Expr::SExp(SToken { body: es, .. }) => {
+        Expr::SExp(SToken { body: es, pos }) => {
             let mut es = es.into_iter();
             let f_expr = if let Some(fst) = es.next() {
                 fst
@@ -146,7 +146,7 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
                         |prev, arg| Type::fun(arg, prev)
                     );
             
-            cs.push((f_type, full_f_type));
+            cs.push(Constraint { pos: pos.clone(), body: (f_type, full_f_type) });
 
             Ok((infr, (ret_type, cs)))
         },
