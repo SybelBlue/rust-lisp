@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::Type;
 
-pub(crate) struct Subst(HashMap<usize, Type>);
+pub(crate) struct Subst(pub(crate) HashMap<usize, Type>);
 
 impl Subst {
     pub(crate) fn empty() -> Self {

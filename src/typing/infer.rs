@@ -29,6 +29,14 @@ pub(crate) struct Infer {
     var_count: usize,
 }
 
+impl Infer {
+    pub(crate) fn fresh(&mut self) -> usize {
+        let out = self.var_count;
+        self.var_count += 1;
+        out
+    }
+}
+
 lazy_static::lazy_static! {
     static ref NULL: Vec<Constraint> = Vec::with_capacity(0);
     static ref NAT_TYPE: Type = Type::Data(String::from("Nat"), Vec::with_capacity(0));
@@ -56,7 +64,9 @@ pub(crate) fn infer<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type,
 
 fn lookup_env<'a>(infer: Infer, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
     if let Some(s) = infer.env.get(k).cloned() {
-        s.instantiate(infer)
+        let mut infer = infer;
+        let t = s.instantiate(&mut infer);
+        Ok((infer, t))
     } else {
         Err(TypeError::new(pos.clone(), UndefinedSymbol(k)))
     }

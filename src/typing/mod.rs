@@ -3,7 +3,7 @@ pub mod subst;
 
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
 
-use self::{infer::{Infer, InferResult}, subst::{Substitutable, Subst}};
+use self::{infer::Infer, subst::{Substitutable, Subst}};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -125,11 +125,12 @@ impl Display for Scheme {
 }
 
 impl Scheme {
-    pub(crate) fn instantiate<'a>(&self, infer: Infer) -> InferResult<'a, Type> {
-        let mut infer = infer;
+    pub(crate) fn instantiate<'a>(&self, infer: &mut Infer) -> Type {
         let Self { forall, tipe } = self;
-        // let forall = forall.iter().map(|_| infer.fresh()).collect();
-        todo!()
+        let sub = Subst(
+            forall.iter().map(|o| (*o, Type::Var(infer.fresh()))).collect()
+        );
+        tipe.apply(&sub)
     }
 }
 
