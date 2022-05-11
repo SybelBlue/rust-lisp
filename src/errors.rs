@@ -59,11 +59,14 @@ pub enum TypeErrorBody<'a> {
     TypeMismatch { got: Type, expected: Type },
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
+    NotYetImplemented(String),
 }
 
 impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::NotYetImplemented(msg) =>
+                f.write_str(msg.as_str()),
             Self::TooManyArgs(e) =>
                 write!(f, "Too Many Arguments: {}", e),
             Self::TypeMismatch { got, expected } => 
