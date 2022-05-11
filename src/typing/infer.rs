@@ -29,7 +29,12 @@ pub struct Infer {
 
 impl Infer {
     pub fn new() -> Self {
-        Self { env: HashMap::new(), var_count: 0 }
+        Self { 
+            env: vec![(format!("+"), Scheme { forall: vec![], tipe: Type::fun(NAT_TYPE.clone(), Type::fun(NAT_TYPE.clone(), NAT_TYPE.clone())) })]
+                    .into_iter()
+                    .collect(), 
+            var_count: 0 
+        }
     }
 
     pub(crate) fn fresh(&mut self) -> usize {
