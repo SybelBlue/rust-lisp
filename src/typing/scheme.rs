@@ -15,7 +15,7 @@ impl Display for Scheme {
 }
 
 impl Scheme {
-    pub(crate) fn instantiate<'a>(&self, infer: &mut Infer) -> Type {
+    pub(crate) fn instantiate(&self, infer: &mut Infer) -> Type {
         let Self { forall, tipe } = self;
         let sub = Subst(
             forall.iter().map(|o| (*o, Type::Var(infer.fresh()))).collect()

@@ -36,9 +36,29 @@ impl Infer {
         out
     }
 
-    pub(crate) fn insert(&mut self, name: String, sc: Scheme) {
+    fn insert(&mut self, name: String, sc: Scheme) {
         self.env.entry(name)
             .and_modify(|s| *s = sc);
+    }
+
+    fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
+        if let Some(s) = self.env.get(k).cloned() {
+            let t = s.instantiate(&mut self);
+            Ok((self, t))
+        } else {
+            Err(TypeError::new(pos.clone(), UndefinedSymbol(k)))
+        }
+    }
+
+    fn generalize(&mut self, tipe: Type) -> Scheme {
+        let mut used = HashSet::new();
+        tipe.ftv(&mut used);
+        let mut defined = HashSet::new();
+        self.env.ftv(&mut defined);
+        Scheme { 
+            forall: used.difference(&defined).map(|x| *x).collect(), 
+            tipe 
+        }
     }
 }
 
@@ -59,7 +79,7 @@ pub(crate) fn infer_expr<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (
                 Nat(_)  => Ok((infer, (NAT_TYPE.clone(), NULL.clone()))),
                 Char(_) => Ok((infer, (CHAR_TYPE.clone(), NULL.clone()))),
                 Sym(k) => 
-                    lookup_env(infer, k, pos)
+                    infer.lookup_env(k, pos)
                         .map(|(i, t)| (i, (t, NULL.clone()))),
                 Lam(x, e) => {
                     let name = match x.as_ref() {
@@ -104,15 +124,5 @@ pub(crate) fn infer_expr<'a>(infer: Infer, e: &'a Expr<'a>) -> InferResult<'a, (
 
             Ok((infer, (ret_type, cs)))
         },
-    }
-}
-
-fn lookup_env<'a>(infer: Infer, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
-    if let Some(s) = infer.env.get(k).cloned() {
-        let mut infer = infer;
-        let t = s.instantiate(&mut infer);
-        Ok((infer, t))
-    } else {
-        Err(TypeError::new(pos.clone(), UndefinedSymbol(k)))
     }
 }

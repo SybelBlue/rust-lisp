@@ -4,7 +4,7 @@ pub mod scheme;
 
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
 
-use self::subst::{Substitutable, Subst};
+use self::{subst::{Substitutable, Subst}, scheme::Scheme, infer::Infer};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
