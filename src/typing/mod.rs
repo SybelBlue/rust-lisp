@@ -14,9 +14,27 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn fun(p: Self, r: Self) -> Self {
-        Self::Fun(Box::new(p), Box::new(r))
+    pub fn fun(p: Self, b: Self) -> Self {
+        Self::Fun(Box::new(p), Box::new(b))
     }
+
+    pub(crate) fn normalize(&self) -> Self {
+        self.normalize_(&mut HashMap::new())
+    }
+
+    fn normalize_(&self, map: &mut HashMap<usize, usize>) -> Self {
+        match self {
+            Type::Data(d, ts) => 
+                Type::Data(d.clone(), ts.into_iter().map(|t| t.normalize_(map)).collect()),
+            Type::Var(k) => {
+                let n = map.len();
+                Type::Var(*map.entry(*k).or_insert(n))
+            }
+            Type::Fun(p, b) => 
+                Type::fun(p.normalize_(map), b.normalize_(map))
+        }
+    }
+
     pub(crate) fn variable_values(&self, out: &mut HashSet<usize>) {
         match self {
             Self::Var(n) => { out.insert(*n); }

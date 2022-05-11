@@ -1,4 +1,4 @@
-use std::{fmt::{Display, Formatter}, collections::HashSet};
+use std::{fmt::{Display, Formatter}, collections::{HashSet, HashMap}};
 
 use super::{subst::{Substitutable, Subst}, Type, infer::Infer};
 
