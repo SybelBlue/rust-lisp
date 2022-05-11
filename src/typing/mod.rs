@@ -1,16 +1,7 @@
-pub mod checking;
-pub mod contexts;
-
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Display, Formatter}};
-
-
-use self::contexts::Solver;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
-    Unit,
-    Nat,
-    Char,
     Data(String, Vec<Type>), // eg Data("Either", [a, Data("List", [Nat])])
     Var(usize),
     Fun(Box<Type>, Box<Type>),
@@ -19,32 +10,6 @@ pub enum Type {
 impl Type {
     pub(crate) fn fun(p: Self, r: Self) -> Self {
         Self::Fun(Box::new(p), Box::new(r))
-    }
-
-    pub(crate) fn contains(&self, o: &Self) -> bool {
-        if self == o {
-            true
-        } else if let Type::Fun(p, r) = self {
-            p.contains(o) || r.contains(o)
-        } else {
-            false
-        }
-    }
-
-    pub(crate) fn concretize(&self, slvr: &Solver) -> Self {
-        let out = match self {
-            Self::Unit | Self::Nat | Self::Char => self.clone(),
-            Self::Data(nm, ts) => 
-                Self::Data(nm.clone(), ts.iter().map(|t| t.concretize(slvr)).collect()),
-            Self::Fun(p, r) => 
-                Self::fun(p.concretize(slvr), r.concretize(slvr)),
-            s@Self::Var(_) => slvr.query(s),
-        };
-        if out == *self {
-            out
-        } else {
-            out.concretize(slvr)
-        }
     }
 
     pub(crate) fn variable_values(&self, out: &mut HashSet<usize>) {
@@ -56,60 +21,6 @@ impl Type {
             }
             Self::Data(_, ts) => 
                 ts.iter().for_each(|t| t.variable_values(out)),
-            Self::Unit | Self::Nat | Self::Char => {}
-        }
-    }
-
-    pub(crate) fn flattened(self) -> Self {
-        self._flattened(&mut HashMap::new())
-    }
-
-    fn _flattened(self, bound: &mut HashMap<usize, usize>) -> Self {
-        match self {
-            Self::Var(n) => {
-                let new = bound.len();
-                Self::Var(*bound.entry(n).or_insert(new))
-            }
-            Self::Fun(p, r) =>
-                Self::fun(p._flattened(bound), r._flattened(bound)),
-            Self::Data(nm, ts) =>
-                Self::Data(nm, ts.into_iter().map(|t| t._flattened(bound)).collect()),
-            s@Self::Unit | s@Self::Nat | s@Self::Char => s
-        }
-    }
-
-    pub(crate) fn instanced(&self, slvr: Solver) -> (Solver, Self) {
-        self._instanced(&mut HashMap::new(), slvr)
-    }
-
-    fn _instanced(&self, bound: &mut HashMap<usize, usize>, slvr: Solver) -> (Solver, Self) {
-        match self {
-            Self::Var(n) => {
-                if let Some(tvar) = bound.get(n) {
-                    (slvr, Self::Var(*tvar))
-                } else {
-                    let (slvr, tvar) = slvr.new_tvar();
-                    bound.insert(*n, tvar);
-                    (slvr, Self::Var(tvar))
-                }
-            }
-            Self::Fun(p, r) => {
-                let (slvr, p) = p._instanced(bound, slvr);
-                let (slvr, r) = r._instanced(bound, slvr);
-                (slvr, Type::fun(p, r))
-            }
-            Self::Data(nm, ts) => {
-                let mut slvr = slvr;
-                let mut out = Vec::with_capacity(ts.len());
-                for t in ts {
-                    let (new, t) = t._instanced(bound, slvr);
-                    slvr = new;
-                    out.push(t);
-                }
-                (slvr, Type::Data(nm.clone(), out))
-            }
-            s@Self::Unit | s@Self::Nat | s@Self::Char => 
-                (slvr, s.clone()),
         }
     }
 
@@ -132,7 +43,7 @@ impl Type {
 
     pub(crate) fn display_with(&self, f: &mut Formatter, map: &HashMap<usize, String>, wrap: bool) -> std::fmt::Result {
         match self {
-            Type::Unit | Type::Nat | Type::Char | Type::Data(_, _) => self.fmt(f),
+            Type::Data(_, _) => self.fmt(f),
             Type::Var(n) => f.write_str(map.get(n).unwrap().as_str()),
             Type::Fun(p, r) => {
                 if wrap { f.write_str("(-> ")?; }
@@ -149,9 +60,6 @@ impl Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Unit => write!(f, "Unit"),
-            Type::Nat => write!(f, "Nat"),
-            Type::Char => write!(f, "Char"),
             Type::Data(s, _) => write!(f, "{}", s),
             Type::Fun(_, _) => {
                 let mut vals = HashSet::new();
@@ -166,9 +74,6 @@ impl Display for Type {
 impl std::fmt::Debug for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Unit => write!(f, "Unit"),
-            Self::Nat => write!(f, "Nat"),
-            Self::Char => write!(f, "Char"),
             Self::Data(arg0, _) => f.write_str(arg0),
             Self::Var(arg0) => write!(f, "t_{}", arg0),
             Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),

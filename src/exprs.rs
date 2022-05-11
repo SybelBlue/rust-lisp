@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Formatter, Result, Write}};
 
-use crate::{parsing::sources::Loc, values::{Value, VToken}};
+use crate::{parsing::sources::Loc, values::VToken};
 
 pub type Ident<'a> = Loc<'a, String>;
 
@@ -10,21 +10,6 @@ pub type SToken<'a> = Loc<'a, Vec<Expr<'a>>>;
 pub enum Expr<'a> {
     Val(VToken<'a>),
     SExp(SToken<'a>),
-}
-
-impl<'a> Expr<'a> {
-    pub(crate) fn get_lambda_param_names(&'a self) -> Vec<String> {
-        let mut symbols = Vec::new();
-        let mut to_check = vec![self];
-        while let Some(next) = to_check.pop() {
-            match next {
-                Expr::Val(VToken { body: Value::Sym(w), .. }) => symbols.push(w.clone()),
-                Expr::Val(_) => {},
-                Expr::SExp(sbody) => to_check.extend(&sbody.body),
-            }
-        }
-        symbols
-    }
 }
 
 impl<'a> Display for Expr<'a> {
