@@ -80,10 +80,9 @@ pub(crate) fn infer_top<'a>(infr: Infer, stmts: Vec<&'a Stmt<'a>>) -> InferResul
                 let (new, _) = infer(infr, e)?;
                 infr = new;
             }
-            Stmt::Bind(ident, body) => {
+            Stmt::Bind(_, body) => {
                 let (new, _) = infer_expr(infr, body)?;
                 infr = new;
-                todo!()
             }
         }
     }

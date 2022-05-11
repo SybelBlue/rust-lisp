@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use super::Type;
 
@@ -34,7 +34,7 @@ pub(crate) trait Substitutable {
     fn ftv(&self, used: &mut HashSet<usize>);
 }
 
-impl<T: Substitutable> Substitutable for Vec<T> {
+impl<T: Substitutable> Substitutable for VecDeque<T> {
     fn apply(&self, sub: &Subst) -> Self {
         self.into_iter().map(|t| t.apply(sub)).collect()
     }
