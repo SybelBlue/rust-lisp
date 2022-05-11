@@ -1,4 +1,4 @@
-use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}, hash::Hash};
+use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}, hash::{Hash, Hasher}};
 
 use crate::{errors::LexResult, parsing::lex::{SourceIter, Token}};
 
@@ -7,6 +7,10 @@ use crate::{errors::LexResult, parsing::lex::{SourceIter, Token}};
 pub struct Loc<'a, T> {
     pub pos: FilePos<'a>,
     pub body: T,
+}
+
+pub(crate) fn bodies<'a, T>(locs: &'a Vec<Loc<'a, T>>) -> Vec<&'a T> {
+    locs.iter().map(|l| &l.body).collect()
 }
 
 impl<'a, T: Display> Loc<'a, T> {
@@ -27,7 +31,7 @@ impl<'a, T: Display> Display for Loc<'a, T> {
 }
 
 impl<'a, T: Hash> Hash for Loc<'a, T> {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.pos.hash(state);
         self.body.hash(state);
     }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::Value, parsing::sources::FilePos, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::Value, parsing::sources::{FilePos, bodies}, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
 
 use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, UNIT_TYPE};
 
@@ -120,14 +120,14 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
                     let name = match x.as_ref() {
                         Expr { body: ExprBody::Val(Sym(name)), .. } => 
                             name,
-                        Expr{ pos, .. } =>
+                        Expr { pos, .. } =>
                             return Err(TypeError::new(pos.clone(), NotYetImplemented(format!("SExp lambda typing {:?}", body)))),
                     };
                     let mut infr = infr;
                     let tv = Type::Var(infr.fresh());
                     infr.in_env(name.clone(), Scheme { forall: vec![], tipe: tv.clone() });
-                    println!("lam out {:?}", infr);
                     let (infr, (body_type, cs)) = infer(infr, e)?;
+                    println!("lam out \n\tinfr: {:?}\n\tcs: {:?}", &infr.env, bodies(&cs));
                     Ok((infr, (Type::fun(tv, body_type), cs)))
                 }
             }
@@ -158,6 +158,7 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
             
             cs.push(Constraint { pos: pos.clone(), body: (f_type, full_f_type) });
 
+            println!("sexp out \n\tinfr: {:?}\n\tcs: {:?}", &infr.env, bodies(&cs));
             Ok((infr, (ret_type, cs)))
         },
     }

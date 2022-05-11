@@ -2,8 +2,6 @@ use std::fmt::{Display, Formatter, Result};
 
 use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::Value};
 
-
-
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
