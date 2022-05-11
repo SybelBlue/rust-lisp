@@ -44,7 +44,7 @@ impl<T: Substitutable> Substitutable for Vec<T> {
     }
 }
 
-pub(crate) fn occursCheck<T: Substitutable>(var: &usize, t: T) -> bool {
+pub(crate) fn occurs_check<T: Substitutable>(var: &usize, t: T) -> bool {
     let mut used = HashSet::new();
     t.ftv(&mut used);
     used.contains(var)
