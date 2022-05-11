@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{exprs::{Expr, SToken}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos};
 
-use super::{Type, Scheme, subst::{Substitutable, Subst}};
+use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}};
 
 type Constraint = (Type, Type);
 

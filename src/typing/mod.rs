@@ -1,9 +1,10 @@
 pub mod infer;
 pub mod subst;
+pub mod scheme;
 
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
 
-use self::{infer::Infer, subst::{Substitutable, Subst}};
+use self::subst::{Substitutable, Subst};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
@@ -109,41 +110,5 @@ impl Substitutable for Type {
                 r.ftv(used);
             }
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct Scheme {
-    forall: Vec<usize>,
-    tipe: Type,
-}
-
-impl Display for Scheme {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(forall {:?} {})", self.forall, self.tipe)
-    }
-}
-
-impl Scheme {
-    pub(crate) fn instantiate<'a>(&self, infer: &mut Infer) -> Type {
-        let Self { forall, tipe } = self;
-        let sub = Subst(
-            forall.iter().map(|o| (*o, Type::Var(infer.fresh()))).collect()
-        );
-        tipe.apply(&sub)
-    }
-}
-
-impl Substitutable for Scheme {
-    fn apply(&self, sub: &Subst) -> Self {
-        Self { 
-            forall: self.forall.clone(),
-            tipe: self.tipe.apply(&sub.delete_all(&self.forall)),
-        }
-    }
-
-    fn ftv(&self, used: &mut HashSet<usize>) {
-        self.tipe.ftv(used);
-        self.forall.iter().for_each(|v| { used.remove(v); });
     }
 }
