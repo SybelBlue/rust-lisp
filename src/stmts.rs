@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, SToken}, values::{Value, VToken}};
+use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::{Value, VToken}};
 
 
 
@@ -12,11 +12,11 @@ pub enum Stmt<'a> {
 
 impl<'a> Stmt<'a> {
     pub(crate) fn value(pos: FilePos<'a>, v: Value<'a>) -> Self {
-        Self::Expr(Expr::Val(VToken { pos, body: v }))
+        Self::Expr(Expr { pos, body: ExprBody::Val(v) })
     }
     
     pub(crate) fn sexp(pos: FilePos<'a>, v: Vec<Expr<'a>>) -> Self {
-        Self::Expr(Expr::SExp(SToken { pos, body: v }))
+        Self::Expr(Expr{ pos, body: ExprBody::SExp(v) })
     }
 }
 

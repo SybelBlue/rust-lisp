@@ -5,7 +5,7 @@ use std::collections::HashSet;
 
 use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
-    exprs::{Expr, Ident},
+    exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
     values::{Value, VToken},
     parsing::lex::{Token, TokenBody::*, Keyword::*}
@@ -87,7 +87,7 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                     };
                     Ok(Stmt::Bind(
                         Ident { pos: head_pos, body: name }, 
-                        Expr::Val(VToken { pos: arr_pos, body: parse_lambda(head, body)? })
+                        Expr { pos: arr_pos, body: ExprBody::Val(parse_lambda(head, body)?) }
                     ))
                 },
             }
@@ -101,7 +101,7 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Word(w) => 
-            Ok(Expr::Val(VToken { pos, body: parse_string(w) })),
+            Ok(Expr { pos, body: ExprBody::Val(parse_string(w)) }),
         body => {
             let t = Token { pos, body };
             match parse_stmt(t)? {

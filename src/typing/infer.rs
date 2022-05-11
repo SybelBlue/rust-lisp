@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, SToken, Ident}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::{VToken, Value}, parsing::sources::FilePos, stmts::Stmt, typing::{contraint::Constraint, NAT_TYPE, CHAR_TYPE}};
 
 use super::{Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, UNIT_TYPE};
 
@@ -106,11 +106,11 @@ fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
 }
 
 fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint<'a>>)> {
-    match e {
-        Expr::Val(v) => {
+    let Expr { pos, body } = e;    
+    match body {
+        ExprBody::Val(v) => {
             use Value::*;
-            let VToken { body, pos } = v;
-            match body {
+            match v {
                 Nat(_)  => Ok((infr, (NAT_TYPE.clone(), NULL.clone()))),
                 Char(_) => Ok((infr, (CHAR_TYPE.clone(), NULL.clone()))),
                 Sym(k) => 
@@ -118,10 +118,10 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
                         .map(|(i, t)| (i, (t, NULL.clone()))),
                 Lam(x, e) => {
                     let name = match x.as_ref() {
-                        Expr::Val(VToken { body: Sym(name), .. }) => name,
-                        body@Expr::Val(VToken { pos, .. }) |
-                            body@Expr::SExp(SToken { pos, .. }) => 
-                                return Err(TypeError::new(pos.clone(), NotYetImplemented(format!("SExp lambda typing {:?}", body)))),
+                        Expr { body: ExprBody::Val(Sym(name)), .. } => 
+                            name,
+                        Expr{ pos, .. } =>
+                            return Err(TypeError::new(pos.clone(), NotYetImplemented(format!("SExp lambda typing {:?}", body)))),
                     };
                     let mut infr = infr;
                     let tv = Type::Var(infr.fresh());
@@ -132,7 +132,7 @@ fn infer<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constra
                 }
             }
         }
-        Expr::SExp(SToken { body: es, pos }) => {
+        ExprBody::SExp(es) => {
             let mut es = es.into_iter();
             let f_expr = if let Some(fst) = es.next() {
                 fst

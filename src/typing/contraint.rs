@@ -29,13 +29,13 @@ pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
     solver((Subst::empty(), VecDeque::from(cs)))
 }
 
-fn solver((s, mut cs): Unifier) -> SubstResult {
+fn solver((su1, mut cs): Unifier) -> SubstResult {
     if let Some(c) = cs.pop_front() {
-        let s2 = unifies(c)?;
-        let new_cs = Substitutable::apply(&cs, &s2);
-        solver((s.compose(&s2), new_cs))
+        let su2 = unifies(c)?;
+        let new_cs = Substitutable::apply(&cs, &su2);
+        solver((su2.compose(&su1), new_cs))
     } else {
-        Ok(s)
+        Ok(su1)
     }
 }
 
