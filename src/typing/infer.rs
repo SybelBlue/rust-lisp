@@ -29,7 +29,10 @@ pub struct Infer {
 impl Infer {
     pub fn new() -> Self {
         Self { 
-            env: vec![(format!("+"), Scheme { forall: vec![], tipe: Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat())) })]
+            env: vec![ (format!("+"), Scheme::singleton(Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat()))))
+                     , (format!("chr"), Scheme::singleton(Type::fun(Type::nat(), Type::char())))
+                     , (format!("ord"), Scheme::singleton(Type::fun(Type::char(), Type::nat())))
+                     ]
                     .into_iter()
                     .collect(), 
             var_count: 0 
@@ -170,9 +173,3 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
         },
     }
 }
-
-// [(TVar (TV "0"),TArr (TCon "Int") (TVar (TV "1"))),
-//  (TVar (TV "1"),TArr (TCon "Int") (TVar (TV "2"))),
-//  (TVar (TV "0"),TArr (TVar (TV "2")) (TVar (TV "3"))),
-//  (TVar (TV "3"),TArr (TCon "Int") (TVar (TV "4")))
-// ]

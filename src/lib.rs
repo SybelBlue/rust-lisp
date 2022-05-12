@@ -158,7 +158,6 @@ mod tests {
 
         #[test]
         fn mod_test() {
-
             let types = type_test_all("\
             (z <- (foo 4))
             ((foo x) <- (baz (+ x y)))
@@ -192,9 +191,13 @@ mod tests {
             let types = type_test_all("\
             ((id x) <- x)
             ((bux z) <- 5)
-            ((foo x y) <- (+ (id 3) (bux (id ()))))");
+            ((foo x y) <- (+ (id (bux 3)) (+ x (bux (id ())))))");
             assert_eq!(3, types.len());
-            vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(Type::nat(), Type::fun(Type::unit(), Type::Var(1)))]
+            println!("{:?}", &types);
+            vec![ Type::fun(Type::Var(0), Type::Var(0))
+                , Type::fun(Type::Var(0), Type::nat())
+                , Type::fun(Type::nat(), Type::fun(Type::Var(0), Type::nat()))
+                ]
                 .into_iter()
                 .zip(types)
                 .for_each(|(e, g)| assert_type_eq(e, g));
