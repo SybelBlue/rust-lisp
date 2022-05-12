@@ -26,15 +26,19 @@ impl<'a> Substitutable for Constraint<'a> {
 }
 
 pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
+    println!("solving!");
     solver((Subst::empty(), VecDeque::from(cs)))
 }
 
 fn solver((su1, mut cs): Unifier) -> SubstResult {
     if let Some(c) = cs.pop_front() {
+        println!("unifying {:?} -> ", c.body);
         let su2 = unifies(c)?;
+        println!("\t{:?}", su2);
         let new_cs = Substitutable::apply(&cs, &su2);
         solver((su2.compose(&su1), new_cs))
     } else {
+        println!("out {:?}", su1);
         Ok(su1)
     }
 }
@@ -70,7 +74,7 @@ fn unify_many(pos: FilePos, mut ls: VecDeque<Type>, mut rs: VecDeque<Type>) -> S
     };
     
     let su1 = unifies(c)?;
-    let su2 = unify_many(pos.clone(), ls, rs)?;
+    let su2 = unify_many(pos.clone(), ls.apply(&su1), rs.apply(&su1))?;
 
     Ok(su2.compose(&su1))
 }
