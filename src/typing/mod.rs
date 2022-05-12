@@ -88,13 +88,23 @@ impl Type {
 impl Display for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Type::Data(s, _) => write!(f, "{}", s),
-            Type::Fun(_, _) => {
+            Self::Data(s, ts) => {
+                if !ts.is_empty() { f.write_char('(')?; }
+                f.write_str(s)?;
+                if !ts.is_empty() { 
+                    let mut vals = HashSet::new();
+                    self.variable_values(&mut vals);
+                    self.display_with(f, &Self::var_to_char_map(vals.into_iter().collect()), true)?;
+                    f.write_char(')')?; 
+                }
+                Ok(())
+            }
+            Self::Fun(_, _) => {
                 let mut vals = HashSet::new();
                 self.variable_values(&mut vals);
-                self.display_with(f, &Type::var_to_char_map(vals.into_iter().collect()), true)
+                self.display_with(f, &Self::var_to_char_map(vals.into_iter().collect()), true)
             },
-            Type::Var(_) => f.write_char('a'),
+            Self::Var(_) => f.write_char('a'),
         }
     }
 }
@@ -102,7 +112,15 @@ impl Display for Type {
 impl Debug for Type {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Data(arg0, _) => f.write_str(arg0),
+            Self::Data(s, ts) => {
+                if !ts.is_empty() { f.write_char('(')?; }
+                f.write_str(s)?;
+                for t in ts {
+                    write!(f, " {:?}", t)?;
+                }
+                if !ts.is_empty() { f.write_char(')')?; }
+                Ok(())
+            }
             Self::Var(arg0) => write!(f, "t_{}", arg0),
             Self::Fun(arg0, arg1) => write!(f, "({:?} -> {:?})", arg0.as_ref(), arg1.as_ref()),
         }
