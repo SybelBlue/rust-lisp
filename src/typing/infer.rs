@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError}, values::Value, parsing::sources::{FilePos, bodies}, stmts::Stmt};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::*}, values::Value, parsing::sources::{FilePos, bodies}, stmts::Stmt};
 
 use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve};
 
@@ -19,8 +19,6 @@ impl Substitutable for Env {
 }
 
 type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
-
-use crate::errors::TypeErrorBody::*;
 
 #[derive(Debug)]
 pub struct Infer {
@@ -44,7 +42,7 @@ impl Infer {
         out
     }
 
-    fn in_env(&mut self, name: String, sc: Scheme) {
+    fn extend(&mut self, name: String, sc: Scheme) {
         self.env.insert(name, sc);
     }
 
@@ -90,7 +88,7 @@ pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, V
             Stmt::Bind(Ident { body: name, .. }, body) => {
                 let (new, sc) = infer_expr(infr, body)?;
                 infr = new;
-                infr.in_env(name.clone(), sc.clone());
+                infr.extend(name.clone(), sc.clone());
                 out.push(sc)
             }
         }
