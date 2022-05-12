@@ -133,32 +133,33 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
         }
         ExprBody::SExp(es) => {
             let mut es = es.into_iter();
-            let f_expr = if let Some(fst) = es.next() {
+            let fst = if let Some(fst) = es.next() {
                 fst
             } else {
                 return Ok((infr, (Type::unit(), null())));
             };
-            let (mut infr, (f_type, mut cs)) = infer(infr, f_expr)?;
-            let mut arg_types = Vec::new();
-            for e in es {
-                let (new_infer, (b_type, b_cs)) = infer(infr, e)?;
-                infr = new_infer;
-                cs.extend(b_cs.into_iter());
-                arg_types.push(b_type);
-            }
-            let ret_type = Type::Var(infr.fresh());
-            let full_f_type = 
-                arg_types.into_iter()
-                    .rev()
-                    .fold(
-                        ret_type.clone(), 
-                        |prev, arg| Type::fun(arg, prev)
-                    );
             
-            cs.push(Constraint { pos: pos.clone(), body: (f_type, full_f_type) });
+            let (mut infr, (mut last_t, mut cs)) = 
+                infer(infr, fst)?;
+
+            for e in es {
+                let cnstr_pos = e.pos.clone();
+
+                let (new_infr, (arg_t, new_cs)) = 
+                    infer(infr, e)?;
+                
+                infr = new_infr;
+                cs.extend(new_cs);
+                
+                let ret_type = Type::Var(infr.fresh());
+                let body = (last_t, Type::fun(arg_t, ret_type.clone()));
+                cs.push(Constraint { pos: cnstr_pos, body });
+                
+                last_t = ret_type;
+            }
 
             println!("sexp out \n\tinfr: {:?}\n\tcs: {:?}", &infr.env, bodies(&cs));
-            Ok((infr, (ret_type, cs)))
+            Ok((infr, (last_t, cs)))
         },
     }
 }
