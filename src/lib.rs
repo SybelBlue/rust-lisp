@@ -10,7 +10,7 @@ pub mod repl;
 mod tests {
     mod types {
         use crate::{typing::*, parsing::sources::Source};
-        use crate::typing::Type::*;
+        use crate::typing::{scheme::Scheme, Type::*};
 
         fn type_test<'a>(s: &'a str) -> Type {
             type_test_all(s).pop().unwrap()
@@ -35,9 +35,9 @@ mod tests {
             Type::fun(t.clone(), Type::fun(t.clone(), t))
         }
         
-        macro_rules! assert_fmt_eq {
+        macro_rules! assert_type_eq {
             ($a:expr, $b:expr) => {
-                assert_eq!(format!("{}", $a), format!("{}", $b))
+                assert_eq!(Scheme::singleton($a).normalize(), Scheme::singleton($b).normalize())
             };
         }
 
@@ -61,8 +61,8 @@ mod tests {
             
             assert_eq!(agg(Type::nat()), type_test("(x -> (+ x))"));
 
-            assert_fmt_eq!(fun(Var(1), Var(1)), type_test("(x -> x)"));
-            assert_fmt_eq!(fun(fun(Type::nat(), Var(1)), Var(1)), type_test("(f -> (f 3))"));
+            assert_type_eq!(fun(Var(1), Var(1)), type_test("(x -> x)"));
+            assert_type_eq!(fun(fun(Type::nat(), Var(1)), Var(1)), type_test("(f -> (f 3))"));
 
             assert_eq!(fun(agg(Type::nat()), Type::nat()), type_test("(f -> (f (f 1 2) (f 3 4)))"));
         }
@@ -84,10 +84,10 @@ mod tests {
             let fun = crate::typing::Type::fun;
 
             // kestrel (const)
-            assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("(x -> (_ -> x))"));
+            assert_type_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("(x -> (_ -> x))"));
             
             // psi (on)
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(2), fun(Var(2), Var(3))), 
                     fun(fun(Var(1), Var(2)), 
                     fun(Var(1), 
@@ -95,27 +95,27 @@ mod tests {
                     , Var(3))))), type_test("((f g x y) -> (f (g x) (g y)))"));
             
             // bluebird (.)
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((g f x) -> (g (f x)))"));
             
             // cardinal (flip)
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
                 type_test("((f b a) -> (f a b))"));
             
             // applicator ($)
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
                 type_test("((f a) -> (f a))"));
             
             // starling (<*> over (->))
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((fabc gab a) -> (fabc a (gab a)))"));
             
             // pheonix/starling' (liftA2/liftM2 over (->))
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
                 type_test("((fbcd gab hac a) -> (fbcd (gab a) (hac a)))"));
         }
@@ -125,32 +125,32 @@ mod tests {
             use crate::typing::Type::Var;
             let fun = crate::typing::Type::fun;
 
-            assert_fmt_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("((kestrel x) <- (_ -> x))"));
+            assert_type_eq!(fun(Var(2), fun(Var(1), Var(2))), type_test("((kestrel x) <- (_ -> x))"));
             
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(2), fun(Var(2), Var(3))), 
                     fun(fun(Var(1), Var(2)), 
                     fun(Var(1), 
                     fun(Var(1)
                     , Var(3))))), type_test("((on f g x y) <- (f (g x) (g y)))"));
             
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((bluebird g f x) <- (g (f x)))"));
             
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
                 type_test("((cardinal f b a) <- (f a b))"));
             
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
                 type_test("(($ f a) <- (f a))"));
             
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((starling fabc gab a) <- (fabc a (gab a)))"));
             
-            assert_fmt_eq!(
+            assert_type_eq!(
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
                 type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
         }
@@ -183,7 +183,7 @@ mod tests {
             vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Var(0), n_fn)]
                 .into_iter()
                 .zip(types)
-                .for_each(|(e, g)| assert_fmt_eq!(e, g));
+                .for_each(|(e, g)| assert_type_eq!(e, g));
         }
 
         #[test]
@@ -196,7 +196,7 @@ mod tests {
             vec![Type::fun(Type::Var(0), Type::Var(0)), Type::fun(Type::nat(), Type::fun(Type::unit(), Type::Var(1)))]
                 .into_iter()
                 .zip(types)
-                .for_each(|(e, g)| assert_fmt_eq!(e, g));
+                .for_each(|(e, g)| assert_type_eq!(e, g));
         }
     }
 

@@ -15,6 +15,10 @@ impl Display for Scheme {
 }
 
 impl Scheme {
+    pub(crate) fn singleton(tipe: Type) -> Self {
+        Self { forall: Vec::new(), tipe }
+    }
+
     pub(crate) fn instantiate(&self, infer: &mut Infer) -> Type {
         let Self { forall, tipe } = self;
         let sub = Subst(
