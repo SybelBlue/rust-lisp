@@ -17,15 +17,14 @@ mod tests {
         }
 
         fn type_test_all<'a>(s: &'a str) -> Vec<Type> {
-            use crate::typing::infer::{Infer, infer_top};
+            use crate::typing::infer::{Infer, infer_mod};
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            infer_top(Infer::new(), &ss)
+            infer_mod(Infer::new(), &ss)
                 .unwrap()
-                .1
                 .into_iter()
                 .map(|v| v.tipe)
                 .collect()
@@ -154,6 +153,13 @@ mod tests {
             assert_type_eq(
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
                 type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
+        }
+
+        #[test]
+        fn recursive() {
+            assert_type_eq(
+                Type::fun(Type::nat(), Type::nat()), 
+                type_test("((succ-inf n) <- (+ 1 (succ-inf n)))"));
         }
 
         #[test]

@@ -85,6 +85,23 @@ fn null<'a>() -> Vec<Constraint<'a>> {
      Vec::with_capacity(0)
 }
 
+pub fn infer_mod<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
+    let run: Box<dyn FnOnce(Infer) -> TypeResult<'a, Vec<Scheme>>> = Box::new(|infr| infer_top(infr, stmts).map(|(_, scs)| scs));
+    let contextualized = stmts.into_iter()
+        .fold(run, |acc, s| {
+            match s {
+                Stmt::Expr(_) => acc,
+                Stmt::Bind(Ident { body, .. }, _) => 
+                    Box::new(move |infr: Infer| {
+                        let mut infr = infr;
+                        let ref sc = Scheme { forall: vec![], tipe: Type::Var(infr.fresh()) };
+                        infr.in_env(body, sc, acc).map(|(_, scs)| scs)
+                    }),
+            }
+        });
+    contextualized(infr)
+}
+
 pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, Vec<Scheme>> {
     let mut infr = infr;
     let mut out = Vec::new();
