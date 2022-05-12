@@ -71,11 +71,10 @@ impl Infer {
     }
 
     fn in_env<'a, T, F>(self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
-            where F: FnOnce(Self) -> InferResult<'a, T> {
+            where F: FnOnce(Self) -> TypeResult<'a, T> {
         let mut infr = self.clone();
         infr.extend(name.clone(), sc.clone());
-        let (_, t) = f(infr)?;
-        Ok((self, t))
+        Ok((self, f(infr)?))
     }
 }
 
@@ -134,9 +133,9 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                     let (infr, (t, cs)) = 
                         infr.in_env(name, sc,
                             |infr| {
-                                let (infr, (body_type, cs)) = 
+                                let (_, (body_type, cs)) = 
                                     infer(infr, e)?;
-                                Ok((infr, (Type::fun(tv, body_type), cs)))
+                                Ok((Type::fun(tv, body_type), cs))
                             }
                         )?;
                     println!("lam out \n\tinfr: {:?}\n\tcs: {:?}\n\tt: {:?}", &infr.env, bodies(&cs), t);
@@ -176,3 +175,9 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
         },
     }
 }
+
+// [(TVar (TV "0"),TArr (TCon "Int") (TVar (TV "1"))),
+//  (TVar (TV "1"),TArr (TCon "Int") (TVar (TV "2"))),
+//  (TVar (TV "0"),TArr (TVar (TV "2")) (TVar (TV "3"))),
+//  (TVar (TV "3"),TArr (TCon "Int") (TVar (TV "4")))
+// ]
