@@ -20,7 +20,7 @@ impl Substitutable for Env {
 
 type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Infer {
     env: Env,
     var_count: usize,
@@ -68,6 +68,14 @@ impl Infer {
 
     fn close_over(&mut self, t: Type) -> Scheme {
         self.generalize(t).normalize()
+    }
+
+    fn in_env<'a, T, F>(self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
+            where F: FnOnce(Self) -> InferResult<'a, T> {
+        let mut infr = self.clone();
+        infr.extend(name.clone(), sc.clone());
+        let (_, t) = f(infr)?;
+        Ok((self, t))
     }
 }
 
@@ -122,10 +130,17 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                     };
                     let mut infr = infr;
                     let tv = Type::Var(infr.fresh());
-                    infr.in_env(name.clone(), Scheme { forall: vec![], tipe: tv.clone() });
-                    let (infr, (body_type, cs)) = infer(infr, e)?;
-                    println!("lam out \n\tinfr: {:?}\n\tcs: {:?}", &infr.env, bodies(&cs));
-                    Ok((infr, (Type::fun(tv, body_type), cs)))
+                    let ref sc = Scheme { forall: vec![], tipe: tv.clone() };
+                    let (infr, (t, cs)) = 
+                        infr.in_env(name, sc,
+                            |infr| {
+                                let (infr, (body_type, cs)) = 
+                                    infer(infr, e)?;
+                                Ok((infr, (Type::fun(tv, body_type), cs)))
+                            }
+                        )?;
+                    println!("lam out \n\tinfr: {:?}\n\tcs: {:?}\n\tt: {:?}", &infr.env, bodies(&cs), t);
+                    Ok((infr, (t, cs)))
                 }
             }
         }

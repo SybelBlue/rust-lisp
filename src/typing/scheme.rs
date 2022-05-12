@@ -2,7 +2,7 @@ use std::{fmt::{Display, Formatter}, collections::{HashSet, HashMap}};
 
 use super::{subst::{Substitutable, Subst}, Type, infer::Infer};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scheme {
     pub(crate) forall: Vec<usize>,
     pub(crate) tipe: Type,
