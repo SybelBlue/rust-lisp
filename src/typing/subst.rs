@@ -14,19 +14,21 @@ impl Subst {
         Self(vec![(var, t)].into_iter().collect())
     }
 
-    /// Provides a self-biased composition when duplicate keys are encountered,
+    /// Provides an other-biased composition when duplicate keys are encountered,
     /// and applys self over other's values.
     /// 
     /// s0 `compose` s1 = update (apply s0 <$> s1) s0
-    pub(crate) fn compose(mut self, other: &Self) -> Self {
-        let ref cln = self.clone();
-        for (i, v) in other.0.iter() {
-            self.0
-                .entry(i.clone())
-                .and_modify(|v| *v = v.apply(cln))
-                .or_insert_with(|| v.clone());
-        }
-        self
+    pub(crate) fn compose(&self, other: &Self) -> Self {
+        let mut s1 = self.0.clone();
+        
+        let elimmed = 
+            (&other.0)
+                .iter()
+                .map(|(k, v)| (*k, v.apply(self)));
+        
+        s1.extend(elimmed);
+
+        Subst(s1)
     }
 
     pub(crate) fn get_default<'a>(&'a self, k: &'a usize, default: &'a Type) -> &'a Type {
