@@ -1,8 +1,6 @@
 pub mod lex;
 pub mod sources;
 
-use std::collections::HashSet;
-
 use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
     exprs::{Expr, Ident, ExprBody},
@@ -113,28 +111,53 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     }
 }
 
-fn parse_lambda<'a>(head: Token<'a>, body: Token<'a>) -> ParseResult<'a, Value<'a>> {
-    let mut found = HashSet::new();
-    let mut to_check = vec![&head];
-    while let Some(chk) = to_check.pop() {
-        match &chk.body {
-            Literal(_) => 
-                return Err(ParseError::new(chk.pos.clone(), MisplacedLiteral)),
-            Keyword(kw) => 
-                return Err(ParseError::new(chk.pos.clone(), MisplacedKeyword(*kw))),
-            Word(w) => {
-                if found.contains(w) {
-                    return Err(ParseError::new(chk.pos.clone(), DuplicateLambdaArg(w.clone())));
-                } else {
-                    found.insert(w.clone());
-                }
+fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> ParseResult<'a, Value<'a>> {
+    let mut found: Vec<Ident<'a>> = Vec::new();
+    match body {
+        Literal(_) => 
+            return Err(ParseError::new(pos, MisplacedLiteral)),
+        Keyword(kw) => 
+            return Err(ParseError::new(pos, MisplacedKeyword(kw))),
+        Word(w) => {
+            if found.iter().any(|i| i.body == w) {
+                return Err(ParseError::new(pos, DuplicateLambdaArg(w.clone())));
+            } else {
+                found.push(Ident { body: w, pos: pos.clone() });
             }
-            SExp(ts) => {
-                to_check.extend(ts);
+        }
+        SExp(ts) => {
+            for Token { pos, body } in ts {
+                match body {
+                    Literal(_) => 
+                        return Err(ParseError::new(pos, MisplacedLiteral)),
+                    Keyword(kw) => 
+                        return Err(ParseError::new(pos, MisplacedKeyword(kw))),
+                    Word(w) => {
+                        if found.iter().any(|i| i.body == w) {
+                            return Err(ParseError::new(pos, DuplicateLambdaArg(w.clone())));
+                        } else {
+                            found.push(Ident { body: w, pos });
+                        }
+                    }
+                    SExp(_) => {
+                        return Err(ParseError::new(pos, MisplacedSExp))
+                    }
+                }
             }
         }
     }
-    Ok(Value::lam(parse_expr(head)?, parse_expr(body)?))
+
+    if let Some(lst) = found.pop() {
+        Ok(
+            found.into_iter().rev().fold(
+                Value::lam(lst, parse_expr(body_tkn)?), 
+                |acc, next| {
+                    Value::lam(next, Expr::val(pos.clone(), acc))
+                })
+        )
+    } else {
+        Err(ParseError::new(pos, MisplacedSExp))
+    }
 }
 
 fn parse_string<'a>(w: String) -> Value<'a> {

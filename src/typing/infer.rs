@@ -121,12 +121,7 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                     infr.lookup_env(k, pos)
                         .map(|(i, t)| (i, (t, null()))),
                 Lam(x, e) => {
-                    let name = match x.as_ref() {
-                        Expr { body: ExprBody::Val(Sym(name)), .. } => 
-                            name,
-                        Expr { pos, .. } =>
-                            return Err(TypeError::new(pos.clone(), NotYetImplemented(format!("SExp lambda typing {:?}", body)))),
-                    };
+                    let name = &x.body;
                     let mut infr = infr;
                     let tv = Type::Var(infr.fresh());
                     let ref sc = Scheme { forall: vec![], tipe: tv.clone() };

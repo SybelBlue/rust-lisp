@@ -1,16 +1,16 @@
-use crate::exprs::Expr;
+use crate::exprs::{Expr, Ident};
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
     Nat(usize),
     Sym(String),
     Char(char),
-    Lam(Box<Expr<'a>>, Box<Expr<'a>>),
+    Lam(Ident<'a>, Box<Expr<'a>>),
 }
 
 impl<'a> Value<'a> {
-    pub fn lam(p: Expr<'a>, r: Expr<'a>) -> Self {
-        Self::Lam(Box::new(p), Box::new(r))
+    pub fn lam(p: Ident<'a>, r: Expr<'a>) -> Self {
+        Self::Lam(p, Box::new(r))
     }
 }
 
