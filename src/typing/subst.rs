@@ -20,10 +20,10 @@ impl Subst {
     /// s0 `compose` s1 = update (apply s0 <$> s1) s0
     pub(crate) fn compose(&self, other: &Self) -> Self {
         let mut s1 = self.0.clone();
+        let s2 = &other.0;
         
         let elimmed = 
-            (&other.0)
-                .iter()
+            s2.iter()
                 .map(|(k, v)| (*k, v.apply(self)));
         
         s1.extend(elimmed);
