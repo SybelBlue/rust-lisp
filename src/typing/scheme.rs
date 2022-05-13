@@ -10,7 +10,7 @@ pub struct Scheme {
 
 impl Display for Scheme {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(forall {:?} {})", self.forall, self.tipe)
+        self.tipe.fmt(f)
     }
 }
 

@@ -9,17 +9,13 @@ pub struct Loc<'a, T> {
     pub body: T,
 }
 
-pub(crate) fn bodies<'a, T>(locs: &'a Vec<Loc<'a, T>>) -> Vec<&'a T> {
+pub fn bodies<'a, T>(locs: &'a Vec<Loc<'a, T>>) -> Vec<&'a T> {
     locs.iter().map(|l| &l.body).collect()
 }
 
 impl<'a, T: Display> Loc<'a, T> {
     pub(crate) fn new(pos: FilePos<'a>, body: T) -> Self {
         Self { pos, body }
-    }
-
-    pub(crate) fn display_simple(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.body, f)
     }
 }
 

@@ -18,10 +18,6 @@ impl Subst {
         Self(vec![(var, t)].into_iter().collect())
     }
 
-    /// Provides an other-biased composition when duplicate keys are encountered,
-    /// and applys self over other's values.
-    /// 
-    /// s0 `compose` s1 = update (apply s0 <$> s1) s0
     pub(crate) fn compose(&self, other: &Self) -> Self {
         let mut s1 = self.0.clone();
         let s2 = &other.0;

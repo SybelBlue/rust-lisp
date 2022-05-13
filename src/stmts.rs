@@ -21,8 +21,8 @@ impl<'a> Stmt<'a> {
 impl<'a> Display for Stmt<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
-            Self::Expr(e) => e.fmt(f),
-            Self::Bind(lstr, _) => lstr.display_simple(f),
+            Self::Expr(e) => e.body.fmt(f),
+            Self::Bind(lstr, _) => f.write_str(&lstr.body),
         }
     }
 }

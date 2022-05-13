@@ -23,11 +23,15 @@ mod tests {
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            infer_mod(Infer::new(), &ss)
-                .unwrap()
-                .into_iter()
-                .map(|v| v.tipe)
-                .collect()
+            match infer_mod(Infer::new(), &ss) {
+                Err(e) =>
+                    panic!("{}", e),
+                Ok(scs) =>
+                    scs
+                        .into_iter()
+                        .map(|v| v.tipe)
+                        .collect()
+            }
         }
 
         fn agg(t: Type) -> Type {

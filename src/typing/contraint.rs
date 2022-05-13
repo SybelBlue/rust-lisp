@@ -29,13 +29,13 @@ impl<'a> Substitutable for Constraint<'a> {
 }
 
 pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
-    println!("solving!");
+    // println!("solving!");
     cs.into_iter().try_fold(
         Subst::empty(), 
         |sub, c| {
-            println!("unifying {:?} -> ", c.body);
+            // println!("unifying {:?} -> ", c.body);
             let ref su2 = unify(c.apply(&sub))?;
-            println!("\t{:?}", su2);
+            // println!("\t{:?}", su2);
             Ok(su2.compose(&sub))
         }
     )

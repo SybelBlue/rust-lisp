@@ -24,8 +24,8 @@ impl<'a> Display for ExprBody<'a> {
             Self::Val(l) => l.fmt(f),
             Self::SExp(l) => {
                 if let Some((fst, rst)) = l.split_first() {
-                    write!(f, "({}", fst)?;
-                    rst.into_iter().try_for_each(|e| write!(f, " {}", e))?;
+                    write!(f, "({}", &fst.body)?;
+                    rst.into_iter().try_for_each(|e| write!(f, " {}", &e.body))?;
                     f.write_char(')')
                 } else {
                     f.write_str("()")
