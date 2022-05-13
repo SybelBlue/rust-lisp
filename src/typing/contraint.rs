@@ -1,12 +1,12 @@
-use std::collections::{VecDeque, HashSet};
+use std::collections::HashSet;
 
-use crate::{errors::{TypeResult, TypeError, TypeErrorBody}, parsing::sources::{Loc, FilePos}};
+use crate::{
+    errors::{TypeResult, TypeError, TypeErrorBody}, 
+    parsing::sources::Loc, 
+    typing::{Type, subst::{Subst, Substitutable, occurs_check}}
+};
 
-use super::{subst::{Subst, Substitutable, occurs_check}, Type};
-
-type Unifier<'a> = (Subst, VecDeque<Constraint<'a>>);
-
-pub(crate) type Constr = (Type, Type);
+type Constr = (Type, Type);
 pub(crate) type Constraint<'a> = Loc<'a, Constr>;
 
 type SubstResult<'a> = TypeResult<'a, Subst>;
@@ -27,64 +27,44 @@ impl<'a> Substitutable for Constraint<'a> {
 
 pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
     println!("solving!");
-    solver((Subst::empty(), VecDeque::from(cs)))
+    cs.into_iter().try_fold(
+        Subst::empty(), 
+        |sub, c| {
+            println!("unifying {:?} -> ", c.body);
+            let ref su2 = unify(c.apply(&sub))?;
+            println!("\t{:?}", su2);
+            Ok(su2.compose(&sub))
+        }
+    )
 }
 
-fn solver((su1, mut cs): Unifier) -> SubstResult {
-    if let Some(c) = cs.pop_front() {
-        println!("unifying {:?} -> ", c.body);
-        let su2 = unifies(c)?;
-        println!("\t{:?}", su2);
-        let new_cs = Substitutable::apply(&cs, &su2);
-        solver((su2.compose(&su1), new_cs))
-    } else {
-        println!("out {:?}", su1);
-        Ok(su1)
-    }
-}
-
-fn unifies(c: Constraint) -> SubstResult {
+fn unify(c: Constraint) -> SubstResult {
     let Constraint { pos, body: (t1, t2) } = c;
     use Type::*;
     match (t1, t2) {
         (t1, t2) if t1 == t2 => 
             Ok(Subst::empty()),
-        (Var(v), t) | (t, Var(v)) =>
-            bind(pos, v, t),
-        (Type::Fun(t1, t2), Type::Fun(t3, t4)) =>
-            unify_many(pos, VecDeque::from(vec![*t1, *t2]), VecDeque::from(vec![*t3, *t4])),
-        (t1, t2) =>
-            Err(TypeError::new(pos, TypeErrorBody::TypeMismatch { got: t1, expected: t2 }))
-    }
-}
+        (Var(v), t) | (t, Var(v)) => {
+            if t == Var(v) {
+                Ok(Subst::empty())
+            } else if occurs_check(&v, &t) {
+                Err(TypeError::new(pos, TypeErrorBody::InfiniteType(Var(v), t)))
+            } else {
+                Ok(Subst::singleton(v, t)) 
+            }
+        }
+        (Fun(p1, r1), Fun(p2, r2)) => {
+            let ref su1 = unify(
+                Constraint { pos: pos.clone(), body: (*p1, *p2) }
+            )?;
 
-fn unify_many(pos: FilePos, mut ls: VecDeque<Type>, mut rs: VecDeque<Type>) -> SubstResult {
-    if ls.len() != rs.len() { 
-        panic!("unification mismatch");
-    } else if ls.is_empty() {
-        return Ok(Subst::empty());
-    }
+            let su2 = unify(
+                Constraint { pos, body: (r1.apply(su1), r2.apply(su1)) }
+            )?;
 
-    let t1 = ls.pop_front().unwrap();
-    let t2 = rs.pop_front().unwrap();
-
-    let c = Constraint {
-        pos: pos.clone(),
-        body: (t1, t2)
-    };
-    
-    let su1 = unifies(c)?;
-    let su2 = unify_many(pos.clone(), ls.apply(&su1), rs.apply(&su1))?;
-
-    Ok(su2.compose(&su1))
-}
-
-fn bind(pos: FilePos, var: usize, t: Type) -> SubstResult {
-    if t == Type::Var(var) {
-        Ok(Subst::empty())
-    } else if occurs_check(&var, &t) {
-        Err(TypeError::new(pos, TypeErrorBody::InfiniteType(Type::Var(var), t)))
-    } else {
-        Ok(Subst::singleton(var, t)) 
+            Ok(su2.compose(su1))
+        }
+        (got, expected) =>
+            Err(TypeError::new(pos, TypeErrorBody::TypeMismatch { got, expected }))
     }
 }
