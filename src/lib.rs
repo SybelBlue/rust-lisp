@@ -163,7 +163,7 @@ mod tests {
         }
 
         #[test]
-        fn mod_test() {
+        fn mutual_recursive() {
             let types = type_test_all("\
             (z <- (foo 4))
             ((foo x) <- (baz (+ x y)))
