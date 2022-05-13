@@ -13,8 +13,11 @@ type SubstResult<'a> = TypeResult<'a, Subst>;
 
 impl<'a> Substitutable for Constraint<'a> {
     fn apply(&self, sub: &Subst) -> Self {
-        let Self { pos, body: (l , r) } = self;
-        Self { pos: pos.clone(), body: (l.apply(sub), r.apply(sub)) }
+        let (l , r) = &self.body;
+        Self { 
+            pos: self.pos.clone(), 
+            body: (l.apply(sub), r.apply(sub)) 
+        }
     }
 
     fn ftv(&self, used: &mut HashSet<usize>) {
@@ -39,9 +42,9 @@ pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
 }
 
 fn unify(c: Constraint) -> SubstResult {
-    let Constraint { pos, body: (t1, t2) } = c;
     use Type::*;
-    match (t1, t2) {
+    let Constraint { pos, body } = c;
+    match body {
         (t1, t2) if t1 == t2 => 
             Ok(Subst::empty()),
         (Var(v), t) | (t, Var(v)) => {
