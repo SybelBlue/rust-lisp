@@ -21,7 +21,7 @@ impl Scheme {
 
     pub(crate) fn instantiate(&self, infer: &mut Infer) -> Type {
         let Self { forall, tipe } = self;
-        let sub = Subst(
+        let sub = Subst::from(
             forall.iter().map(|o| (*o, Type::Var(infer.fresh()))).collect()
         );
         tipe.apply(&sub)

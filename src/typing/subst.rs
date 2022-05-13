@@ -3,9 +3,13 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use super::Type;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Subst(pub(crate) HashMap<usize, Type>);
+pub(crate) struct Subst(HashMap<usize, Type>);
 
 impl Subst {
+    pub(crate) fn from(sub: HashMap<usize, Type>) -> Self {
+        Self(sub)
+    }
+    
     pub(crate) fn empty() -> Self {
         Self(HashMap::new())
     }
