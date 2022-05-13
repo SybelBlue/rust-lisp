@@ -1,6 +1,6 @@
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{sources::Source, parse}, typing::infer::{Infer, infer_mod}, errors::{LexError, LexErrorBody}};
+use rust_lisp::{parsing::{sources::Source, parse}, typing::infer::{Infer, infer_top}, errors::{LexError, LexErrorBody}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
@@ -26,8 +26,8 @@ fn main() -> std::io::Result<()> {
             Ok(ts) => {
                 match parse(ts) {
                     Ok(stmts) => {
-                        match infer_mod(Infer::new(), &stmts) {
-                            Ok(ts) => {
+                        match infer_top(Infer::new(), &stmts) {
+                            Ok((_, ts)) => {
                                 // ctxt = new;
                                 // reader.set_completer(Arc::new(ctxt.clone()));
                                 for (e, t) in stmts.iter().zip(ts) {
