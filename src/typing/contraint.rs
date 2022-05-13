@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
-    errors::{TypeResult, TypeError, TypeErrorBody}, 
+    errors::{TypeResult, TypeError, TypeErrorBody::*}, 
     parsing::sources::Loc, 
     typing::{Type, subst::{Subst, Substitutable, occurs_check}}
 };
@@ -41,9 +41,8 @@ pub(crate) fn solve(cs: Vec<Constraint>) -> SubstResult {
     )
 }
 
-fn unify(c: Constraint) -> SubstResult {
+fn unify(Constraint { pos, body }: Constraint) -> SubstResult {
     use Type::*;
-    let Constraint { pos, body } = c;
     match body {
         (t1, t2) if t1 == t2 => 
             Ok(Subst::empty()),
@@ -51,7 +50,7 @@ fn unify(c: Constraint) -> SubstResult {
             if t == Var(v) {
                 Ok(Subst::empty())
             } else if occurs_check(&v, &t) {
-                Err(TypeError::new(pos, TypeErrorBody::InfiniteType(Var(v), t)))
+                Err(TypeError::new(pos, InfiniteType(Var(v), t)))
             } else {
                 Ok(Subst::singleton(v, t)) 
             }
@@ -68,6 +67,6 @@ fn unify(c: Constraint) -> SubstResult {
             Ok(su2.compose(su1))
         }
         (got, expected) =>
-            Err(TypeError::new(pos, TypeErrorBody::TypeMismatch { got, expected }))
+            Err(TypeError::new(pos, TypeMismatch { got, expected }))
     }
 }
