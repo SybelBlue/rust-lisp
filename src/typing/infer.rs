@@ -87,23 +87,19 @@ fn null<'a>() -> Vec<Constraint<'a>> {
      Vec::with_capacity(0)
 }
 
+
 pub fn infer_mod<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
-    let run: Box<dyn FnOnce(Infer) -> InferResult<'a, Vec<Scheme>>> = 
-        Box::new(|infr| infer_top(infr, stmts));
-    let contextualized = stmts.into_iter()
-        .fold(run, |acc, s| {
-            match s {
-                Stmt::Expr(_) => 
-                    acc,
-                Stmt::Bind(Ident { body, .. }, _) => 
-                    Box::new(move |infr: Infer| {
-                        let mut infr = infr;
-                        let ref sc = Scheme { forall: vec![], tipe: Type::Var(infr.fresh()) };
-                        infr.in_env(body, sc, acc)
-                    }),
-            }
-        });
-    Ok(contextualized(infr)?.1)
+    let mut infr = infr;
+    for s in stmts {
+        if let Stmt::Bind(Ident { body, .. }, _) = s {
+            let sc = Scheme::concrete(Type::Var(infr.fresh()));
+            infr.extend(body.clone(), sc);
+        }
+    }
+    // println!("start infr {:?}", &infr.env);
+    let (_infr, scs) = infer_top(infr, stmts)?;
+    // println!("final infr {:?}", &infr.env);
+    Ok(scs)
 }
 
 pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, Vec<Scheme>> {
