@@ -39,9 +39,14 @@ mod tests {
         }
         
         fn assert_type_eq(a: Type, b: Type) {
+            let a = Scheme::concrete(a);
+            let b = Scheme::concrete(b);
             assert_eq!(
-                Scheme::singleton(a).normalize().tipe, 
-                Scheme::singleton(b).normalize().tipe
+                a.normalize().tipe, 
+                b.normalize().tipe,
+                "{} !~ {}",
+                &a.tipe,
+                &b.tipe
             );
         }
 
@@ -172,7 +177,7 @@ mod tests {
             (z <- (foo 4))
             ((foo x) <- (baz (+ x y)))
             (y <- 7)
-            ((baz x) <- (foo (foo (+ y x))))");
+            ((baz x) <- (+ 1 (foo (foo (+ y x)))))");
             let n_fn = Type::fun(Type::nat(), Type::nat());
             assert_eq!(vec![Type::nat(), n_fn.clone(), Type::nat(), n_fn], types);
 
