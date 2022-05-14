@@ -9,6 +9,7 @@ pub mod repl;
 #[cfg(test)]
 mod tests {
     mod types {
+        use crate::typing::contexts::Context;
         use crate::{typing::*, parsing::sources::Source};
         use crate::typing::{scheme::Scheme, Type::*};
 
@@ -17,20 +18,30 @@ mod tests {
         }
 
         fn type_test_all<'a>(s: &'a str) -> Vec<Type> {
-            use crate::typing::infer::infer_mod;
+            type_test_all_with(s, Context::new(), false).1
+        }
+
+        fn type_test_all_with<'a>(s: &'a str, ctxt: Context, err_ok: bool) -> (Context, Vec<Type>) {
+            use crate::typing::infer::infer_top;
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            match infer_mod(&ss) {
+            let (ctxt, res) = infer_top(ctxt, &ss);
+            match res {
                 Err(e) =>
-                    panic!("{}", e),
-                Ok((_, scs)) =>
-                    scs
-                        .into_iter()
-                        .map(|v| v.tipe)
-                        .collect()
+                    if err_ok {
+                        (ctxt, Vec::with_capacity(0))
+                    } else {
+                        panic!("{}", e)
+                    },
+                Ok(scs) =>
+                    (ctxt,
+                        scs
+                            .into_iter()
+                            .map(|v| v.tipe)
+                            .collect())
             }
         }
 
@@ -186,6 +197,31 @@ mod tests {
                 .into_iter()
                 .zip(types)
                 .for_each(|(e, g)| assert_type_eq(e, g));
+        }
+
+        #[test]
+        fn context_edits() {
+            let ctxt = Context::new();
+            let n = ctxt.keys().count();
+            let (ctxt, ts) = 
+                type_test_all_with("(dont_bind_bc_type_err <- 3) (ord dont_bind_bc_type_err)", ctxt, true);
+            assert_eq!(ts, Vec::new());
+            assert_eq!(ctxt.keys().count(), n);
+
+            let (ctxt, ts) = 
+                type_test_all_with("(z <- 3)", ctxt, false);
+            assert_eq!(ts, vec![Type::nat()]);
+            assert_eq!(ctxt.keys().count(), n + 1);
+
+            let (ctxt, ts) = 
+                type_test_all_with("((test_argname_mask z) <- (ord z))", ctxt, false);
+            assert_eq!(ts, vec![Type::fun(Type::char(), Type::nat())]);
+            assert_eq!(ctxt.keys().count(), n + 2);
+
+            let (ctxt, ts) = 
+                type_test_all_with("(test_argname_mask z)", ctxt, true);
+            assert_eq!(ts, vec![]);
+            assert_eq!(ctxt.keys().count(), n + 2);
         }
     }
 
