@@ -110,19 +110,23 @@ pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, V
     let mut infr = infr;
     let mut out = Vec::new();
     for s in stmts {
-        let (new, sc) = match s {
-            Stmt::Expr(e) =>
-                infer_expr(infr, e)?,
-            Stmt::Bind(Ident { body: name, .. }, body) => {
-                let (mut new, sc) = infer_expr(infr, body)?;
-                new.extend(name.clone(), sc.clone());
-                (new, sc)
-            }
-        };
+        let (new, sc) = infer_stmt(infr, s)?;
         infr = new;
         out.push(sc);
     }
     Ok((infr, out))
+}
+
+fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
+    match s {
+        Stmt::Expr(e) =>
+            infer_expr(infr, e),
+        Stmt::Bind(Ident { body: name, .. }, body) => {
+            let (mut new, sc) = infer_expr(infr, body)?;
+            new.extend(name.clone(), sc.clone());
+            Ok((new, sc))
+        }
+    }
 }
 
 fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
