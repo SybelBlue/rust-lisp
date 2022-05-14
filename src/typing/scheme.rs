@@ -15,7 +15,7 @@ impl Display for Scheme {
 }
 
 impl Scheme {
-    pub(crate) fn singleton(tipe: Type) -> Self {
+    pub(crate) fn concrete(tipe: Type) -> Self {
         Self { forall: Vec::new(), tipe }
     }
 

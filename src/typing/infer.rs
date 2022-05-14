@@ -29,9 +29,9 @@ pub struct Infer {
 impl Infer {
     pub fn new() -> Self {
         Self { 
-            env: vec![ (format!("+"), Scheme::singleton(Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat()))))
-                     , (format!("chr"), Scheme::singleton(Type::fun(Type::nat(), Type::char())))
-                     , (format!("ord"), Scheme::singleton(Type::fun(Type::char(), Type::nat())))
+            env: vec![ (format!("+"), Scheme::concrete(Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat()))))
+                     , (format!("chr"), Scheme::concrete(Type::fun(Type::nat(), Type::char())))
+                     , (format!("ord"), Scheme::concrete(Type::fun(Type::char(), Type::nat())))
                      ]
                     .into_iter()
                     .collect(), 
@@ -88,11 +88,13 @@ fn null<'a>() -> Vec<Constraint<'a>> {
 }
 
 pub fn infer_mod<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
-    let run: Box<dyn FnOnce(Infer) -> InferResult<'a, Vec<Scheme>>> = Box::new(|infr| infer_top(infr, stmts));
+    let run: Box<dyn FnOnce(Infer) -> InferResult<'a, Vec<Scheme>>> = 
+        Box::new(|infr| infer_top(infr, stmts));
     let contextualized = stmts.into_iter()
         .fold(run, |acc, s| {
             match s {
-                Stmt::Expr(_) => acc,
+                Stmt::Expr(_) => 
+                    acc,
                 Stmt::Bind(Ident { body, .. }, _) => 
                     Box::new(move |infr: Infer| {
                         let mut infr = infr;
@@ -108,19 +110,17 @@ pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, V
     let mut infr = infr;
     let mut out = Vec::new();
     for s in stmts {
-        match s {
-            Stmt::Expr(e) => {
-                let (new, sc) = infer_expr(infr, e)?;
-                infr = new;
-                out.push(sc);
-            }
+        let (new, sc) = match s {
+            Stmt::Expr(e) =>
+                infer_expr(infr, e)?,
             Stmt::Bind(Ident { body: name, .. }, body) => {
-                let (new, sc) = infer_expr(infr, body)?;
-                infr = new;
-                infr.extend(name.clone(), sc.clone());
-                out.push(sc)
+                let (mut new, sc) = infer_expr(infr, body)?;
+                new.extend(name.clone(), sc.clone());
+                (new, sc)
             }
-        }
+        };
+        infr = new;
+        out.push(sc);
     }
     Ok((infr, out))
 }
