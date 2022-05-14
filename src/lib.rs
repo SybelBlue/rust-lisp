@@ -163,7 +163,7 @@ mod tests {
         fn recursive() {
             assert_type_eq(
                 Type::fun(Type::nat(), Type::nat()), 
-                type_test("((succ-inf n) <- (+ 1 (succ-inf n)))"));
+                type_test("((succ-inf n) <- (+ 1 (succ-inf (+ n 1))))"));
         }
 
         #[test]
