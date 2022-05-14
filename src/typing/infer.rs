@@ -1,42 +1,37 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::*}, values::Value, parsing::sources::FilePos, stmts::Stmt};
+use crate::{
+    exprs::{Expr, Ident, ExprBody}, 
+    errors::{TypeResult, TypeError, TypeErrorBody::*}, 
+    values::Value, 
+    parsing::sources::FilePos, 
+    stmts::Stmt
+};
 
-use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, contexts::Context};
+use super::{contraint::Constraint, Type, scheme::Scheme, subst::Substitutable, contraint::solve, contexts::Context};
 
-fn null<'a>() -> Vec<Constraint<'a>> {
-    Vec::with_capacity(0)
-}
-
-pub fn infer<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) ->  (Context, TypeResult<'a, Vec<Scheme>>) {
-   let mut infr = InferContext::new(ctxt);
+pub fn infer<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) -> (Context, TypeResult<'a, Vec<Scheme>>) {
+   let mut ctxt = InferContext::new(ctxt);
    let mut out = Vec::new();
    for s in stmts {
-       match infr.stmt(s) {
+       match ctxt.infer_stmt(s) {
            Ok((new, sc)) => {
-               infr = new;
+               ctxt = new;
                out.push(sc);
            }
            Err((ctxt, te)) =>
                return (ctxt, Err(te)),
        }
    }
-   (infr.finish(), Ok(out))
+   (ctxt.finish(), Ok(out))
 }
 
-type Env = HashMap<String, Scheme>;
+
 type TContraints<'a> = (Type, Vec<Constraint<'a>>);
 
-impl Substitutable for Env {
-    fn apply(&self, sub: &Subst) -> Self {
-        self.into_iter()
-            .map(|(k, v)| (k.clone(), v.apply(sub)))
-            .collect()
-    }
-
-    fn ftv(&self, used: &mut HashSet<usize>) {
-        self.values().for_each(|s| s.ftv(used));
-    }
+#[inline]
+fn null<'a>(t: Type) -> TContraints<'a> {
+    (t, Vec::with_capacity(0))
 }
 
 type Infer<'a, R> = Result<(InferContext, R), (Context, TypeError<'a>)>;
@@ -44,7 +39,7 @@ type Infer<'a, R> = Result<(InferContext, R), (Context, TypeError<'a>)>;
 #[derive(Debug, Clone)]
 struct InferContext {
     ctxt: Context,
-    env: Env,
+    env: HashMap<String, Scheme>,
     var_count: usize,
 }
 
@@ -52,7 +47,7 @@ impl InferContext {
     fn new(ctxt: Context) -> Self {
         Self { 
             ctxt,
-            env: Env::new(), 
+            env: HashMap::new(), 
             var_count: 0 
         }
     }
@@ -82,7 +77,7 @@ impl InferContext {
         let mut used = HashSet::new();
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
-        self.env.ftv(&mut defined);
+        self.env.values().for_each(|s| s.ftv(&mut defined));
         Scheme { 
             forall: used.difference(&defined).map(|x| *x).collect(), 
             tipe 
@@ -102,20 +97,20 @@ impl InferContext {
         Ok((self, out))
     }
 
-    fn stmt<'a>(mut self, s: &'a Stmt<'a>) -> Infer<'a, Scheme> {
+    fn infer_stmt<'a>(mut self, s: &'a Stmt<'a>) -> Infer<'a, Scheme> {
         match s {
             Stmt::Expr(e) =>
-                self.expr(e),
+                self.infer_expr(e),
             Stmt::Bind(Ident { body: name, .. }, body) => {
                 let ref sc = Scheme::concrete(self.fresh());
-                let (mut new, sc) = self.locally(name, sc, |slf| slf.expr(body))?;
+                let (mut new, sc) = self.locally(name, sc, |slf| slf.infer_expr(body))?;
                 new.env.insert(name.clone(), sc.clone());
                 Ok((new, sc))
             }
         }
     }
     
-    fn expr<'a>(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
+    fn infer_expr<'a>(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
         let (mut slf, (t, cs)) = self.constraints(e)?;
         match solve(cs) {
             Ok(sub) => {
@@ -139,11 +134,11 @@ impl InferContext {
     fn value_constraints<'a>(mut self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> Infer<'a, TContraints<'a>> {
         use Value::*;
         match v {
-            Nat(_)  => Ok((self, (Type::nat(), null()))),
-            Char(_) => Ok((self, (Type::char(), null()))),
+            Nat(_)  => Ok((self, null(Type::nat()))),
+            Char(_) => Ok((self, null(Type::char()))),
             Sym(k) => 
                 self.lookup_env(k, pos)
-                    .map(|(i, t)| (i, (t, null()))),
+                    .map(|(i, t)| (i, null(t))),
             Lam(x, e) => {
                 let name = &x.body;
                 let tv = self.fresh();
@@ -166,7 +161,7 @@ impl InferContext {
         let fst = if let Some(fst) = es.next() {
             fst
         } else {
-            return Ok((self, (Type::unit(), null())));
+            return Ok((self, null(Type::unit())));
         };
         
         let (mut slf, (mut last_t, mut cs)) = 
