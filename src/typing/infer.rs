@@ -73,11 +73,13 @@ impl Infer {
         self.generalize(t).normalize()
     }
 
-    fn in_env<'a, T, F>(self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
-            where F: FnOnce(Self) -> TypeResult<'a, T> {
+    fn in_env<'a, T, F>(mut self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
+            where F: FnOnce(Self) -> InferResult<'a, T> {
         let mut infr = self.clone();
         infr.extend(name.clone(), sc.clone());
-        Ok((self, f(infr)?))
+        let (infr, out) = f(infr)?;
+        self.var_count = infr.var_count;
+        Ok((self, out))
     }
 }
 
@@ -86,7 +88,7 @@ fn null<'a>() -> Vec<Constraint<'a>> {
 }
 
 pub fn infer_mod<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
-    let run: Box<dyn FnOnce(Infer) -> TypeResult<'a, Vec<Scheme>>> = Box::new(|infr| infer_top(infr, stmts).map(|(_, scs)| scs));
+    let run: Box<dyn FnOnce(Infer) -> InferResult<'a, Vec<Scheme>>> = Box::new(|infr| infer_top(infr, stmts));
     let contextualized = stmts.into_iter()
         .fold(run, |acc, s| {
             match s {
@@ -95,11 +97,11 @@ pub fn infer_mod<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Ve
                     Box::new(move |infr: Infer| {
                         let mut infr = infr;
                         let ref sc = Scheme { forall: vec![], tipe: Type::Var(infr.fresh()) };
-                        infr.in_env(body, sc, acc).map(|(_, scs)| scs)
+                        infr.in_env(body, sc, acc)
                     }),
             }
         });
-    contextualized(infr)
+    Ok(contextualized(infr)?.1)
 }
 
 pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, Vec<Scheme>> {
@@ -148,9 +150,9 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                     let (infr, (t, cs)) = 
                         infr.in_env(name, sc,
                             |infr| {
-                                let (_, (body_type, cs)) = 
+                                let (infr, (body_type, cs)) = 
                                     infer(infr, e)?;
-                                Ok((Type::fun(tv, body_type), cs))
+                                Ok((infr, (Type::fun(tv, body_type), cs)))
                             }
                         )?;
                     // println!("lam out \n\tinfr: {:?}\n\tcs: {:?}\n\tt: {:?}", &infr.env, bodies(&cs), t);
