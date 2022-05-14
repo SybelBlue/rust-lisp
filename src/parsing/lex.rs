@@ -1,8 +1,6 @@
 use std::str::Chars;
 
-use crate::{exprs::SExp, errors::{LexError, LexResult, LexErrorBody, Loc}};
-
-use super::sources::FilePos;
+use crate::{errors::{LexError, LexResult, LexErrorBody}, parsing::sources::{FilePos, Loc}};
 
 pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 
@@ -10,13 +8,15 @@ pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 pub enum TokenBody<'a> {
     Keyword(Keyword),
     Word(String),
-    SExp(SExp<Token<'a>>),
+    Literal(char),
+    SExp(Vec<Token<'a>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keyword { 
     Backarrow, 
-    Arrow 
+    Arrow,
+    Import,
 }
 
 impl Keyword {
@@ -34,6 +34,7 @@ impl std::fmt::Display for Keyword {
         f.write_str(match self {
             Self::Backarrow => "<-",
             Self::Arrow => "->",
+            Self::Import => "import",
         })
     }
 }
@@ -67,6 +68,25 @@ impl<'a> SourceIter<'a> {
                         Ok(st) => stack = st,
                         Err(body) => return Err(self.error(body))
                     },
+                Some('\'') if stack.curr_word.is_empty() => {
+                    // must capture pos before self.try_lex_char_literal()!
+                    let mut pos = self.pos.clone();
+                    match self.try_lex_char_literal() {
+                        Ok(c) =>
+                            stack.push_token(Token { pos, body: TokenBody::Literal(c) } ),
+                        Err(s) => {
+                            for c in s.chars() {
+                                match c {
+                                    ')' => stack = stack.close_sexp().map_err(|body| LexError::new(pos.clone(), body))?,
+                                    '(' => stack.open_sexp(pos.clone()),
+                                    c if c.is_whitespace() => stack.try_push_word(),
+                                    ch => stack.push_char(ch, &pos),
+                                }
+                                pos.advance(&Some(c));
+                            }
+                        }
+                    }
+                }
                 Some(ch) => stack.push_char(ch, &self.pos),
             }
         }
@@ -78,17 +98,52 @@ impl<'a> SourceIter<'a> {
     }
 
     fn advance(&mut self) -> (bool, Option<char>) {
+        match self.next() {
+            Some(c) if c.is_whitespace() => {
+                loop {
+                    let n = self.txt.next();
+                    self.pos.advance(&n);
+                    if !matches!(n, Some(c) if c.is_whitespace()) {
+                        return (true, n);
+                    }
+                }
+            }
+            n => (false, n)
+        }
+    }
+
+    fn next(&mut self) -> Option<char> {
         let n = self.txt.next();
         self.pos.advance(&n);
-        if !matches!(n, Some(c) if c.is_whitespace()) {
-            return (false, n);
-        }
-        loop {
-            let n = self.txt.next();
-            self.pos.advance(&n);
-            if !matches!(n, Some(c) if c.is_whitespace()) {
-                return (true, n);
-            }
+        n
+    }
+
+    fn try_lex_char_literal(&mut self) -> Result<char, String> {
+        let c = match (self.next(), self.next()) {
+            (None, _) => return Err(String::from('\'')),
+            (Some(c), None) => return Err(format!("'{}", c)),
+            (Some('\\'), Some(c@'\'')) |
+            (Some('\\'), Some(c@'\"')) |
+            (Some('\\'), Some(c@'\\')) => c,
+            (Some('\\'), Some('n')) => '\n',
+            (Some('\\'), Some('r')) => '\r',
+            (Some('\\'), Some('t')) => '\t',
+            (Some('\\'), Some('0')) => '\0',
+            (Some(c), Some('\'')) => return Ok(c),
+            (Some(c), Some(d)) => return Err(format!("'{}{}", c, d)),
+        };
+        match self.next() {
+            None => return Err(format!("'{}", c)),
+            Some('\'') => Ok(c),
+            Some(x) => return Err(match c {
+                '\"' |
+                '\\' => format!("'\\{}{}", c, x),
+                '\n' => format!("'\\n{}", x),
+                '\r' => format!("'\\r{}", x),
+                '\t' => format!("'\\t{}", x),
+                '\0' => format!("'\\0{}", x),
+                c => panic!("incomplete matching {}", c)
+            })
         }
     }
 }
@@ -123,7 +178,7 @@ impl<'a> LexStack<'a> {
             body.push(self.dump_curr());
         }
 
-        self.push_token(Token { pos, body: TokenBody::SExp(SExp(body)) });
+        self.push_token(Token { pos, body: TokenBody::SExp(body) });
         Ok(self)
     }
 

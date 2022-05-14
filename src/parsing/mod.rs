@@ -1,14 +1,13 @@
 pub mod lex;
 pub mod sources;
 
-use std::collections::HashSet;
-
 use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
-    exprs::{Stmt, Expr, values::{Value, VToken}, Ident}
+    exprs::{Expr, Ident, ExprBody},
+    stmts::Stmt,
+    values::{Value},
+    parsing::lex::{Token, TokenBody::*, Keyword::*}
 };
-
-use self::lex::{Token, TokenBody::*, Keyword::*};
 
 fn try_collect<T, E, I: Iterator<Item=Result<T, E>>>(itr: I) -> Result<Vec<T>, E> {
     let mut out = Vec::new();
@@ -28,9 +27,11 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     let ts = match t.body {
         Keyword(kw) => 
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
+        Literal(c) => 
+            return Ok(Stmt::value(pos, Value::Char(c))),
         Word(w) => 
             return Ok(Stmt::value(pos, parse_string(w))),
-        SExp(crate::exprs::SExp(ts)) => ts,
+        SExp(ts) => ts,
     };
 
     if ts.len() != 3 {
@@ -50,6 +51,8 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     };
 
     match kw {
+        Import =>
+            Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Arrow => 
             Ok(Stmt::value(arr_pos, parse_lambda(head, body)?)),
         Backarrow => {
@@ -59,7 +62,9 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                     Ok(Stmt::Bind(Ident { pos: arr_pos, body: name }, parse_expr(body)?)),
                 Keyword(kw) => 
                     Err(ParseError::new(arr_pos, MisplacedKeyword(kw))),
-                SExp(crate::exprs::SExp(ts)) => {
+                Literal(_) => 
+                    return Err(ParseError::new(pos, MisplacedLiteral)),
+                SExp(ts) => {
                     if ts.is_empty() {
                         return Err(ParseError::new(arr_pos, MissingBindingIdentifier))
                     }
@@ -71,14 +76,16 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                             Err(ParseError::new(pos, MisplacedKeyword(kw))),
                         Token { pos, body: SExp(_) } =>
                             Err(ParseError::new(pos, MissingBindingIdentifier)),
+                        Token { pos, body: Literal(_) } =>
+                            Err(ParseError::new(pos, MisplacedLiteral)),
                     }?;
                     let head = Token { 
                         pos: arr_pos.clone(), 
-                        body: SExp(crate::exprs::SExp(ts)) 
+                        body: SExp(ts) 
                     };
                     Ok(Stmt::Bind(
                         Ident { pos: head_pos, body: name }, 
-                        Expr::Val(VToken { pos: arr_pos, body: parse_lambda(head, body)? })
+                        Expr { pos: arr_pos, body: ExprBody::Val(parse_lambda(head, body)?) }
                     ))
                 },
             }
@@ -92,7 +99,7 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Word(w) => 
-            Ok(Expr::Val(VToken { pos, body: parse_string(w) })),
+            Ok(Expr { pos, body: ExprBody::Val(parse_string(w)) }),
         body => {
             let t = Token { pos, body };
             match parse_stmt(t)? {
@@ -104,26 +111,53 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     }
 }
 
-fn parse_lambda<'a>(head: Token<'a>, body: Token<'a>) -> ParseResult<'a, Value<'a>> {
-    let mut found = HashSet::new();
-    let mut to_check = vec![&head];
-    while let Some(chk) = to_check.pop() {
-        match &chk.body {
-            Keyword(kw) => 
-                return Err(ParseError::new(chk.pos.clone(), MisplacedKeyword(*kw))),
-            Word(w) => {
-                if found.contains(w) {
-                    return Err(ParseError::new(chk.pos.clone(), DuplicateLambdaArg(w.clone())));
-                } else {
-                    found.insert(w.clone());
-                }
+fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> ParseResult<'a, Value<'a>> {
+    let mut found: Vec<Ident<'a>> = Vec::new();
+    match body {
+        Literal(_) => 
+            return Err(ParseError::new(pos, MisplacedLiteral)),
+        Keyword(kw) => 
+            return Err(ParseError::new(pos, MisplacedKeyword(kw))),
+        Word(w) => {
+            if found.iter().any(|i| i.body == w) {
+                return Err(ParseError::new(pos, DuplicateLambdaArg(w.clone())));
+            } else {
+                found.push(Ident { body: w, pos: pos.clone() });
             }
-            SExp(crate::exprs::SExp(ts)) => {
-                to_check.extend(ts);
+        }
+        SExp(ts) => {
+            for Token { pos, body } in ts {
+                match body {
+                    Literal(_) => 
+                        return Err(ParseError::new(pos, MisplacedLiteral)),
+                    Keyword(kw) => 
+                        return Err(ParseError::new(pos, MisplacedKeyword(kw))),
+                    Word(w) => {
+                        if found.iter().any(|i| i.body == w) {
+                            return Err(ParseError::new(pos, DuplicateLambdaArg(w.clone())));
+                        } else {
+                            found.push(Ident { body: w, pos });
+                        }
+                    }
+                    SExp(_) => {
+                        return Err(ParseError::new(pos, MisplacedSExp))
+                    }
+                }
             }
         }
     }
-    Ok(Value::lam(parse_expr(head)?, parse_expr(body)?))
+
+    if let Some(lst) = found.pop() {
+        Ok(
+            found.into_iter().rev().fold(
+                Value::lam(lst, parse_expr(body_tkn)?), 
+                |acc, next| {
+                    Value::lam(next, Expr::val(pos.clone(), acc))
+                })
+        )
+    } else {
+        Err(ParseError::new(pos, MisplacedSExp))
+    }
 }
 
 fn parse_string<'a>(w: String) -> Value<'a> {

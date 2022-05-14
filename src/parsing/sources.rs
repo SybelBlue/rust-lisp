@@ -1,8 +1,37 @@
-use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}};
+use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}, hash::{Hash, Hasher}};
 
-use crate::errors::LexResult;
+use crate::{errors::LexResult, parsing::lex::{SourceIter, Token}};
 
-use super::lex::{SourceIter, Token};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Loc<'a, T> {
+    pub pos: FilePos<'a>,
+    pub body: T,
+}
+
+pub fn bodies<'a, T>(locs: &'a Vec<Loc<'a, T>>) -> Vec<&'a T> {
+    locs.iter().map(|l| &l.body).collect()
+}
+
+impl<'a, T: Display> Loc<'a, T> {
+    pub(crate) fn new(pos: FilePos<'a>, body: T) -> Self {
+        Self { pos, body }
+    }
+}
+
+impl<'a, T: Display> Display for Loc<'a, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{} ", self.body)?;
+        self.pos.write_snippet(f)
+    }
+}
+
+impl<'a, T: Hash> Hash for Loc<'a, T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.pos.hash(state);
+        self.body.hash(state);
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FilePos<'a> {
@@ -29,7 +58,7 @@ impl<'a> FilePos<'a> {
 
     fn col_arrow(&self) -> String {
         let mut out = String::new();
-        out.extend((0..(self.col - 2)).map(|_| ' '));
+        out.extend((0..self.col.saturating_sub(2)).map(|_| ' '));
         out.push('^');
         out
     }
