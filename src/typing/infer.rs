@@ -4,7 +4,7 @@ use crate::{
     exprs::{Expr, Ident, ExprBody}, 
     errors::{TypeResult, TypeError, TypeErrorBody::*}, 
     values::Value, 
-    parsing::sources::FilePos, 
+    parsing::sources::{FilePos, Loc}, 
     stmts::Stmt
 };
 
@@ -34,16 +34,16 @@ fn null<'a>(t: Type) -> TContraints<'a> {
     (t, Vec::with_capacity(0))
 }
 
-type Infer<'a, R> = Result<(InferContext, R), (Context, TypeError<'a>)>;
+type Infer<'a, R> = Result<(InferContext<'a>, R), (Context, TypeError<'a>)>;
 
 #[derive(Debug, Clone)]
-struct InferContext {
+struct InferContext<'a> {
     ctxt: Context,
-    env: HashMap<String, Scheme>,
+    env: HashMap<String, Loc<'a, Scheme>>,
     var_count: usize,
 }
 
-impl InferContext {
+impl<'a> InferContext<'a> {
     fn new(ctxt: Context) -> Self {
         Self { 
             ctxt,
@@ -60,12 +60,12 @@ impl InferContext {
 
     fn finish(self) -> Context {
         let Self { mut ctxt, env, .. } = self;
-        env.into_iter().for_each(|(k, v)| ctxt.insert(k, v));
+        env.into_iter().for_each(|(k, v)| ctxt.insert(k, v.body));
         ctxt
     }
 
-    fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
-        if let Some(s) = self.env.get(k).or_else(|| self.ctxt.get(k)).cloned() {
+    fn lookup_env(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+        if let Some(s) = self.env.get(k).map(|s| &s.body).or_else(|| self.ctxt.get(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
@@ -77,7 +77,7 @@ impl InferContext {
         let mut used = HashSet::new();
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
-        self.env.values().for_each(|s| s.ftv(&mut defined));
+        self.env.values().for_each(|s| s.body.ftv(&mut defined));
         Scheme { 
             forall: used.difference(&defined).map(|x| *x).collect(), 
             tipe 
@@ -88,29 +88,29 @@ impl InferContext {
         self.generalize(t).normalize()
     }
 
-    fn locally<'a, T, F>(mut self, name: &String, sc: &Scheme, f: F) -> Infer<'a, T>
+    fn locally<T, F>(mut self, Ident { body: name, pos }: Ident<'a>, sc: Scheme, f: F) -> Infer<'a, T>
             where F: FnOnce(Self) -> Infer<'a, T> {
         let mut slf = self.clone();
-        slf.env.insert(name.clone(), sc.clone());
+        slf.env.insert(name.clone(), Loc { pos, body: sc });
         let (slf, out) = f(slf)?;
         self.var_count = slf.var_count;
         Ok((self, out))
     }
 
-    fn infer_stmt<'a>(mut self, s: &'a Stmt<'a>) -> Infer<'a, Scheme> {
+    fn infer_stmt(mut self, s: &'a Stmt<'a>) -> Infer<'a, Scheme> {
         match s {
             Stmt::Expr(e) =>
                 self.infer_expr(e),
-            Stmt::Bind(Ident { body: name, .. }, body) => {
-                let ref sc = Scheme::concrete(self.fresh());
-                let (mut new, sc) = self.locally(name, sc, |slf| slf.infer_expr(body))?;
-                new.env.insert(name.clone(), sc.clone());
+            Stmt::Bind(ident, body) => {
+                let sc = Scheme::concrete(self.fresh());
+                let (mut new, sc) = self.locally(ident.clone(), sc.clone(), |slf| slf.infer_expr(body))?;
+                new.env.insert(ident.body.clone(), Loc { pos: ident.pos.clone(), body: sc.clone() });
                 Ok((new, sc))
             }
         }
     }
     
-    fn infer_expr<'a>(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
+    fn infer_expr(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
         let (mut slf, (t, cs)) = self.constraints(e)?;
         match solve(cs) {
             Ok(sub) => {
@@ -122,7 +122,7 @@ impl InferContext {
         }
     }
 
-    fn constraints<'a>(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, TContraints<'a>> {
+    fn constraints(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, TContraints<'a>> {
         match body {
             ExprBody::Val(v) => 
                 self.value_constraints(pos, v),
@@ -131,7 +131,7 @@ impl InferContext {
         }
     }
 
-    fn value_constraints<'a>(mut self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> Infer<'a, TContraints<'a>> {
+    fn value_constraints(mut self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> Infer<'a, TContraints<'a>> {
         use Value::*;
         match v {
             Nat(_)  => Ok((self, null(Type::nat()))),
@@ -140,11 +140,10 @@ impl InferContext {
                 self.lookup_env(k, pos)
                     .map(|(i, t)| (i, null(t))),
             Lam(x, e) => {
-                let name = &x.body;
                 let tv = self.fresh();
-                let ref sc = Scheme { forall: vec![], tipe: tv.clone() };
+                let sc = Scheme { forall: vec![], tipe: tv.clone() };
                 let (slf, (t, cs)) = 
-                    self.locally(name, sc,
+                    self.locally(x.clone(), sc,
                         |slf| {
                             let (slf, (body_type, cs)) = 
                                 slf.constraints(e)?;
@@ -156,7 +155,7 @@ impl InferContext {
         }
     }
     
-    fn sexp_constraints<'a>(self, es: &'a Vec<Expr<'a>>) -> Infer<'a, TContraints<'a>> {
+    fn sexp_constraints(self, es: &'a Vec<Expr<'a>>) -> Infer<'a, TContraints<'a>> {
         let mut es = es.into_iter();
         let fst = if let Some(fst) = es.next() {
             fst
