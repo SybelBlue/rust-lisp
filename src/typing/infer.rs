@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::*}, values::Value, parsing::sources::FilePos, stmts::Stmt};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::{*, self}}, values::Value, parsing::sources::FilePos, stmts::Stmt};
 
 use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, contexts::Context};
 
@@ -18,7 +18,7 @@ impl Substitutable for Env {
     }
 }
 
-type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
+type InferResult<'a, R> = Result<(Infer, R), (Context, TypeError<'a>)>;
 
 #[derive(Debug, Clone)]
 struct Infer {
@@ -28,7 +28,7 @@ struct Infer {
 }
 
 impl Infer {
-    pub fn new(ctxt: Context) -> Self {
+    fn new(ctxt: Context) -> Self {
         Self { 
             ctxt,
             env: Env::new(), 
@@ -36,14 +36,20 @@ impl Infer {
         }
     }
 
-    pub(crate) fn fresh(&mut self) -> Type {
+    fn fresh(&mut self) -> Type {
         let out = self.var_count;
         self.var_count += 1;
         Type::Var(out)
     }
 
-    fn write(&mut self, name: String, sc: Scheme) {
-        self.ctxt.insert(name, sc);
+    fn add(&mut self, name: String, sc: Scheme) {
+        self.env.insert(name, sc);
+    }
+
+    fn finish(self) -> Context {
+        let Self { mut ctxt, env, .. } = self;
+        env.into_iter().for_each(|(k, v)| ctxt.insert(k, v));
+        ctxt
     }
 
     fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
@@ -51,8 +57,12 @@ impl Infer {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
-            Err(TypeError::new(pos.clone(), UndefinedSymbol(k)))
+            self.type_err(pos.clone(), UndefinedSymbol(k))
         }
+    }
+
+    fn type_err<'a, T>(self, pos: FilePos<'a>, body: TypeErrorBody<'a>) -> InferResult<'a, T> {
+        Err((self.ctxt, TypeError::new(pos, body)))
     }
 
     fn generalize(&mut self, tipe: Type) -> Scheme {
@@ -85,19 +95,24 @@ fn null<'a>() -> Vec<Constraint<'a>> {
 }
 
 
-pub fn infer_mod<'a>(stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, (Context, Vec<Scheme>)> {
+pub fn infer_mod<'a>(stmts: &'a Vec<Stmt<'a>>) -> (Context, TypeResult<'a, Vec<Scheme>>) {
     infer_top(Context::new(), stmts)
 }
 
-pub fn infer_top<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) ->  TypeResult<'a, (Context, Vec<Scheme>)> {
+pub fn infer_top<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) ->  (Context, TypeResult<'a, Vec<Scheme>>) {
     let mut infr = Infer::new(ctxt);
     let mut out = Vec::new();
     for s in stmts {
-        let (new, sc) = infer_stmt(infr, s)?;
-        infr = new;
-        out.push(sc);
+        match infer_stmt(infr, s) {
+            Ok((new, sc)) => {
+                infr = new;
+                out.push(sc);
+            }
+            Err((ctxt, te)) =>
+                return (ctxt, Err(te)),
+        }
     }
-    Ok((infr.ctxt, out))
+    (infr.finish(), Ok(out))
 }
 
 fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
@@ -108,7 +123,7 @@ fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
         Stmt::Bind(Ident { body: name, .. }, body) => {
             let ref sc = Scheme::concrete(infr.fresh());
             let (mut new, sc) = infr.locally(name, sc, |infr| infer_expr(infr, body))?;
-            new.write(name.clone(), sc.clone());
+            new.add(name.clone(), sc.clone());
             Ok((new, sc))
         }
     }
@@ -116,9 +131,14 @@ fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
 
 fn infer_expr<'a>(infr: Infer, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
     let (mut infr, (t, cs)) = infer(infr, e)?;
-    let sub = solve(cs)?;
-    let sc = infr.close_over(t.apply(&sub));
-    Ok((infr, sc))
+    match solve(cs) {
+        Ok(sub) => {
+            let sc = infr.close_over(t.apply(&sub));
+            Ok((infr, sc))
+        }
+        Err(x) =>
+            Err((infr.ctxt, x))
+    }
 }
 
 fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (Type, Vec<Constraint<'a>>)> {

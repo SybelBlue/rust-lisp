@@ -28,10 +28,11 @@ fn main() -> std::io::Result<()> {
             Ok(ts) => {
                 match parse(ts) {
                     Ok(stmts) => {
-                        match infer_top(ctxt.clone(), &stmts) {
-                            Ok((new, ts)) => {
-                                ctxt = new;
-                                reader.set_completer(Arc::new(ctxt.clone()));
+                        let (new, res) = infer_top(ctxt, &stmts);
+                        ctxt = new;
+                        reader.set_completer(Arc::new(ctxt.clone()));
+                        match res {
+                            Ok(ts) => {
                                 for (e, t) in stmts.iter().zip(ts) {
                                     println!(" | {} :: {}", e, t);
                                 }
