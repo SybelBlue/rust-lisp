@@ -26,7 +26,7 @@ mod tests {
             match infer_mod(&ss) {
                 Err(e) =>
                     panic!("{}", e),
-                Ok(scs) =>
+                Ok((_, scs)) =>
                     scs
                         .into_iter()
                         .map(|v| v.tipe)

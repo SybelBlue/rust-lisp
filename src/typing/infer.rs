@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::*}, values::Value, parsing::sources::FilePos, stmts::Stmt};
 
-use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve};
+use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, contexts::Context};
 
 type Env = HashMap<String, Scheme>;
 
@@ -22,19 +22,16 @@ type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
 
 #[derive(Debug, Clone)]
 pub struct Infer {
+    ctxt: Context,
     env: Env,
     var_count: usize,
 }
 
 impl Infer {
-    pub fn new() -> Self {
+    pub fn new(ctxt: Context) -> Self {
         Self { 
-            env: vec![ (format!("+"), Scheme::concrete(Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat()))))
-                     , (format!("chr"), Scheme::concrete(Type::fun(Type::nat(), Type::char())))
-                     , (format!("ord"), Scheme::concrete(Type::fun(Type::char(), Type::nat())))
-                     ]
-                    .into_iter()
-                    .collect(), 
+            ctxt,
+            env: Env::new(), 
             var_count: 0 
         }
     }
@@ -45,12 +42,12 @@ impl Infer {
         out
     }
 
-    fn extend(&mut self, name: String, sc: Scheme) {
-        self.env.insert(name, sc);
+    fn write(&mut self, name: String, sc: Scheme) {
+        self.ctxt.insert(name, sc);
     }
 
     fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
-        if let Some(s) = self.env.get(k).cloned() {
+        if let Some(s) = self.env.get(k).or_else(|| self.ctxt.get(k)).cloned() {
             let t = s.instantiate(&mut self);
             Ok((self, t))
         } else {
@@ -73,10 +70,10 @@ impl Infer {
         self.generalize(t).normalize()
     }
 
-    fn in_env<'a, T, F>(mut self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
+    fn locally<'a, T, F>(mut self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
             where F: FnOnce(Self) -> InferResult<'a, T> {
         let mut infr = self.clone();
-        infr.extend(name.clone(), sc.clone());
+        infr.env.insert(name.clone(), sc.clone());
         let (infr, out) = f(infr)?;
         self.var_count = infr.var_count;
         Ok((self, out))
@@ -88,20 +85,19 @@ fn null<'a>() -> Vec<Constraint<'a>> {
 }
 
 
-pub fn infer_mod<'a>(stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
-    let (_infr, scs) = infer_top(Infer::new(), stmts)?;
-    Ok(scs)
+pub fn infer_mod<'a>(stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, (Context, Vec<Scheme>)> {
+    infer_top(Context::new(), stmts)
 }
 
-pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, Vec<Scheme>> {
-    let mut infr = infr;
+pub fn infer_top<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) ->  TypeResult<'a, (Context, Vec<Scheme>)> {
+    let mut infr = Infer::new(ctxt);
     let mut out = Vec::new();
     for s in stmts {
         let (new, sc) = infer_stmt(infr, s)?;
         infr = new;
         out.push(sc);
     }
-    Ok((infr, out))
+    Ok((infr.ctxt, out))
 }
 
 fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
@@ -111,8 +107,8 @@ fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
             infer_expr(infr, e),
         Stmt::Bind(Ident { body: name, .. }, body) => {
             let ref sc = Scheme::concrete(Type::Var(infr.fresh()));
-            let (mut new, sc) = infr.in_env(name, sc, |infr| infer_expr(infr, body))?;
-            new.extend(name.clone(), sc.clone());
+            let (mut new, sc) = infr.locally(name, sc, |infr| infer_expr(infr, body))?;
+            new.write(name.clone(), sc.clone());
             Ok((new, sc))
         }
     }
@@ -141,7 +137,7 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                     let tv = Type::Var(infr.fresh());
                     let ref sc = Scheme { forall: vec![], tipe: tv.clone() };
                     let (infr, (t, cs)) = 
-                        infr.in_env(name, sc,
+                        infr.locally(name, sc,
                             |infr| {
                                 let (infr, (body_type, cs)) = 
                                     infer(infr, e)?;

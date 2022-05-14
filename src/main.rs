@@ -1,20 +1,22 @@
+use std::sync::Arc;
+
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{sources::Source, parse}, typing::infer::infer_mod, errors::{LexError, LexErrorBody}};
+use rust_lisp::{parsing::{sources::Source, parse}, typing::{infer::infer_top, contexts::Context}, errors::{LexError, LexErrorBody}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
     reader.set_prompt(">> ")?;
-    // let mut ctxt = Context::new();
-    // reader.set_completer(Arc::new(ctxt.clone()));
+    let mut ctxt = Context::new();
+    reader.set_completer(Arc::new(ctxt.clone()));
     let mut lines = Vec::new();
 
     while let ReadResult::Input(input) = reader.read_line()? {
             reader.add_history(input.clone());
             if lines.is_empty() && input.starts_with(":") {
                 match input.as_bytes() {
-                    // b":ctxt" => println!("{:?}", ctxt),
-                    // b":dir" => println!("{:?}", ctxt.keys()),
+                    b":ctxt" => println!("{:?}", &ctxt),
+                    b":dir" => println!("{:?}", ctxt.keys()),
                     _ => println!("** Unrecognized repl cmd '{}'", input),
                 }
                 continue;
@@ -26,10 +28,10 @@ fn main() -> std::io::Result<()> {
             Ok(ts) => {
                 match parse(ts) {
                     Ok(stmts) => {
-                        match infer_mod(&stmts) {
-                            Ok(ts) => {
-                                // ctxt = new;
-                                // reader.set_completer(Arc::new(ctxt.clone()));
+                        match infer_top(ctxt.clone(), &stmts) {
+                            Ok((new, ts)) => {
+                                ctxt = new;
+                                reader.set_completer(Arc::new(ctxt.clone()));
                                 for (e, t) in stmts.iter().zip(ts) {
                                     println!(" | {} :: {}", e, t);
                                 }

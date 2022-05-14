@@ -45,11 +45,6 @@ impl Context {
             .get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub(crate) fn has(&self, k: &String) -> bool {
-        self.bound
-            .contains_key(self.aliased.get(k).unwrap_or(k))
-    }
-
     pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
         self.aliased.keys().chain(self.bound.keys())
     }
