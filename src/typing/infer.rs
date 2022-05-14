@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::{*, self}}, values::Value, parsing::sources::FilePos, stmts::Stmt};
+use crate::{exprs::{Expr, Ident, ExprBody}, errors::{TypeResult, TypeError, TypeErrorBody::*}, values::Value, parsing::sources::FilePos, stmts::Stmt};
 
 use super::{contraint::Constraint, Type, scheme::Scheme, subst::{Substitutable, Subst}, contraint::solve, contexts::Context};
 
@@ -42,7 +42,7 @@ impl Infer {
         Type::Var(out)
     }
 
-    fn add(&mut self, name: String, sc: Scheme) {
+    fn insert(&mut self, name: String, sc: Scheme) {
         self.env.insert(name, sc);
     }
 
@@ -57,12 +57,8 @@ impl Infer {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
-            self.type_err(pos.clone(), UndefinedSymbol(k))
+            Err((self.ctxt, TypeError::new(pos.clone(), UndefinedSymbol(k))))
         }
-    }
-
-    fn type_err<'a, T>(self, pos: FilePos<'a>, body: TypeErrorBody<'a>) -> InferResult<'a, T> {
-        Err((self.ctxt, TypeError::new(pos, body)))
     }
 
     fn generalize(&mut self, tipe: Type) -> Scheme {
@@ -123,7 +119,7 @@ fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
         Stmt::Bind(Ident { body: name, .. }, body) => {
             let ref sc = Scheme::concrete(infr.fresh());
             let (mut new, sc) = infr.locally(name, sc, |infr| infer_expr(infr, body))?;
-            new.add(name.clone(), sc.clone());
+            new.insert(name.clone(), sc.clone());
             Ok((new, sc))
         }
     }
@@ -164,7 +160,6 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                                 Ok((infr, (Type::fun(tv, body_type), cs)))
                             }
                         )?;
-                    // println!("lam out \n\tinfr: {:?}\n\tcs: {:?}\n\tt: {:?}", &infr.env, bodies(&cs), t);
                     Ok((infr, (t, cs)))
                 }
             }
@@ -196,7 +191,6 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                 last_t = ret_type;
             }
 
-            // println!("sexp out \n\tinfr: {:?}\n\tcs: {:?}", &infr.env, bodies(&cs));
             Ok((infr, (last_t, cs)))
         },
     }
