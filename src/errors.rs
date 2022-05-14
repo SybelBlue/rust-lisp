@@ -62,6 +62,7 @@ pub enum TypeErrorBody<'a> {
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
     NotYetImplemented(String),
+    DuplicateNameAt(String, Option<FilePos<'a>>),
 }
 
 impl<'a> Display for TypeErrorBody<'a> {
@@ -75,7 +76,7 @@ impl<'a> Display for TypeErrorBody<'a> {
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
             Self::UndefinedSymbol(s) => write!(f, "Undefined Symbol: {}", s),
             Self::InfiniteType(s, t) => {
-                write!(f, "InfiniteType: ")?;
+                write!(f, "Infinite Type: ")?;
                 let mut vals = HashSet::new();
                 s.variable_values(&mut vals);
                 t.variable_values(&mut vals);
@@ -83,6 +84,15 @@ impl<'a> Display for TypeErrorBody<'a> {
                 s.display_with(f, &map, false)?;
                 write!(f, " ~ ")?;
                 t.display_with(f, &map, false)
+            }
+            Self::DuplicateNameAt(nm, op_loc) => {
+                write!(f, "Duplicate Name: {nm}")?;
+                if let Some(loc) = op_loc {
+                    f.write_str("\noriginal definition ")?;
+                    loc.write_snippet(f)
+                } else {
+                    Ok(())
+                }
             }
         }
     }

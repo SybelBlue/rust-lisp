@@ -48,4 +48,8 @@ impl Context {
     pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
         self.aliased.keys().chain(self.bound.keys())
     }
+
+    pub(crate) fn contains_key(&self, k: &String) -> bool {
+        self.bound.contains_key(k)
+    }
 }

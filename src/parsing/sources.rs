@@ -67,10 +67,10 @@ impl<'a> FilePos<'a> {
         let line = self.src.get_line(self.row).ok_or(std::fmt::Error)?;
         let line_indicator = format!(" {} ", self.row);
         let margin: String = (0..line_indicator.len()).map(|_| ' ').collect();
-        writeln!(f, "at {}", self)?;
-        writeln!(f, "{}| ", margin)?;
-        writeln!(f, "{}| {}", line_indicator, line)?;
-        writeln!(f, "{}| {}", margin, self.col_arrow())
+        writeln!(f, "at {self}")?;
+        writeln!(f, "{margin}| ")?;
+        writeln!(f, "{line_indicator}| {line}")?;
+        writeln!(f, "{margin}| {}", self.col_arrow())
     }
 }
 

@@ -23,7 +23,8 @@ pub fn infer<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) -> (Context, TypeResul
                return (ctxt, Err(te)),
        }
    }
-   (ctxt.finish(), Ok(out))
+   let (ctxt, res) = ctxt.finish();
+   (ctxt, res.map(|()| out))
 }
 
 
@@ -58,10 +59,19 @@ impl<'a> InferContext<'a> {
         Type::Var(out)
     }
 
-    fn finish(self) -> Context {
+    fn finish(self) -> (Context, TypeResult<'a, ()>) {
         let Self { mut ctxt, env, .. } = self;
-        env.into_iter().for_each(|(k, v)| ctxt.insert(k, v.body));
-        ctxt
+        for (k, l) in env.iter() {
+            if ctxt.contains_key(k) {
+                return (ctxt, Err(TypeError::new(l.pos.clone(), DuplicateNameAt(k.clone(), None))));
+            }
+        }
+        
+        env.into_iter().for_each(|(k, v)| {
+            ctxt.insert(k, v.body);
+        });
+
+        (ctxt, Ok(()))
     }
 
     fn lookup_env(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
@@ -71,6 +81,15 @@ impl<'a> InferContext<'a> {
         } else {
             Err((self.ctxt, TypeError::new(pos.clone(), UndefinedSymbol(k))))
         }
+    }
+
+    fn insert(mut self, Ident { body: k, pos }: &Ident<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
+        if let Some(v) = self.env.insert(k.clone(), Loc { pos: pos.clone(), body: sc }) {
+            if !rewrite_ok {
+                return Err((self.ctxt, TypeError::new(pos.clone(), DuplicateNameAt(k.clone(), Some(v.pos.clone())))));
+            }
+        }
+        Ok((self, ()))
     }
 
     fn generalize(&mut self, tipe: Type) -> Scheme {
@@ -88,10 +107,10 @@ impl<'a> InferContext<'a> {
         self.generalize(t).normalize()
     }
 
-    fn locally<T, F>(mut self, Ident { body: name, pos }: Ident<'a>, sc: Scheme, f: F) -> Infer<'a, T>
+    fn locally<T, F>(mut self, ident: Ident<'a>, sc: Scheme, f: F) -> Infer<'a, T>
             where F: FnOnce(Self) -> Infer<'a, T> {
-        let mut slf = self.clone();
-        slf.env.insert(name.clone(), Loc { pos, body: sc });
+        let slf = self.clone();
+        let (slf, ()) = slf.insert(&ident, sc, true)?;
         let (slf, out) = f(slf)?;
         self.var_count = slf.var_count;
         Ok((self, out))
@@ -103,8 +122,8 @@ impl<'a> InferContext<'a> {
                 self.infer_expr(e),
             Stmt::Bind(ident, body) => {
                 let sc = Scheme::concrete(self.fresh());
-                let (mut new, sc) = self.locally(ident.clone(), sc.clone(), |slf| slf.infer_expr(body))?;
-                new.env.insert(ident.body.clone(), Loc { pos: ident.pos.clone(), body: sc.clone() });
+                let (new, sc) = self.locally(ident.clone(), sc.clone(), |slf| slf.infer_expr(body))?;
+                let (new, ()) = new.insert(&ident, sc.clone(), false)?;
                 Ok((new, sc))
             }
         }
