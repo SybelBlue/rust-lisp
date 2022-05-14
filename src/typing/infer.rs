@@ -88,17 +88,8 @@ fn null<'a>() -> Vec<Constraint<'a>> {
 }
 
 
-pub fn infer_mod<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
-    let mut infr = infr;
-    for s in stmts {
-        if let Stmt::Bind(Ident { body, .. }, _) = s {
-            let sc = Scheme::concrete(Type::Var(infr.fresh()));
-            infr.extend(body.clone(), sc);
-        }
-    }
-    // println!("start infr {:?}", &infr.env);
-    let (_infr, scs) = infer_top(infr, stmts)?;
-    // println!("final infr {:?}", &infr.env);
+pub fn infer_mod<'a>(stmts: &'a Vec<Stmt<'a>>) -> TypeResult<'a, Vec<Scheme>> {
+    let (_infr, scs) = infer_top(Infer::new(), stmts)?;
     Ok(scs)
 }
 
@@ -114,11 +105,13 @@ pub fn infer_top<'a>(infr: Infer, stmts: &'a Vec<Stmt<'a>>) -> InferResult<'a, V
 }
 
 fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
+    let mut infr = infr;
     match s {
         Stmt::Expr(e) =>
             infer_expr(infr, e),
         Stmt::Bind(Ident { body: name, .. }, body) => {
-            let (mut new, sc) = infer_expr(infr, body)?;
+            let ref sc = Scheme::concrete(Type::Var(infr.fresh()));
+            let (mut new, sc) = infr.in_env(name, sc, |infr| infer_expr(infr, body))?;
             new.extend(name.clone(), sc.clone());
             Ok((new, sc))
         }

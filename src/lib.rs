@@ -17,13 +17,13 @@ mod tests {
         }
 
         fn type_test_all<'a>(s: &'a str) -> Vec<Type> {
-            use crate::typing::infer::{Infer, infer_mod};
+            use crate::typing::infer::infer_mod;
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            match infer_mod(Infer::new(), &ss) {
+            match infer_mod(&ss) {
                 Err(e) =>
                     panic!("{}", e),
                 Ok(scs) =>
