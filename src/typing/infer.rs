@@ -21,7 +21,7 @@ impl Substitutable for Env {
 type InferResult<'a, R> = TypeResult<'a, (Infer, R)>;
 
 #[derive(Debug, Clone)]
-pub struct Infer {
+struct Infer {
     ctxt: Context,
     env: Env,
     var_count: usize,
@@ -36,10 +36,10 @@ impl Infer {
         }
     }
 
-    pub(crate) fn fresh(&mut self) -> usize {
+    pub(crate) fn fresh(&mut self) -> Type {
         let out = self.var_count;
         self.var_count += 1;
-        out
+        Type::Var(out)
     }
 
     fn write(&mut self, name: String, sc: Scheme) {
@@ -48,7 +48,7 @@ impl Infer {
 
     fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
         if let Some(s) = self.env.get(k).or_else(|| self.ctxt.get(k)).cloned() {
-            let t = s.instantiate(&mut self);
+            let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
             Err(TypeError::new(pos.clone(), UndefinedSymbol(k)))
@@ -106,7 +106,7 @@ fn infer_stmt<'a>(infr: Infer, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
         Stmt::Expr(e) =>
             infer_expr(infr, e),
         Stmt::Bind(Ident { body: name, .. }, body) => {
-            let ref sc = Scheme::concrete(Type::Var(infr.fresh()));
+            let ref sc = Scheme::concrete(infr.fresh());
             let (mut new, sc) = infr.locally(name, sc, |infr| infer_expr(infr, body))?;
             new.write(name.clone(), sc.clone());
             Ok((new, sc))
@@ -134,7 +134,7 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                 Lam(x, e) => {
                     let name = &x.body;
                     let mut infr = infr;
-                    let tv = Type::Var(infr.fresh());
+                    let tv = infr.fresh();
                     let ref sc = Scheme { forall: vec![], tipe: tv.clone() };
                     let (infr, (t, cs)) = 
                         infr.locally(name, sc,
@@ -169,7 +169,7 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                 infr = new_infr;
                 cs.extend(new_cs);
                 
-                let ret_type = Type::Var(infr.fresh());
+                let ret_type = infr.fresh();
                 let body = (last_t, Type::fun(arg_t, ret_type.clone()));
                 cs.push(Constraint { pos: cnstr_pos, body });
                 

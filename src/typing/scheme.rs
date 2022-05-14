@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Formatter}, collections::{HashSet, HashMap}};
 
-use super::{subst::{Substitutable, Subst}, Type, infer::Infer};
+use super::{subst::{Substitutable, Subst}, Type};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Scheme {
@@ -19,10 +19,10 @@ impl Scheme {
         Self { forall: Vec::new(), tipe }
     }
 
-    pub(crate) fn instantiate(&self, infer: &mut Infer) -> Type {
+    pub(crate) fn instantiate<F: FnMut() -> Type>(&self, f: &mut F) -> Type {
         let Self { forall, tipe } = self;
         let sub = Subst::from(
-            forall.iter().map(|o| (*o, Type::Var(infer.fresh()))).collect()
+            forall.iter().map(|o| (*o, f())).collect()
         );
         tipe.apply(&sub)
     }
