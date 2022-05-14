@@ -170,7 +170,7 @@ fn infer<'a>(infr: Infer, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, (
                 cs.extend(new_cs);
                 
                 let ret_type = infr.fresh();
-                let body = (last_t, Type::fun(arg_t, ret_type.clone()));
+                let body = (Type::fun(arg_t, ret_type.clone()), last_t);
                 cs.push(Constraint { pos: cnstr_pos, body });
                 
                 last_t = ret_type;
