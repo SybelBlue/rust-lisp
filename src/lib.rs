@@ -172,36 +172,6 @@ mod tests {
         }
 
         #[test]
-        fn mutual_recursive() {
-            let types = type_test_all("\
-            (z <- (foo 4))
-            ((foo x) <- (baz (+ x y)))
-            (y <- 7)
-            ((baz x) <- (+ 1 (foo (foo (+ y x)))))");
-            let n_fn = Type::fun(Type::nat(), Type::nat());
-            assert_eq!(vec![Type::nat(), n_fn.clone(), Type::nat(), n_fn], types);
-
-            let types = type_test_all("\
-            (c <- (baz 3 5))
-            ((foo x) <- (bar x))
-            ((bar x) <- (baz (foo x) x))
-            ((baz x y) <- (foo (+ x (bar y))))");
-            let n_fn = Type::fun(Type::nat(), Type::nat());
-            assert_eq!(vec![Type::nat(), n_fn.clone(), n_fn.clone(), Type::fun(Type::nat(), n_fn)], types);
-
-            let types = type_test_all("\
-            ((foo q) <- (bar q))
-            ((bar z) <- (baz (foo z) z))
-            ((baz x y) <- (foo (baz x (bar y))))");
-            let n_fn = Type::fun(Type::Var(0), Type::Var(0));
-            assert_eq!(3, types.len());
-            vec![n_fn.clone(), n_fn.clone(), Type::fun(Type::Var(0), n_fn)]
-                .into_iter()
-                .zip(types)
-                .for_each(|(e, g)| assert_type_eq(e, g));
-        }
-
-        #[test]
         fn mod_parapoly() {            
             let types = type_test_all("\
             ((id x) <- x)

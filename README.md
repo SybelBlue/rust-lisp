@@ -28,6 +28,7 @@ This was made to help me practice PLD/I concepts as I learn them.
 1. Add datatypes
 1. Add an `if`
 1. Imports/modules
+1. Out of Order Declaration
 1. pattern matching
 1. Work on a compiler?
 1. Add atoms? `(:hi)`
