@@ -22,13 +22,13 @@ mod tests {
         }
 
         fn type_test_all_with<'a>(s: &'a str, ctxt: Context, err_ok: bool) -> (Context, Vec<Type>) {
-            use crate::typing::infer::infer_top;
+            use crate::typing::infer::infer;
 
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
             let ss = crate::parsing::parse(ts).unwrap();
-            let (ctxt, res) = infer_top(ctxt, &ss);
+            let (ctxt, res) = infer(ctxt, &ss);
             match res {
                 Err(e) =>
                     if err_ok {

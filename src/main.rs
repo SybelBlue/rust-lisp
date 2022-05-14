@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use linefeed::{Interface, ReadResult};
 
-use rust_lisp::{parsing::{sources::Source, parse}, typing::{infer::infer_top, contexts::Context}, errors::{LexError, LexErrorBody}};
+use rust_lisp::{parsing::{sources::Source, parse}, typing::{infer::infer, contexts::Context}, errors::{LexError, LexErrorBody}};
 
 fn main() -> std::io::Result<()> {
     let reader = Interface::new("risp-repl")?;
@@ -28,7 +28,7 @@ fn main() -> std::io::Result<()> {
             Ok(ts) => {
                 match parse(ts) {
                     Ok(stmts) => {
-                        let (new, res) = infer_top(ctxt, &stmts);
+                        let (new, res) = infer(ctxt, &stmts);
                         ctxt = new;
                         reader.set_completer(Arc::new(ctxt.clone()));
                         match res {
