@@ -17,10 +17,14 @@ impl<'a> Value<'a> {
 impl<'a> std::fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Char(c) => write!(f, "{:?}", c),
-            Value::Nat(n) => write!(f, "{}", n),
-            Value::Sym(s) => write!(f, "{}", s),
-            Value::Lam(p, b) => write!(f, "{} -> {}", p, b),
+            Value::Char(c) => 
+                std::fmt::Debug::fmt(c, f),
+            Value::Nat(n) => 
+                n.fmt(f),
+            Value::Sym(s) => 
+                s.fmt(f),
+            Value::Lam(p, b) => 
+                write!(f, "{} -> {}", p.body, b.body),
         }
     }
 }
