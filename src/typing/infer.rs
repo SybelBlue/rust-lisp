@@ -9,7 +9,7 @@ fn null<'a>() -> Vec<Constraint<'a>> {
 }
 
 pub fn infer<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) ->  (Context, TypeResult<'a, Vec<Scheme>>) {
-   let mut infr = Infer::new(ctxt);
+   let mut infr = InferContext::new(ctxt);
    let mut out = Vec::new();
    for s in stmts {
        match infr.stmt(s) {
@@ -39,16 +39,16 @@ impl Substitutable for Env {
     }
 }
 
-type InferResult<'a, R> = Result<(Infer, R), (Context, TypeError<'a>)>;
+type Infer<'a, R> = Result<(InferContext, R), (Context, TypeError<'a>)>;
 
 #[derive(Debug, Clone)]
-struct Infer {
+struct InferContext {
     ctxt: Context,
     env: Env,
     var_count: usize,
 }
 
-impl Infer {
+impl InferContext {
     fn new(ctxt: Context) -> Self {
         Self { 
             ctxt,
@@ -69,7 +69,7 @@ impl Infer {
         ctxt
     }
 
-    fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> InferResult<'a, Type> {
+    fn lookup_env<'a>(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
         if let Some(s) = self.env.get(k).or_else(|| self.ctxt.get(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
@@ -93,41 +93,41 @@ impl Infer {
         self.generalize(t).normalize()
     }
 
-    fn locally<'a, T, F>(mut self, name: &String, sc: &Scheme, f: F) -> InferResult<'a, T>
-            where F: FnOnce(Self) -> InferResult<'a, T> {
-        let mut infr = self.clone();
-        infr.env.insert(name.clone(), sc.clone());
-        let (infr, out) = f(infr)?;
-        self.var_count = infr.var_count;
+    fn locally<'a, T, F>(mut self, name: &String, sc: &Scheme, f: F) -> Infer<'a, T>
+            where F: FnOnce(Self) -> Infer<'a, T> {
+        let mut slf = self.clone();
+        slf.env.insert(name.clone(), sc.clone());
+        let (slf, out) = f(slf)?;
+        self.var_count = slf.var_count;
         Ok((self, out))
     }
 
-    fn stmt<'a>(mut self, s: &'a Stmt<'a>) -> InferResult<'a, Scheme> {
+    fn stmt<'a>(mut self, s: &'a Stmt<'a>) -> Infer<'a, Scheme> {
         match s {
             Stmt::Expr(e) =>
                 self.expr(e),
             Stmt::Bind(Ident { body: name, .. }, body) => {
                 let ref sc = Scheme::concrete(self.fresh());
-                let (mut new, sc) = self.locally(name, sc, |infr| infr.expr(body))?;
+                let (mut new, sc) = self.locally(name, sc, |slf| slf.expr(body))?;
                 new.env.insert(name.clone(), sc.clone());
                 Ok((new, sc))
             }
         }
     }
     
-    fn expr<'a>(self, e: &'a Expr<'a>) -> InferResult<'a, Scheme> {
-        let (mut infr, (t, cs)) = self.constraints(e)?;
+    fn expr<'a>(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
+        let (mut slf, (t, cs)) = self.constraints(e)?;
         match solve(cs) {
             Ok(sub) => {
-                let sc = infr.close_over(t.apply(&sub));
-                Ok((infr, sc))
+                let sc = slf.close_over(t.apply(&sub));
+                Ok((slf, sc))
             }
             Err(x) =>
-                Err((infr.ctxt, x))
+                Err((slf.ctxt, x))
         }
     }
 
-    fn constraints<'a>(self, Expr { pos, body }: &'a Expr<'a>) -> InferResult<'a, TContraints<'a>> {
+    fn constraints<'a>(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, TContraints<'a>> {
         match body {
             ExprBody::Val(v) => 
                 self.value_constraints(pos, v),
@@ -136,7 +136,7 @@ impl Infer {
         }
     }
 
-    fn value_constraints<'a>(mut self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> InferResult<'a, TContraints<'a>> {
+    fn value_constraints<'a>(mut self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> Infer<'a, TContraints<'a>> {
         use Value::*;
         match v {
             Nat(_)  => Ok((self, (Type::nat(), null()))),
@@ -148,20 +148,20 @@ impl Infer {
                 let name = &x.body;
                 let tv = self.fresh();
                 let ref sc = Scheme { forall: vec![], tipe: tv.clone() };
-                let (infr, (t, cs)) = 
+                let (slf, (t, cs)) = 
                     self.locally(name, sc,
-                        |infr| {
-                            let (infr, (body_type, cs)) = 
-                                infr.constraints(e)?;
-                            Ok((infr, (Type::fun(tv, body_type), cs)))
+                        |slf| {
+                            let (slf, (body_type, cs)) = 
+                                slf.constraints(e)?;
+                            Ok((slf, (Type::fun(tv, body_type), cs)))
                         }
                     )?;
-                Ok((infr, (t, cs)))
+                Ok((slf, (t, cs)))
             }
         }
     }
     
-    fn sexp_constraints<'a>(self, es: &'a Vec<Expr<'a>>) -> InferResult<'a, TContraints<'a>> {
+    fn sexp_constraints<'a>(self, es: &'a Vec<Expr<'a>>) -> Infer<'a, TContraints<'a>> {
         let mut es = es.into_iter();
         let fst = if let Some(fst) = es.next() {
             fst
@@ -169,25 +169,25 @@ impl Infer {
             return Ok((self, (Type::unit(), null())));
         };
         
-        let (mut infr, (mut last_t, mut cs)) = 
+        let (mut slf, (mut last_t, mut cs)) = 
             self.constraints(fst)?;
 
         for e in es {
             let cnstr_pos = e.pos.clone();
 
-            let (new_infr, (arg_t, new_cs)) = 
-                infr.constraints(e)?;
+            let (new_slf, (arg_t, new_cs)) = 
+                slf.constraints(e)?;
             
-            infr = new_infr;
+            slf = new_slf;
             cs.extend(new_cs);
             
-            let ret_type = infr.fresh();
+            let ret_type = slf.fresh();
             let body = (Type::fun(arg_t, ret_type.clone()), last_t);
             cs.push(Constraint { pos: cnstr_pos, body });
             
             last_t = ret_type;
         }
 
-        Ok((infr, (last_t, cs)))
+        Ok((slf, (last_t, cs)))
     }
 }
