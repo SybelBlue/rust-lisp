@@ -1,4 +1,4 @@
-use std::collections::{HashMap, hash_map::Keys};
+use std::collections::{HashMap, hash_map::{Keys, Values}};
 
 use super::{Type, scheme::Scheme};
 
@@ -16,7 +16,7 @@ pub struct Context {
 pub enum UnifyErr { Inf, Mis }
 
 impl Context {
-    fn blank() -> Self {
+    pub(crate) fn blank() -> Self {
         Self { bound: HashMap::with_capacity(128), aliased: HashMap::with_capacity(128) }
     }
 
@@ -40,6 +40,11 @@ impl Context {
         self.bound.insert(k, v);
     }
 
+    pub(crate) fn extend(&mut self, other: Self) {
+        self.bound.extend(other.bound);
+        self.aliased.extend(other.aliased);
+    }
+
     pub(crate) fn get(&self, k: &String) -> Option<&Scheme> {
         self.bound
             .get(self.aliased.get(k).unwrap_or(k))
@@ -47,6 +52,10 @@ impl Context {
 
     pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
         self.aliased.keys().chain(self.bound.keys())
+    }
+
+    pub fn values(&self) -> Values<String, Scheme> {
+        self.bound.values()
     }
 
     pub(crate) fn contains_key(&self, k: &String) -> bool {

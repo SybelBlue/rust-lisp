@@ -4,7 +4,7 @@ use crate::{
     exprs::{Expr, Ident, ExprBody}, 
     errors::{TypeResult, TypeError, TypeErrorBody::*}, 
     values::Value, 
-    parsing::sources::{FilePos, Loc}, 
+    parsing::sources::FilePos,
     stmts::Stmt
 };
 
@@ -39,15 +39,17 @@ type Infer<'a, R> = Result<(InferContext<'a>, R), (Context, TypeError<'a>)>;
 
 #[derive(Debug, Clone)]
 struct InferContext<'a> {
-    ctxt: Context,
-    env: HashMap<String, Loc<'a, Scheme>>,
+    root: Context,
+    temp: Context,
+    env: HashMap<String, FilePos<'a>>,
     var_count: usize,
 }
 
 impl<'a> InferContext<'a> {
     fn new(ctxt: Context) -> Self {
         Self { 
-            ctxt,
+            root: ctxt,
+            temp: Context::blank(),
             env: HashMap::new(), 
             var_count: 0 
         }
@@ -60,35 +62,36 @@ impl<'a> InferContext<'a> {
     }
 
     fn finish(self) -> (Context, TypeResult<'a, ()>) {
-        let Self { mut ctxt, env, .. } = self;
-        for (k, l) in env.iter() {
-            if ctxt.contains_key(k) {
-                return (ctxt, Err(TypeError::new(l.pos.clone(), DuplicateNameAt(k.clone(), None))));
+        let Self { root: mut ctxt, temp, env, .. } = self;
+        for (k, l) in env {
+            if ctxt.contains_key(&k) {
+                return (ctxt, Err(TypeError::new(l, DuplicateNameAt(k.clone(), None))));
             }
         }
-        
-        env.into_iter().for_each(|(k, v)| {
-            ctxt.insert(k, v.body);
-        });
-
+        ctxt.extend(temp);
         (ctxt, Ok(()))
     }
 
     fn lookup_env(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
-        if let Some(s) = self.env.get(k).map(|s| &s.body).or_else(|| self.ctxt.get(k)).cloned() {
+        if let Some(s) = self.temp.get(k).or_else(|| self.root.get(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
-            Err((self.ctxt, TypeError::new(pos.clone(), UndefinedSymbol(k))))
+            Err((self.root, TypeError::new(pos.clone(), UndefinedSymbol(k))))
         }
     }
 
     fn insert(mut self, Ident { body: k, pos }: &Ident<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
-        if let Some(v) = self.env.insert(k.clone(), Loc { pos: pos.clone(), body: sc }) {
+        if let Some(v) = self.env.insert(k.clone(), pos.clone()) {
             if !rewrite_ok {
-                return Err((self.ctxt, TypeError::new(pos.clone(), DuplicateNameAt(k.clone(), Some(v.pos.clone())))));
+                return Err((
+                    self.root, 
+                    TypeError::new(pos.clone(), 
+                        DuplicateNameAt(k.clone(), Some(v)))
+                ));
             }
         }
+        self.temp.insert(k.clone(), sc);
         Ok((self, ()))
     }
 
@@ -96,7 +99,7 @@ impl<'a> InferContext<'a> {
         let mut used = HashSet::new();
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
-        self.env.values().for_each(|s| s.body.ftv(&mut defined));
+        self.temp.values().for_each(|s| s.ftv(&mut defined));
         Scheme { 
             forall: used.difference(&defined).map(|x| *x).collect(), 
             tipe 
@@ -127,7 +130,7 @@ impl<'a> InferContext<'a> {
                 Ok((new, sc))
             }
             Stmt::Data(decl) => 
-                Err((self.ctxt, TypeError::new(decl.name.pos.clone(), NotYetImplemented(format!("Data Declarations"))))),
+                Err((self.root, TypeError::new(decl.name.pos.clone(), NotYetImplemented(format!("Data Declarations"))))),
         }
     }
     
@@ -139,7 +142,7 @@ impl<'a> InferContext<'a> {
                 Ok((slf, sc))
             }
             Err(x) =>
-                Err((slf.ctxt, x))
+                Err((slf.root, x))
         }
     }
 
