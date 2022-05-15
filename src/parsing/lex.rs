@@ -4,7 +4,7 @@ use crate::{errors::{LexError, LexResult, LexErrorBody}, parsing::sources::{File
 
 pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenBody<'a> {
     Keyword(Keyword),
     Word(String),
@@ -18,6 +18,7 @@ pub enum Keyword {
     Arrow,
     Import,
     Data,
+    Type,
 }
 
 impl Keyword {
@@ -27,6 +28,7 @@ impl Keyword {
             b"<-" => Some(Self::Backarrow),
             // b"import" => Some(Self::Import),
             b"data" => Some(Self::Data),
+            b"Type" => Some(Self::Type),
             _ => None,
         }
     }
@@ -39,6 +41,7 @@ impl std::fmt::Display for Keyword {
             Self::Arrow => "->",
             Self::Import => "import",
             Self::Data => "data",
+            Self::Type => "Type",
         })
     }
 }

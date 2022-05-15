@@ -1,14 +1,12 @@
-use crate::exprs::Ident;
+use crate::exprs::{Ident, Expr};
 
-use super::scheme::Scheme;
-
-pub(crate) type Constructor<'a> = (Ident<'a>, Scheme);
+pub(crate) type Constructor<'a> = (Ident<'a>, Expr<'a>);
 
 #[derive(Debug, Clone)]
 pub(crate) struct DataDecl<'a> {
-    name: Ident<'a>, 
-    kind: Kind, 
-    ctors: Vec<Constructor<'a>>,
+    pub(crate) name: Ident<'a>, 
+    pub(crate) kind: Kind, 
+    pub(crate) ctors: Vec<Constructor<'a>>,
 }
 
 #[derive(Debug, Clone)]
