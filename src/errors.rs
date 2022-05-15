@@ -69,12 +69,13 @@ impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotYetImplemented(msg) =>
-                f.write_str(msg.as_str()),
+                write!(f, "Not Yet Implemented: '{}'", msg),
             Self::TooManyArgs(e) =>
                 write!(f, "Too Many Arguments: {}", e),
             Self::TypeMismatch { got, expected } => 
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
-            Self::UndefinedSymbol(s) => write!(f, "Undefined Symbol: {}", s),
+            Self::UndefinedSymbol(s) => 
+                write!(f, "Undefined Symbol: {}", s),
             Self::InfiniteType(s, t) => {
                 write!(f, "Infinite Type: ")?;
                 let mut vals = HashSet::new();
