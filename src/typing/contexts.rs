@@ -79,28 +79,48 @@ impl SimpleContext<Kind> {
 #[derive(Debug, Clone)]
 pub struct Context {
     vars: SimpleContext<Scheme>,
-    tipes: SimpleContext<Kind>,
+    types: SimpleContext<Kind>,
 }
 
 impl Context {
     pub(crate) fn blank() -> Self {
-        Self { vars: SimpleContext::blank(), tipes: SimpleContext::blank() }
+        Self { vars: SimpleContext::blank(), types: SimpleContext::blank() }
     }
 
     pub fn new() -> Self {
         Self { 
             vars: SimpleContext::new_scheme_ctxt(), 
-            tipes: SimpleContext::new_kind_ctxt(),
+            types: SimpleContext::new_kind_ctxt(),
         }
-    }
-
-    pub(crate) fn insert_var(&mut self, k: String, v: Scheme) {
-        self.vars.insert(k, v);
     }
 
     pub(crate) fn extend(&mut self, other: Self) {
         self.vars.extend(other.vars);
-        self.tipes.extend(other.tipes);
+        self.types.extend(other.types);
+    }
+
+    // pub(crate) fn insert_type(&mut self, k: String, v: Kind) {
+    //     self.types.insert(k, v);
+    // }
+
+    // pub(crate) fn get_type(&self, k: &String) -> Option<&Kind> {
+    //     self.types.get(k)
+    // }
+
+    // pub(crate) fn contains_type(&self, k: &String) -> bool {
+    //     self.types.contains_key(k)
+    // }
+
+    // pub(crate) fn get_typekinds(&self) -> Values<String, Kind> {
+    //     self.types.values()
+    // }
+
+    // pub(crate) fn get_typenames(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Kind>> {
+    //     self.types.keys()
+    // }
+
+    pub(crate) fn insert_var(&mut self, k: String, v: Scheme) {
+        self.vars.insert(k, v);
     }
 
     pub(crate) fn get_var(&self, k: &String) -> Option<&Scheme> {
@@ -111,7 +131,7 @@ impl Context {
         self.vars.keys()
     }
 
-    pub fn get_vartypes(&self) -> Values<String, Scheme> {
+    pub(crate) fn get_vartypes(&self) -> Values<String, Scheme> {
         self.vars.values()
     }
 
