@@ -94,7 +94,7 @@ impl Context {
         }
     }
 
-    pub(crate) fn insert(&mut self, k: String, v: Scheme) {
+    pub(crate) fn insert_var(&mut self, k: String, v: Scheme) {
         self.vars.insert(k, v);
     }
 
@@ -103,19 +103,19 @@ impl Context {
         self.tipes.extend(other.tipes);
     }
 
-    pub(crate) fn get(&self, k: &String) -> Option<&Scheme> {
+    pub(crate) fn get_var(&self, k: &String) -> Option<&Scheme> {
         self.vars.get(k)
     }
 
-    pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
+    pub fn get_varnames(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
         self.vars.keys()
     }
 
-    pub fn values(&self) -> Values<String, Scheme> {
+    pub fn get_vartypes(&self) -> Values<String, Scheme> {
         self.vars.values()
     }
 
-    pub(crate) fn contains_key(&self, k: &String) -> bool {
+    pub(crate) fn contains_var(&self, k: &String) -> bool {
         self.vars.contains_key(k)
     }
 }

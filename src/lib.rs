@@ -202,26 +202,26 @@ mod tests {
         #[test]
         fn context_edits() {
             let ctxt = Context::new();
-            let n = ctxt.keys().count();
+            let n = ctxt.get_varnames().count();
             let (ctxt, ts) = 
                 type_test_all_with("(dont_bind_bc_type_err <- 3) (ord dont_bind_bc_type_err)", ctxt, true);
             assert_eq!(ts, Vec::new());
-            assert_eq!(ctxt.keys().count(), n);
+            assert_eq!(ctxt.get_varnames().count(), n);
 
             let (ctxt, ts) = 
                 type_test_all_with("(z <- 3)", ctxt, false);
             assert_eq!(ts, vec![Type::nat()]);
-            assert_eq!(ctxt.keys().count(), n + 1);
+            assert_eq!(ctxt.get_varnames().count(), n + 1);
 
             let (ctxt, ts) = 
                 type_test_all_with("((test_argname_mask z) <- (ord z))", ctxt, false);
             assert_eq!(ts, vec![Type::fun(Type::char(), Type::nat())]);
-            assert_eq!(ctxt.keys().count(), n + 2);
+            assert_eq!(ctxt.get_varnames().count(), n + 2);
 
             let (ctxt, ts) = 
                 type_test_all_with("(test_argname_mask z)", ctxt, true);
             assert_eq!(ts, vec![]);
-            assert_eq!(ctxt.keys().count(), n + 2);
+            assert_eq!(ctxt.get_varnames().count(), n + 2);
         }
     }
 

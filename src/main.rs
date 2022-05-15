@@ -16,7 +16,7 @@ fn main() -> std::io::Result<()> {
             if lines.is_empty() && input.starts_with(":") {
                 match input.as_bytes() {
                     b":ctxt" => println!("{:?}", &ctxt),
-                    b":dir" => println!("{:?}", ctxt.keys()),
+                    b":dir" => println!("{:?}", ctxt.get_varnames()),
                     _ => println!("** Unrecognized repl cmd '{}'", input),
                 }
                 continue;

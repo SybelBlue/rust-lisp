@@ -64,7 +64,7 @@ impl<'a> InferContext<'a> {
     fn finish(self) -> (Context, TypeResult<'a, ()>) {
         let Self { root: mut ctxt, temp, env, .. } = self;
         for (k, l) in env {
-            if ctxt.contains_key(&k) {
+            if ctxt.contains_var(&k) {
                 return (ctxt, Err(TypeError::new(l, DuplicateNameAt(k.clone(), None))));
             }
         }
@@ -73,7 +73,7 @@ impl<'a> InferContext<'a> {
     }
 
     fn lookup_env(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
-        if let Some(s) = self.temp.get(k).or_else(|| self.root.get(k)).cloned() {
+        if let Some(s) = self.temp.get_var(k).or_else(|| self.root.get_var(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
@@ -91,7 +91,7 @@ impl<'a> InferContext<'a> {
                 ));
             }
         }
-        self.temp.insert(k.clone(), sc);
+        self.temp.insert_var(k.clone(), sc);
         Ok((self, ()))
     }
 
@@ -99,7 +99,7 @@ impl<'a> InferContext<'a> {
         let mut used = HashSet::new();
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
-        self.temp.values().for_each(|s| s.ftv(&mut defined));
+        self.temp.get_vartypes().for_each(|s| s.ftv(&mut defined));
         Scheme { 
             forall: used.difference(&defined).map(|x| *x).collect(), 
             tipe 
