@@ -17,6 +17,7 @@ pub enum Keyword {
     Backarrow, 
     Arrow,
     Import,
+    Data,
 }
 
 impl Keyword {
@@ -24,6 +25,8 @@ impl Keyword {
         match s.as_bytes() {
             b"->" => Some(Self::Arrow),
             b"<-" => Some(Self::Backarrow),
+            // b"import" => Some(Self::Import),
+            b"data" => Some(Self::Data),
             _ => None,
         }
     }
@@ -35,6 +38,7 @@ impl std::fmt::Display for Keyword {
             Self::Backarrow => "<-",
             Self::Arrow => "->",
             Self::Import => "import",
+            Self::Data => "data",
         })
     }
 }
