@@ -36,6 +36,10 @@ fn parse_stmt<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
             ts,
     };
 
+    if ts.is_empty() {
+        return Ok(Stmt::Expr(Expr { pos, body: ExprBody::SExp(Vec::with_capacity(0)) }));
+    }
+
     if &ts[0].body == &Keyword(Data) {
         return parse_data(ts);
     }

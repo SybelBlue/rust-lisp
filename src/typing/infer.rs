@@ -126,6 +126,8 @@ impl<'a> InferContext<'a> {
                 let (new, ()) = new.insert(&ident, sc.clone(), false)?;
                 Ok((new, sc))
             }
+            Stmt::Data(decl) => 
+                Err((self.ctxt, TypeError::new(decl.name.pos.clone(), NotYetImplemented(format!("Data Declarations"))))),
         }
     }
     
