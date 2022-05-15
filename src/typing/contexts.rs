@@ -1,42 +1,31 @@
 use std::collections::{HashMap, hash_map::{Keys, Values}};
 
-use super::{Type, scheme::Scheme};
+use super::{Type, scheme::Scheme, data::Kind};
 
 type Identifier = String;
 type QualifiedIdentifier = String;
 
 
 #[derive(Debug, Clone)]
-pub struct Context {
-    /// Types are compressed, ie all Var(_n_) inside the type start a 0
-    bound: HashMap<QualifiedIdentifier, Scheme>, 
+struct SimpleContext<T> {
+    bound: HashMap<QualifiedIdentifier, T>, 
     aliased: HashMap<Identifier, QualifiedIdentifier>,
 }
 
 pub enum UnifyErr { Inf, Mis }
 
-impl Context {
+impl<T> SimpleContext<T> {
     pub(crate) fn blank() -> Self {
-        Self { bound: HashMap::with_capacity(128), aliased: HashMap::with_capacity(128) }
+        Self { bound: HashMap::with_capacity(64), aliased: HashMap::with_capacity(64) }
     }
 
-    fn add_prelude(&mut self, s: &str, sc: Scheme) {
+    fn add_prelude(&mut self, s: &str, t: T) {
         let qualed = format!("Prelude.{s}");
-        self.bound.insert(qualed.clone(), sc);
+        self.bound.insert(qualed.clone(), t);
         self.aliased.insert(String::from(s), qualed);
     }
 
-    pub fn new() -> Self {
-        let mut out = Self::blank();
-
-        out.add_prelude("+",   Scheme::concrete(Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat()))));
-        out.add_prelude("chr", Scheme::concrete(Type::fun(Type::nat(), Type::char())));
-        out.add_prelude("ord", Scheme::concrete(Type::fun(Type::char(), Type::nat())));
-
-        out
-    }
-
-    pub(crate) fn insert(&mut self, k: String, v: Scheme) {
+    pub(crate) fn insert(&mut self, k: String, v: T) {
         self.bound.insert(k, v);
     }
 
@@ -45,20 +34,88 @@ impl Context {
         self.aliased.extend(other.aliased);
     }
 
-    pub(crate) fn get(&self, k: &String) -> Option<&Scheme> {
+    pub(crate) fn get(&self, k: &String) -> Option<&T> {
         self.bound
             .get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
+    pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, T>> {
         self.aliased.keys().chain(self.bound.keys())
     }
 
-    pub fn values(&self) -> Values<String, Scheme> {
+    pub fn values(&self) -> Values<String, T> {
         self.bound.values()
     }
 
     pub(crate) fn contains_key(&self, k: &String) -> bool {
         self.bound.contains_key(k)
+    }
+}
+
+impl SimpleContext<Scheme> {
+    fn new_scheme_ctxt() -> Self {
+        let mut out = Self::blank();
+
+        out.add_prelude("+",   Scheme::concrete(Type::fun(Type::nat(), Type::fun(Type::nat(), Type::nat()))));
+        out.add_prelude("chr", Scheme::concrete(Type::fun(Type::nat(), Type::char())));
+        out.add_prelude("ord", Scheme::concrete(Type::fun(Type::char(), Type::nat())));
+
+        out
+    }
+}
+
+impl SimpleContext<Kind> {
+    fn new_kind_ctxt() -> Self {
+        let mut out = Self::blank();
+
+        out.add_prelude("Unit", Kind::Type);
+        out.add_prelude("Nat",  Kind::Type);
+        out.add_prelude("Char", Kind::Type);
+
+        out
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Context {
+    vars: SimpleContext<Scheme>,
+    tipes: SimpleContext<Kind>,
+}
+
+impl Context {
+    pub(crate) fn blank() -> Self {
+        Self { vars: SimpleContext::blank(), tipes: SimpleContext::blank() }
+    }
+
+    pub fn new() -> Self {
+        Self { 
+            vars: SimpleContext::new_scheme_ctxt(), 
+            tipes: SimpleContext::new_kind_ctxt(),
+        }
+    }
+
+    pub(crate) fn insert(&mut self, k: String, v: Scheme) {
+        self.vars.insert(k, v);
+    }
+
+    pub(crate) fn extend(&mut self, other: Self) {
+        self.vars.extend(other.vars);
+        self.tipes.extend(other.tipes);
+    }
+
+    pub(crate) fn get(&self, k: &String) -> Option<&Scheme> {
+        self.vars.get(k)
+    }
+
+    pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
+        self.vars.keys()
+    }
+
+    pub fn values(&self) -> Values<String, Scheme> {
+        self.vars.values()
+    }
+
+    pub(crate) fn contains_key(&self, k: &String) -> bool {
+        self.vars.contains_key(k)
     }
 }
