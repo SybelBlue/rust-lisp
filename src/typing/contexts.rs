@@ -68,9 +68,9 @@ impl SimpleContext<Kind> {
     fn new_kind_ctxt() -> Self {
         let mut out = Self::blank();
 
-        out.add_prelude("Unit", Kind::Type);
-        out.add_prelude("Nat",  Kind::Type);
-        out.add_prelude("Char", Kind::Type);
+        out.add_prelude("Unit", Kind::Type(Scheme::concrete(Type::unit())));
+        out.add_prelude("Nat",  Kind::Type(Scheme::concrete(Type::nat())));
+        out.add_prelude("Char", Kind::Type(Scheme::concrete(Type::char())));
 
         out
     }
@@ -99,13 +99,13 @@ impl Context {
         self.types.extend(other.types);
     }
 
-    // pub(crate) fn insert_type(&mut self, k: String, v: Kind) {
-    //     self.types.insert(k, v);
-    // }
+    pub(crate) fn insert_type(&mut self, k: String, v: Kind) {
+        self.types.insert(k, v);
+    }
 
-    // pub(crate) fn get_type(&self, k: &String) -> Option<&Kind> {
-    //     self.types.get(k)
-    // }
+    pub(crate) fn get_type(&self, k: &String) -> Option<&Kind> {
+        self.types.get(k)
+    }
 
     // pub(crate) fn contains_type(&self, k: &String) -> bool {
     //     self.types.contains_key(k)

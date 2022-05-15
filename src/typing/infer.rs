@@ -2,13 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     exprs::{Expr, Ident, ExprBody}, 
-    errors::{TypeResult, TypeError, TypeErrorBody::*}, 
+    errors::{TypeResult, TypeError, TypeErrorBody::{*, self}}, 
     values::Value, 
     parsing::sources::FilePos,
     stmts::Stmt
 };
 
-use super::{contraint::Constraint, Type, scheme::Scheme, subst::Substitutable, contraint::solve, contexts::Context};
+use super::{contraint::Constraint, Type, scheme::Scheme, subst::Substitutable, contraint::solve, contexts::Context, data::{DataDecl, Kind}};
 
 pub fn infer<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) -> (Context, TypeResult<'a, Vec<Scheme>>) {
    let mut ctxt = InferContext::new(ctxt);
@@ -40,8 +40,9 @@ type Infer<'a, R> = Result<(InferContext<'a>, R), (Context, TypeError<'a>)>;
 #[derive(Debug, Clone)]
 struct InferContext<'a> {
     root: Context,
-    temp: Context,
-    env: HashMap<String, FilePos<'a>>,
+    ctxt: Context,
+    var_env: HashMap<String, FilePos<'a>>,
+    type_env: HashMap<String, FilePos<'a>>,
     var_count: usize,
 }
 
@@ -49,8 +50,9 @@ impl<'a> InferContext<'a> {
     fn new(ctxt: Context) -> Self {
         Self { 
             root: ctxt,
-            temp: Context::blank(),
-            env: HashMap::new(), 
+            ctxt: Context::blank(),
+            var_env: HashMap::new(), 
+            type_env: HashMap::new(),
             var_count: 0 
         }
     }
@@ -61,8 +63,12 @@ impl<'a> InferContext<'a> {
         Type::Var(out)
     }
 
+    fn err<T>(self, pos: FilePos<'a>, body: TypeErrorBody<'a>) -> Infer<'a, T> {
+        Err((self.root, TypeError::new(pos, body)))
+    }
+
     fn finish(self) -> (Context, TypeResult<'a, ()>) {
-        let Self { root: mut ctxt, temp, env, .. } = self;
+        let Self { root: mut ctxt, ctxt: temp, var_env: env, .. } = self;
         for (k, l) in env {
             if ctxt.contains_var(&k) {
                 return (ctxt, Err(TypeError::new(l, DuplicateNameAt(k.clone(), None))));
@@ -72,34 +78,57 @@ impl<'a> InferContext<'a> {
         (ctxt, Ok(()))
     }
 
-    fn lookup_env(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
-        if let Some(s) = self.temp.get_var(k).or_else(|| self.root.get_var(k)).cloned() {
+    fn lookup_var(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+        if let Some(s) = self.ctxt.get_var(k).or_else(|| self.root.get_var(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
-            Err((self.root, TypeError::new(pos.clone(), UndefinedSymbol(k))))
+            self.err(pos.clone(), UndefinedSymbol(k))
         }
     }
 
-    fn insert(mut self, Ident { body: k, pos }: &Ident<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
-        if let Some(v) = self.env.insert(k.clone(), pos.clone()) {
+    fn lookup_type(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+        if let Some(Kind::Type(s)) = self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned() {
+            let t = s.instantiate(&mut || self.fresh());
+            Ok((self, t))
+        } else {
+            self.err(pos.clone(), UndefinedSymbol(k))
+        }
+    }
+
+    fn lookup_kind(self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Kind> {
+        if let Some(k) = self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned() {
+            Ok((self, k))
+        } else {
+            self.err(pos.clone(), UndefinedSymbol(k))
+        }
+    }
+
+    fn insert_var(mut self, Ident { body: k, pos }: &Ident<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
+        if let Some(v) = self.var_env.insert(k.clone(), pos.clone()) {
             if !rewrite_ok {
-                return Err((
-                    self.root, 
-                    TypeError::new(pos.clone(), 
-                        DuplicateNameAt(k.clone(), Some(v)))
-                ));
+                return self.err(pos.clone(), 
+                        DuplicateNameAt(k.clone(), Some(v)));
             }
         }
-        self.temp.insert_var(k.clone(), sc);
+        self.ctxt.insert_var(k.clone(), sc);
         Ok((self, ()))
+    }
+
+    fn insert_type(mut self, Ident { body: k, pos }: &Ident<'a>, v: Kind) -> Infer<'a, ()> {
+        if let Some(v) = self.type_env.insert(k.clone(), pos.clone()) {
+            self.err(pos.clone(), DuplicateNameAt(k.clone(), Some(v)))
+        } else {
+            self.ctxt.insert_type(k.clone(), v);
+            Ok((self, ()))
+        }
     }
 
     fn generalize(&mut self, tipe: Type) -> Scheme {
         let mut used = HashSet::new();
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
-        self.temp.get_vartypes().for_each(|s| s.ftv(&mut defined));
+        self.ctxt.get_vartypes().for_each(|s| s.ftv(&mut defined));
         Scheme { 
             forall: used.difference(&defined).map(|x| *x).collect(), 
             tipe 
@@ -113,7 +142,7 @@ impl<'a> InferContext<'a> {
     fn locally<T, F>(mut self, ident: Ident<'a>, sc: Scheme, f: F) -> Infer<'a, T>
             where F: FnOnce(Self) -> Infer<'a, T> {
         let slf = self.clone();
-        let (slf, ()) = slf.insert(&ident, sc, true)?;
+        let (slf, ()) = slf.insert_var(&ident, sc, true)?;
         let (slf, out) = f(slf)?;
         self.var_count = slf.var_count;
         Ok((self, out))
@@ -126,11 +155,75 @@ impl<'a> InferContext<'a> {
             Stmt::Bind(ident, body) => {
                 let sc = Scheme::concrete(self.fresh());
                 let (new, sc) = self.locally(ident.clone(), sc.clone(), |slf| slf.infer_expr(body))?;
-                let (new, ()) = new.insert(&ident, sc.clone(), false)?;
+                let (new, ()) = new.insert_var(&ident, sc.clone(), false)?;
                 Ok((new, sc))
             }
-            Stmt::Data(decl) => 
-                Err((self.root, TypeError::new(decl.name.pos.clone(), NotYetImplemented(format!("Data Declarations"))))),
+            Stmt::Data(DataDecl { name, kind, ctors }) => {
+                let (mut slf, ()) = self.insert_type(name, kind.clone())?;
+                for (cname, e) in ctors {
+                    let (mut new, t) = slf.infer_type_lit(e)?;
+                    let sc = new.close_over(t);
+                    let (new, ()) = new.insert_var(cname, sc, false)?;
+                    slf = new;
+                }
+                return Err((slf.root, TypeError::new(name.pos.clone(), NotYetImplemented(format!("Data Declarations")))));
+            }
+        }
+    }
+
+    fn infer_type_lit(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, Type> {
+        match body {
+            ExprBody::Val(v) => {
+                match v {
+                    Value::Nat(_) | Value::Char(_) => 
+                        self.err(pos.clone(), DataInConstructor),
+                    Value::Sym(w) => 
+                        self.lookup_type(w, pos),
+                    Value::Lam(p, b) => {
+                        let (slf, pt) = self.lookup_type(&p.body, &p.pos)?;
+                        let (slf, bt) = slf.infer_type_lit(&b)?;
+                        Ok((slf, Type::fun(pt, bt)))
+                    }
+                }
+            }
+            ExprBody::SExp(ts) => {
+                todo!()
+            }
+        }
+    }
+
+    fn infer_kind(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, (Kind, &'a String, Vec<Type>)> {
+        match body {
+            ExprBody::SExp(ts) => {
+                if ts.is_empty() { return self.err(pos.clone(), DataInConstructor); }
+                let mut ts = ts.into_iter();
+                let (mut slf, (mut k, nm, mut out_ts)) = 
+                    self.infer_kind(ts.next().unwrap())?;
+                for expr in ts {
+                    match (k, expr) {
+                        (Kind::Type(t), Some(nxt)) => {
+                            let (next, t) = slf.infer_type_lit(nxt)?;
+                            slf = next
+                        }
+                        (Kind::KFun(k0, k1), Some(nxt)) => {
+                            let (next, t) = slf.infer_type_lit(nxt)?;
+                            slf = next;
+                        }
+                    }
+                    Ok((slf, (k, nm, out_ts)));
+                }
+                todo!()
+            }
+            ExprBody::Val(v) =>  {
+                match v {
+                    Value::Nat(_) | Value::Char(_) | Value::Lam(_, _) =>
+                        return self.err(pos.clone(), DataInConstructor),
+                    Value::Sym(s) => {
+                        let (slf, k) = self.lookup_kind(s, pos)?;
+                        Ok((slf, (k, s, Vec::new())))
+                    }
+                }
+            }
         }
     }
     
@@ -161,7 +254,7 @@ impl<'a> InferContext<'a> {
             Nat(_)  => Ok((self, null(Type::nat()))),
             Char(_) => Ok((self, null(Type::char()))),
             Sym(k) => 
-                self.lookup_env(k, pos)
+                self.lookup_var(k, pos)
                     .map(|(i, t)| (i, null(t))),
             Lam(x, e) => {
                 let tv = self.fresh();

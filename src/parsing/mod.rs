@@ -6,7 +6,7 @@ use crate::{
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
     values::{Value},
-    parsing::lex::{Token, TokenBody::*, Keyword::*}, typing::data::{Kind, Constructor, DataDecl}
+    parsing::lex::{Token, TokenBody::*, Keyword::*}, typing::{data::{Kind, Constructor, DataDecl}, scheme::Scheme}
 };
 
 use self::sources::FilePos;
@@ -194,7 +194,7 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
 fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
     match body {
         Keyword(Type) =>
-            Ok(Kind::Type),
+            Ok(Kind::Type(Scheme { forall: vec![0], tipe: crate::typing::Type::Var(0) })),
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Literal(_) => 
@@ -225,9 +225,9 @@ fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
             let (b, a) = (args.next().unwrap(), args.next().unwrap());
 
             Ok(args.into_iter().fold(
-                Kind::KFn(Box::new(a), Box::new(b)), 
+                Kind::KFun(Box::new(a), Box::new(b)), 
                 |acc, k| 
-                    Kind::KFn(Box::new(k), Box::new(acc)),
+                    Kind::KFun(Box::new(k), Box::new(acc)),
             ))
         },
     }

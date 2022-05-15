@@ -57,6 +57,7 @@ pub type TypeError<'a> = Loc<'a, TypeErrorBody<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum TypeErrorBody<'a> {
+    DataInConstructor,
     TooManyArgs(&'a Expr<'a>),
     TypeMismatch { got: Type, expected: Type },
     InfiniteType(Type, Type),
@@ -68,6 +69,8 @@ pub enum TypeErrorBody<'a> {
 impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Self::DataInConstructor =>
+                f.write_str("Data in Type Constructor Declaration"),
             Self::NotYetImplemented(msg) =>
                 write!(f, "Not Yet Implemented: '{}'", msg),
             Self::TooManyArgs(e) =>
