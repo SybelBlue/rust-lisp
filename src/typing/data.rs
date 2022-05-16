@@ -1,7 +1,5 @@
 use crate::exprs::{Ident, Expr};
 
-use super::scheme::Scheme;
-
 pub(crate) type Constructor<'a> = (Ident<'a>, Expr<'a>);
 
 #[derive(Debug, Clone)]
@@ -11,8 +9,8 @@ pub struct DataDecl<'a> {
     pub(crate) ctors: Vec<Constructor<'a>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Kind {
-    Type(Scheme),
+    Type,
     KFun(Box<Kind>, Box<Kind>),
 }

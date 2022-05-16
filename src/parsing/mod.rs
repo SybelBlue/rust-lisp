@@ -6,7 +6,8 @@ use crate::{
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
     values::{Value},
-    parsing::lex::{Token, TokenBody::*, Keyword::*}, typing::{data::{Kind, Constructor, DataDecl}, scheme::Scheme}
+    parsing::lex::{Token, TokenBody::*, Keyword::*}, 
+    typing::data::{Kind, Constructor, DataDecl}
 };
 
 use self::sources::FilePos;
@@ -194,7 +195,7 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
 fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
     match body {
         Keyword(Type) =>
-            Ok(Kind::Type(Scheme { forall: vec![0], tipe: crate::typing::Type::Var(0) })),
+            Ok(Kind::Type),
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Literal(_) => 

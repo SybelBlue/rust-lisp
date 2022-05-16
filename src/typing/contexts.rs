@@ -68,9 +68,9 @@ impl SimpleContext<Kind> {
     fn new_kind_ctxt() -> Self {
         let mut out = Self::blank();
 
-        out.add_prelude("Unit", Kind::Type(Scheme::concrete(Type::unit())));
-        out.add_prelude("Nat",  Kind::Type(Scheme::concrete(Type::nat())));
-        out.add_prelude("Char", Kind::Type(Scheme::concrete(Type::char())));
+        out.add_prelude("Unit", Kind::Type);
+        out.add_prelude("Nat",  Kind::Type);
+        out.add_prelude("Char", Kind::Type);
 
         out
     }
