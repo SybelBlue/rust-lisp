@@ -1,4 +1,5 @@
 pub mod parsing;
+pub mod data;
 pub mod values;
 pub mod exprs;
 pub mod stmts;

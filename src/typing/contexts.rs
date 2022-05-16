@@ -1,6 +1,8 @@
 use std::collections::{HashMap, hash_map::{Keys, Values}};
 
-use super::{Type, scheme::Scheme, data::Kind};
+use crate::data::Kind;
+
+use super::{Type, scheme::Scheme};
 
 type Identifier = String;
 type QualifiedIdentifier = String;

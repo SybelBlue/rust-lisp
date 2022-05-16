@@ -7,7 +7,7 @@ use crate::{
     stmts::Stmt,
     values::{Value},
     parsing::lex::{Token, TokenBody::*, Keyword::*}, 
-    typing::data::{Kind, Constructor, DataDecl}
+    data::{Kind, Constructor, DataDecl}
 };
 
 use self::sources::FilePos;

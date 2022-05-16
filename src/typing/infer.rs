@@ -5,10 +5,17 @@ use crate::{
     errors::{TypeResult, TypeError, TypeErrorBody::{*, self}}, 
     values::Value, 
     parsing::sources::FilePos,
-    stmts::Stmt
+    stmts::Stmt,
+    data::{DataDecl, Kind},
 };
 
-use super::{contraint::Constraint, Type, scheme::Scheme, subst::Substitutable, contraint::solve, contexts::Context, data::{DataDecl, Kind}};
+use super::{
+    Type, 
+    scheme::Scheme, 
+    subst::Substitutable, 
+    contexts::Context,
+    contraint::{Constraint, solve}
+};
 
 pub fn infer<'a>(ctxt: Context, stmts: &'a Vec<Stmt<'a>>) -> (Context, TypeResult<'a, Vec<Scheme>>) {
    let mut ctxt = InferContext::new(ctxt);

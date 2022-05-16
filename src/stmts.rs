@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result};
 
-use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::Value, typing::data::DataDecl};
+use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::Value, data::DataDecl};
 
 #[derive(Debug, Clone)]
 pub enum Stmt<'a> {

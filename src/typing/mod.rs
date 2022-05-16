@@ -3,7 +3,6 @@ pub mod subst;
 pub mod scheme;
 pub mod contraint;
 pub mod contexts;
-pub mod data;
 
 use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
 

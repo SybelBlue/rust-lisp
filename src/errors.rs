@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::{Type, data::Kind}};
+use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::Type, data::Kind};
 
 
 pub type LexError<'a> = Loc<'a, LexErrorBody<'a>>;
