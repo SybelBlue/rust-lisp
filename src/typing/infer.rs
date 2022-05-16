@@ -87,12 +87,17 @@ impl<'a> InferContext<'a> {
         }
     }
 
-    fn lookup_type(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
-        if let Some(Kind::Type(s)) = self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned() {
-            let t = s.instantiate(&mut || self.fresh());
-            Ok((self, t))
+    fn lookup_type(mut self, key: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+        if let Some(kind) = self.ctxt.get_type(key).or_else(|| self.root.get_type(key)) {
+            if kind == &Kind::Type {
+                Ok((self, Type::Data(key.clone(), Vec::with_capacity(0))))
+            } else {
+                let kind = kind.clone();
+                self.err(pos.clone(), ExpectedTypeGotKind { kind, name: key.clone() })
+            }
         } else {
-            self.err(pos.clone(), UndefinedSymbol(k))
+            let tv = self.fresh();
+            Ok((self, tv))
         }
     }
 
@@ -161,70 +166,19 @@ impl<'a> InferContext<'a> {
             Stmt::Data(DataDecl { name, kind, ctors }) => {
                 let (mut slf, ()) = self.insert_type(name, kind.clone())?;
                 for (cname, e) in ctors {
-                    let (mut new, t) = slf.infer_type_lit(e)?;
+                    let (mut new, t) = slf.read_type(e)?;
                     let sc = new.close_over(t);
                     let (new, ()) = new.insert_var(cname, sc, false)?;
                     slf = new;
                 }
-                return Err((slf.root, TypeError::new(name.pos.clone(), NotYetImplemented(format!("Data Declarations")))));
+                println!("{:?}", &slf.ctxt);
+                Ok((slf, Scheme::concrete(Type::unit())))
             }
         }
     }
 
-    fn infer_type_lit(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, Type> {
-        match body {
-            ExprBody::Val(v) => {
-                match v {
-                    Value::Nat(_) | Value::Char(_) => 
-                        self.err(pos.clone(), DataInConstructor),
-                    Value::Sym(w) => 
-                        self.lookup_type(w, pos),
-                    Value::Lam(p, b) => {
-                        let (slf, pt) = self.lookup_type(&p.body, &p.pos)?;
-                        let (slf, bt) = slf.infer_type_lit(&b)?;
-                        Ok((slf, Type::fun(pt, bt)))
-                    }
-                }
-            }
-            ExprBody::SExp(ts) => {
-                todo!()
-            }
-        }
-    }
-
-    fn infer_kind(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, (Kind, &'a String, Vec<Type>)> {
-        match body {
-            ExprBody::SExp(ts) => {
-                if ts.is_empty() { return self.err(pos.clone(), DataInConstructor); }
-                let mut ts = ts.into_iter();
-                let (mut slf, (mut k, nm, mut out_ts)) = 
-                    self.infer_kind(ts.next().unwrap())?;
-                for expr in ts {
-                    match (k, expr) {
-                        (Kind::Type(t), Some(nxt)) => {
-                            let (next, t) = slf.infer_type_lit(nxt)?;
-                            slf = next
-                        }
-                        (Kind::KFun(k0, k1), Some(nxt)) => {
-                            let (next, t) = slf.infer_type_lit(nxt)?;
-                            slf = next;
-                        }
-                    }
-                    Ok((slf, (k, nm, out_ts)));
-                }
-                todo!()
-            }
-            ExprBody::Val(v) =>  {
-                match v {
-                    Value::Nat(_) | Value::Char(_) | Value::Lam(_, _) =>
-                        return self.err(pos.clone(), DataInConstructor),
-                    Value::Sym(s) => {
-                        let (slf, k) = self.lookup_kind(s, pos)?;
-                        Ok((slf, (k, s, Vec::new())))
-                    }
-                }
-            }
-        }
+    fn read_type(self, e: &'a Expr<'a>) -> Infer<'a, Type> {
+        todo!("read type")
     }
     
     fn infer_expr(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {

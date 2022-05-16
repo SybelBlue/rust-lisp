@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::Type};
+use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::{Type, data::Kind}};
 
 
 pub type LexError<'a> = Loc<'a, LexErrorBody<'a>>;
@@ -60,6 +60,7 @@ pub enum TypeErrorBody<'a> {
     DataInConstructor,
     TooManyArgs(&'a Expr<'a>),
     TypeMismatch { got: Type, expected: Type },
+    ExpectedTypeGotKind { name: String, kind: Kind },
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
     NotYetImplemented(String),
@@ -98,6 +99,8 @@ impl<'a> Display for TypeErrorBody<'a> {
                     Ok(())
                 }
             }
+            TypeErrorBody::ExpectedTypeGotKind { name, kind } => 
+                write!(f, "Expected a Type, got {name} :: {kind}"),
         }
     }
 }
