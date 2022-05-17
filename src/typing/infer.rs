@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::{
     exprs::{Expr, Ident, ExprBody}, 
@@ -6,7 +6,7 @@ use crate::{
     values::Value, 
     parsing::sources::FilePos,
     stmts::Stmt,
-    data::{DataDecl, Kind},
+    data::{DataDecl, Kind, Pattern, PatternBody},
 };
 
 use super::{
@@ -151,6 +151,27 @@ impl<'a> InferContext<'a> {
         self.generalize(t).normalize()
     }
 
+    fn locally_with<T, F, C>(mut self, mut idents: VecDeque<Ident<'a>>, f: F, c: &C) -> Infer<'a, T> 
+            where 
+                F: FnOnce(Self) -> Infer<'a, T>,
+                C: Fn(Type, T) -> T {
+        let tv = self.fresh();
+        let sc = Scheme::concrete(tv.clone());
+        let ident = idents.pop_front().unwrap();
+        let (new, prev) = 
+            self.locally(
+                ident, 
+                sc,
+                |slf| {
+                    if idents.is_empty() {
+                        f(slf)
+                    } else {
+                        slf.locally_with(idents, f, c)
+                    }
+                }
+            )?;
+        Ok((new, c(tv, prev)))
+    }
     fn locally<T, F>(mut self, ident: Ident<'a>, sc: Scheme, f: F) -> Infer<'a, T>
             where F: FnOnce(Self) -> Infer<'a, T> {
         let slf = self.clone();
@@ -205,7 +226,7 @@ impl<'a> InferContext<'a> {
         }
     }
 
-    fn value_constraints(mut self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> Infer<'a, TContraints<'a>> {
+    fn value_constraints(self, pos: &'a FilePos<'a>, v: &'a Value<'a>) -> Infer<'a, TContraints<'a>> {
         use Value::*;
         match v {
             Nat(_)  => Ok((self, null(Type::nat()))),
@@ -214,17 +235,18 @@ impl<'a> InferContext<'a> {
                 self.lookup_var(k, pos)
                     .map(|(i, t)| (i, null(t))),
             Lam(x, e) => {
-                let tv = self.fresh();
-                let sc = Scheme { forall: vec![], tipe: tv.clone() };
-                let (slf, (t, cs)) = 
-                    self.locally(x.clone(), sc,
-                        |slf| {
-                            let (slf, (body_type, cs)) = 
-                                slf.constraints(e)?;
-                            Ok((slf, (Type::fun(tv, body_type), cs)))
-                        }
-                    )?;
-                Ok((slf, (t, cs)))
+                match flatten_args(x.clone()) {
+                    Ok(args) => 
+                        self.locally_with(
+                            VecDeque::from(args),
+                            |slf| 
+                                slf.constraints(e),
+                            &|tv, (t, cs)|
+                                (Type::fun(tv, t), cs),
+                        ),
+                    Err(e) =>
+                        self.err(e.pos, e.body),
+                }
             }
         }
     }
@@ -257,5 +279,24 @@ impl<'a> InferContext<'a> {
         }
 
         Ok((slf, (last_t, cs)))
+    }
+}
+
+fn flatten_args<'a>(Pattern { pos, body }: Pattern<'a>) -> TypeResult<'a, Vec<Ident<'a>>> {
+    match body {
+        PatternBody::PSym(body) => 
+            Ok(vec![Ident { pos, body }]),
+        PatternBody::PSExp(fst, rst) => {
+            let mut args = vec![fst];
+            for Pattern { pos, body } in rst {
+                match body {
+                    PatternBody::PSym(body) => 
+                        args.push(Ident { body, pos }),
+                    PatternBody::PSExp(_, _) => 
+                        return Err(TypeError::new(pos, TypeErrorBody::NotYetImplemented(format!("Data Pattern Matching")))),
+                }
+            }
+            Ok(args)
+        }
     }
 }

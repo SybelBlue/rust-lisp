@@ -2,12 +2,12 @@ pub mod lex;
 pub mod sources;
 
 use crate::{
-    errors::{ParseResult, ParseErrorBody::{*, self}, ParseError}, 
+    errors::{ParseResult, ParseErrorBody::*, ParseError}, 
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
     values::{Value},
     parsing::lex::{Token, TokenBody::*, Keyword::*}, 
-    data::{Kind, Constructor, DataDecl, Pattern, PatternBody}
+    data::{Kind, Constructor, DataDecl, Pattern}
 };
 
 use self::sources::FilePos;
@@ -237,39 +237,14 @@ fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
 }
 
 fn parse_lambda<'a>(head: Token<'a>, body_e: Expr<'a>) -> ParseResult<'a, Value<'a>> {
-    let Pattern { pos, body: head_pat } = parse_pattern(head)?
+    parse_pattern(head)?
         .dedup_idents()
         .map_err(|(s, o, n)| 
             ParseError::new(n, DuplicatePatternName(s, o))
-        )?;
-
-    match head_pat {
-        PatternBody::PSym(body) => 
-            Ok(Value::lam(Ident { pos, body }, body_e)),
-        PatternBody::PSExp(fst, rst) => {
-            let mut args = vec![fst];
-            for Pattern { pos, body } in rst {
-                match body {
-                    PatternBody::PSym(body) => 
-                        args.push(Ident { body, pos }),
-                    PatternBody::PSExp(_, _) => 
-                        return Err(ParseError::new(pos, ParseErrorBody::MisplacedSExp)),
-                }
-            }
-            let last = args.pop().unwrap();
-            Ok(
-                args.into_iter()
-                    .rev()
-                    .fold(
-                        Value::lam(last, body_e),
-                        |acc, p| {
-                            let pos = p.pos.clone();
-                            Value::lam(p, Expr { pos, body: ExprBody::Val(acc) })
-                        }
-                    )
-            )
-        }
-    }
+        )
+        .map(|p|
+            Value::lam(p, body_e)
+        )
 }
 
 fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Pattern<'a>> {
