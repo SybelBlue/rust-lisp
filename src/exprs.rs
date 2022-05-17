@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Formatter, Result, Write}};
 
-use crate::{parsing::sources::{Loc, FilePos}, values::Value};
+use crate::{parsing::sources::Loc, values::Value};
 
 pub type Ident<'a> = Loc<'a, String>;
 
@@ -10,12 +10,6 @@ pub type Expr<'a> = Loc<'a, ExprBody<'a>>;
 pub enum ExprBody<'a> {
     Val(Value<'a>),
     SExp(Vec<Expr<'a>>),
-}
-
-impl<'a> Expr<'a> {
-    pub(crate) fn val(pos: FilePos<'a>, body: Value<'a>) -> Self {
-        Self { pos, body: ExprBody::Val(body) }
-    }
 }
 
 impl<'a> Display for ExprBody<'a> {

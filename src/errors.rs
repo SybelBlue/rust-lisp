@@ -33,7 +33,7 @@ pub enum ParseErrorBody<'a> {
     MisplacedSExp,
     MissingIdentifier,
     BadBinding(String),
-    DuplicateLambdaArg(String),
+    DuplicatePatternName(String, FilePos<'a>),
     InSExp(Box<ParseError<'a>>),
     NotYetImplemented(&'a str),
 }
@@ -46,7 +46,7 @@ impl<'a> Display for ParseErrorBody<'a> {
             Self::MisplacedSExp => write!(f, "MisplacedSExp"),
             Self::MissingIdentifier => write!(f, "MissingBindingIdentifier"),
             Self::BadBinding(w) => write!(f, "BadBinding: {}", w),
-            Self::DuplicateLambdaArg(s) => write!(f, "DuplicateLambdaArg {}", s),
+            Self::DuplicatePatternName(s, fp) => write!(f, "Duplicate Name in Pattern {s}\nfirst def at {fp}\nsecond def at "),
             Self::InSExp(sfp) => write!(f, "{}Inside SExpression", sfp.as_ref()),
             Self::NotYetImplemented(msg) => write!(f, "NotYetImplemented: {}", msg),
         }

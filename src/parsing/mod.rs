@@ -2,17 +2,17 @@ pub mod lex;
 pub mod sources;
 
 use crate::{
-    errors::{ParseResult, ParseErrorBody::*, ParseError}, 
+    errors::{ParseResult, ParseErrorBody::{*, self}, ParseError}, 
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
     values::{Value},
     parsing::lex::{Token, TokenBody::*, Keyword::*}, 
-    data::{Kind, Constructor, DataDecl}
+    data::{Kind, Constructor, DataDecl, Pattern, PatternBody}
 };
 
 use self::sources::FilePos;
 
-fn try_collect<T, E, I: Iterator<Item=Result<T, E>>>(itr: I) -> Result<Vec<T>, E> {
+pub(crate) fn try_collect<T, E, I: Iterator<Item=Result<T, E>>>(itr: I) -> Result<Vec<T>, E> {
     let mut out = Vec::new();
     for t in itr {
         out.push(t?);
@@ -62,6 +62,8 @@ fn parse_stmt<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
         return Ok(Stmt::sexp(pos, body));
     };
 
+    let body = parse_expr(body)?;
+
     match kw {
         Import | Data | Type =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
@@ -92,11 +94,11 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     }
 }
 
-fn parse_backarrow<'a>(head: Token<'a>, arr_pos: FilePos<'a>, body: Token<'a>) -> ParseResult<'a, (Ident<'a>, Expr<'a>)> {
+fn parse_backarrow<'a>(head: Token<'a>, arr_pos: FilePos<'a>, body: Expr<'a>) -> ParseResult<'a, (Ident<'a>, Expr<'a>)> {
     let head_pos = head.pos;
     match head.body {
         Word(name) => 
-            Ok((Ident { pos: arr_pos, body: name }, parse_expr(body)?)),
+            Ok((Ident { pos: arr_pos, body: name }, body)),
         Keyword(kw) => 
             Err(ParseError::new(arr_pos, MisplacedKeyword(kw))),
         Literal(_) => 
@@ -172,7 +174,7 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
 
         let mut ts = ts.into_iter();
         let ( head
-            , Token { pos: arr_pos, body: arr_body }
+            , Token { body: arr_body, .. }
             , body
             ) = (ts.next().unwrap(), ts.next().unwrap(), ts.next().unwrap());
 
@@ -180,7 +182,7 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
             return Err(ParseError::new(pos, MisplacedSExp));
         }
         
-        parse_backarrow(head, arr_pos, body)
+        Ok((parse_pattern(head)?, parse_pattern(body)?))
     }
 
     let ctors = try_collect(ts.map(parse_constructor))?;
@@ -234,52 +236,71 @@ fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
     }
 }
 
-fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> ParseResult<'a, Value<'a>> {
-    let mut found: Vec<Ident<'a>> = Vec::new();
-    match body {
-        Literal(_) => 
-            return Err(ParseError::new(pos, MisplacedLiteral)),
-        Keyword(kw) => 
-            return Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Word(w) => {
-            if found.iter().any(|i| i.body == w) {
-                return Err(ParseError::new(pos, DuplicateLambdaArg(w.clone())));
-            } else {
-                found.push(Ident { body: w, pos: pos.clone() });
-            }
-        }
-        SExp(ts) => {
-            for Token { pos, body } in ts {
+fn parse_lambda<'a>(head: Token<'a>, body_e: Expr<'a>) -> ParseResult<'a, Value<'a>> {
+    let Pattern { pos, body: head_pat } = parse_pattern(head)?
+        .dedup_idents()
+        .map_err(|(s, o, n)| 
+            ParseError::new(n, DuplicatePatternName(s, o))
+        )?;
+
+    match head_pat {
+        PatternBody::PSym(body) => 
+            Ok(Value::lam(Ident { pos, body }, body_e)),
+        PatternBody::PSExp(fst, rst) => {
+            let mut args = vec![fst];
+            for Pattern { pos, body } in rst {
                 match body {
-                    Literal(_) => 
-                        return Err(ParseError::new(pos, MisplacedLiteral)),
-                    Keyword(kw) => 
-                        return Err(ParseError::new(pos, MisplacedKeyword(kw))),
-                    Word(w) => {
-                        if found.iter().any(|i| i.body == w) {
-                            return Err(ParseError::new(pos, DuplicateLambdaArg(w.clone())));
-                        } else {
-                            found.push(Ident { body: w, pos });
-                        }
-                    }
-                    SExp(_) => {
-                        return Err(ParseError::new(pos, MisplacedSExp))
-                    }
+                    PatternBody::PSym(body) => 
+                        args.push(Ident { body, pos }),
+                    PatternBody::PSExp(_, _) => 
+                        return Err(ParseError::new(pos, ParseErrorBody::MisplacedSExp)),
                 }
             }
+            let last = args.pop().unwrap();
+            Ok(
+                args.into_iter()
+                    .rev()
+                    .fold(
+                        Value::lam(last, body_e),
+                        |acc, p| {
+                            let pos = p.pos.clone();
+                            Value::lam(p, Expr { pos, body: ExprBody::Val(acc) })
+                        }
+                    )
+            )
         }
     }
+}
 
-    if let Some(lst) = found.pop() {
-        Ok(
-            found.into_iter().rev().fold(
-                Value::lam(lst, parse_expr(body_tkn)?), 
-                |acc, next| {
-                    Value::lam(next, Expr::val(pos.clone(), acc))
-                })
-        )
-    } else {
-        Err(ParseError::new(pos, MisplacedSExp))
+fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Pattern<'a>> {
+    use crate::data::PatternBody::*;
+    match body {
+        Literal(_) =>
+            Err(ParseError::new(pos, MisplacedLiteral)),
+        Keyword(kw) => 
+            Err(ParseError::new(pos, MisplacedKeyword(kw))),
+        Word(w) =>
+            Ok(Pattern { pos, body: PSym(w) }),
+        SExp(ts) => {
+            let mut ts = ts.into_iter();
+            if let Some(fst) = ts.next() {
+                match fst.body {
+                    Literal(_) =>
+                        Err(ParseError::new(fst.pos, MisplacedLiteral)),
+                    Keyword(kw) => 
+                        Err(ParseError::new(fst.pos, MisplacedKeyword(kw))),
+                    SExp(_) =>
+                        Err(ParseError::new(fst.pos, MisplacedSExp)),
+                    Word(body) =>
+                        Ok(Pattern { pos, body: PSExp(
+                            Ident { pos: fst.pos, body },
+                            try_collect(ts.map(parse_pattern))?
+                        ) })
+                }
+            } else {
+                Err(ParseError::new(pos, MisplacedLiteral))
+            }
+        }
     }
 }
 

@@ -173,19 +173,15 @@ impl<'a> InferContext<'a> {
             Stmt::Data(DataDecl { name, kind, ctors }) => {
                 let (mut slf, ()) = self.insert_type(name, kind.clone())?;
                 for (cname, e) in ctors {
-                    let (mut new, t) = slf.read_type(e)?;
-                    let sc = new.close_over(t);
-                    let (new, ()) = new.insert_var(cname, sc, false)?;
-                    slf = new;
+                    // let (mut new, t) = slf.read_type(e)?;
+                    // let sc = new.close_over(t);
+                    // let (new, ()) = new.insert_var(cname, sc, false)?;
+                    // slf = new;
                 }
                 println!("{:?}", &slf.ctxt);
                 Ok((slf, Scheme::concrete(Type::unit())))
             }
         }
-    }
-
-    fn read_type(self, e: &'a Expr<'a>) -> Infer<'a, Type> {
-        todo!("read type")
     }
     
     fn infer_expr(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
