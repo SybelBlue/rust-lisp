@@ -10,6 +10,7 @@ pub mod repl;
 #[cfg(test)]
 mod tests {
     mod types {
+        use crate::data::Kind;
         use crate::typing::contexts::Context;
         use crate::{typing::*, parsing::sources::Source};
         use crate::typing::{scheme::Scheme, Type::*};
@@ -223,6 +224,37 @@ mod tests {
                 type_test_all_with("(test_argname_mask z)", ctxt, true);
             assert_eq!(ts, vec![]);
             assert_eq!(ctxt.get_varnames().count(), n + 2);
+        }
+
+        #[test]
+        fn basic_datatypes() {
+            let ctxt = Context::new();
+            let (ctxt, ts) =
+                type_test_all_with("
+                (data Bool Type 
+                    (T <- Bool) 
+                    (F <- Bool)
+                    )", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            let bool = || Type::simple("Bool");
+            assert_eq!(Some(&Kind::Type(bool())), ctxt.get_type(&format!("Bool")));
+            assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&format!("T")));
+            assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&format!("F")));
+
+            let ctxt = Context::new();
+            let (ctxt, ts) =
+                type_test_all_with("
+                (data Prim Type 
+                    ((PUnit Unit) <- Prim)
+                    ((PNat  Nat)  <- Prim) 
+                    ((PChar Char) <- Prim)
+                )", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            let prim = || Type::simple("Prim");
+            assert_eq!(Some(&Kind::Type(prim())), ctxt.get_type(&format!("Prim")));
+            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::unit(), prim()))), ctxt.get_var(&format!("PUnit")));
+            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::nat(), prim()))), ctxt.get_var(&format!("PNat")));
+            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::char(), prim()))), ctxt.get_var(&format!("PChar")));
         }
     }
 

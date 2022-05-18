@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
 
-use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::Type, data::Kind};
+use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, typing::Type, data::Kind};
 
 
 pub type LexError<'a> = Loc<'a, LexErrorBody<'a>>;
@@ -58,9 +58,11 @@ pub type TypeError<'a> = Loc<'a, TypeErrorBody<'a>>;
 #[derive(Debug, Clone)]
 pub enum TypeErrorBody<'a> {
     DataInConstructor,
-    TooManyArgs(&'a Expr<'a>),
+    TooManyArgs,
     TypeMismatch { got: Type, expected: Type },
-    ExpectedTypeGotKind { name: String, kind: Kind },
+    KindMismatch { got: Kind<Type>, expected: Kind<()> },
+    ExpectedTypeGotKind { kind: Kind<Type> },
+    DisparateConstructor(String),
     InfiniteType(Type, Type),
     UndefinedSymbol(&'a String),
     NotYetImplemented(String),
@@ -74,9 +76,11 @@ impl<'a> Display for TypeErrorBody<'a> {
                 f.write_str("Data in Type Constructor Declaration"),
             Self::NotYetImplemented(msg) =>
                 write!(f, "Not Yet Implemented: '{}'", msg),
-            Self::TooManyArgs(e) =>
-                write!(f, "Too Many Arguments: {}", e),
+            Self::TooManyArgs =>
+                write!(f, "Too Many Arguments"),
             Self::TypeMismatch { got, expected } => 
+                write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
+            Self::KindMismatch { got, expected } => 
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
             Self::UndefinedSymbol(s) => 
                 write!(f, "Undefined Symbol: {}", s),
@@ -99,8 +103,10 @@ impl<'a> Display for TypeErrorBody<'a> {
                     Ok(())
                 }
             }
-            TypeErrorBody::ExpectedTypeGotKind { name, kind } => 
-                write!(f, "Expected a Type, got {name} :: {kind}"),
+            Self::DisparateConstructor(nm) =>
+                write!(f, "Constructor must return it's own datatype, not {nm}"),
+            Self::ExpectedTypeGotKind { kind } => 
+                write!(f, "Expected a Type, got {kind}"),
         }
     }
 }

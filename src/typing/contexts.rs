@@ -9,7 +9,7 @@ type QualifiedIdentifier = String;
 
 
 #[derive(Debug, Clone)]
-struct SimpleContext<T> {
+pub(crate) struct SimpleContext<T> {
     bound: HashMap<QualifiedIdentifier, T>, 
     aliased: HashMap<Identifier, QualifiedIdentifier>,
 }
@@ -66,13 +66,13 @@ impl SimpleContext<Scheme> {
     }
 }
 
-impl SimpleContext<Kind> {
+impl SimpleContext<Kind<Type>> {
     fn new_kind_ctxt() -> Self {
         let mut out = Self::blank();
 
-        out.add_prelude("Unit", Kind::Type);
-        out.add_prelude("Nat",  Kind::Type);
-        out.add_prelude("Char", Kind::Type);
+        out.add_prelude("Unit", Kind::Type(Type::simple("Unit")));
+        out.add_prelude("Nat",  Kind::Type(Type::simple("Nat")));
+        out.add_prelude("Char", Kind::Type(Type::simple("Char")));
 
         out
     }
@@ -80,8 +80,8 @@ impl SimpleContext<Kind> {
 
 #[derive(Debug, Clone)]
 pub struct Context {
-    vars: SimpleContext<Scheme>,
-    types: SimpleContext<Kind>,
+    pub(crate) vars: SimpleContext<Scheme>,
+    pub(crate) types: SimpleContext<Kind<Type>>,
 }
 
 impl Context {
@@ -101,11 +101,11 @@ impl Context {
         self.types.extend(other.types);
     }
 
-    pub(crate) fn insert_type(&mut self, k: String, v: Kind) {
+    pub(crate) fn insert_type(&mut self, k: String, v: Kind<Type>) {
         self.types.insert(k, v);
     }
 
-    pub(crate) fn get_type(&self, k: &String) -> Option<&Kind> {
+    pub(crate) fn get_type(&self, k: &String) -> Option<&Kind<Type>> {
         self.types.get(k)
     }
 
@@ -113,11 +113,11 @@ impl Context {
     //     self.types.contains_key(k)
     // }
 
-    // pub(crate) fn get_typekinds(&self) -> Values<String, Kind> {
+    // pub(crate) fn get_typekinds(&self) -> Values<String, Kind<Type>> {
     //     self.types.values()
     // }
 
-    // pub(crate) fn get_typenames(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Kind>> {
+    // pub(crate) fn get_typenames(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Kind<Type>>> {
     //     self.types.keys()
     // }
 

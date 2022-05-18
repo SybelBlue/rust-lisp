@@ -6,7 +6,7 @@ use crate::{
     values::Value, 
     parsing::sources::FilePos,
     stmts::Stmt,
-    data::{DataDecl, Kind, Pattern, PatternBody},
+    data::{DataDecl, Kind, Pattern, PatternBody, PartialKind},
 };
 
 use super::{
@@ -94,26 +94,8 @@ impl<'a> InferContext<'a> {
         }
     }
 
-    fn lookup_type(mut self, key: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
-        if let Some(kind) = self.ctxt.get_type(key).or_else(|| self.root.get_type(key)) {
-            if kind == &Kind::Type {
-                Ok((self, Type::Data(key.clone(), Vec::with_capacity(0))))
-            } else {
-                let kind = kind.clone();
-                self.err(pos.clone(), ExpectedTypeGotKind { kind, name: key.clone() })
-            }
-        } else {
-            let tv = self.fresh();
-            Ok((self, tv))
-        }
-    }
-
-    fn lookup_kind(self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Kind> {
-        if let Some(k) = self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned() {
-            Ok((self, k))
-        } else {
-            self.err(pos.clone(), UndefinedSymbol(k))
-        }
+    fn lookup_kind(&'a self, k: &'a String) -> Option<Kind<Type>> {
+        self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned()
     }
 
     fn insert_var(mut self, Ident { body: k, pos }: &Ident<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
@@ -127,11 +109,11 @@ impl<'a> InferContext<'a> {
         Ok((self, ()))
     }
 
-    fn insert_type(mut self, Ident { body: k, pos }: &Ident<'a>, v: Kind) -> Infer<'a, ()> {
+    fn insert_kind(mut self, Ident { body: k, pos }: Ident<'a>, v: Kind<Type>) -> Infer<'a, ()> {
         if let Some(v) = self.type_env.insert(k.clone(), pos.clone()) {
-            self.err(pos.clone(), DuplicateNameAt(k.clone(), Some(v)))
+            self.err(pos.clone(), DuplicateNameAt(k, Some(v)))
         } else {
-            self.ctxt.insert_type(k.clone(), v);
+            self.ctxt.insert_type(k, v);
             Ok((self, ()))
         }
     }
@@ -155,23 +137,22 @@ impl<'a> InferContext<'a> {
             where 
                 F: FnOnce(Self) -> Infer<'a, T>,
                 C: Fn(Type, T) -> T {
-        let tv = self.fresh();
-        let sc = Scheme::concrete(tv.clone());
-        let ident = idents.pop_front().unwrap();
-        let (new, prev) = 
-            self.locally(
-                ident, 
-                sc,
-                |slf| {
-                    if idents.is_empty() {
-                        f(slf)
-                    } else {
-                        slf.locally_with(idents, f, c)
-                    }
-                }
-            )?;
-        Ok((new, c(tv, prev)))
+        if idents.is_empty() {
+            f(self)
+        } else {
+            let tv = self.fresh();
+            let sc = Scheme::concrete(tv.clone());
+            let ident = idents.pop_front().unwrap();
+            let (new, prev) = 
+                self.locally(
+                    ident, 
+                    sc,
+                    |slf| slf.locally_with(idents, f, c)
+                )?;
+            Ok((new, c(tv, prev)))
+        }
     }
+
     fn locally<T, F>(mut self, ident: Ident<'a>, sc: Scheme, f: F) -> Infer<'a, T>
             where F: FnOnce(Self) -> Infer<'a, T> {
         let slf = self.clone();
@@ -192,19 +173,102 @@ impl<'a> InferContext<'a> {
                 Ok((new, sc))
             }
             Stmt::Data(DataDecl { name, kind, ctors }) => {
-                let (mut slf, ()) = self.insert_type(name, kind.clone())?;
-                for (cname, e) in ctors {
-                    // let (mut new, t) = slf.read_type(e)?;
-                    // let sc = new.close_over(t);
-                    // let (new, ()) = new.insert_var(cname, sc, false)?;
-                    // slf = new;
+                let defed = match kind {
+                    Kind::Type(()) =>
+                        Kind::Type(Type::simple(&name.body)),
+                    Kind::KFun(p, r) =>
+                        Kind::KFun(p.clone(), r.clone()),
+                };
+                let (mut slf, ()) = self.insert_kind(name.clone(), defed)?;
+                let prev_type_ctxt = slf.ctxt.types.clone();
+                for (ctor, out) in ctors {
+                    println!("{:?}", &slf.ctxt);
+                    let (new, ret_type) = 
+                        slf.define_kind(Kind::Type(()), out)?;
+                    slf = new;
+                    let mut ret_type = ret_type.as_type();
+                    let (ctor_pos, ctor_name, type_args) = 
+                        ctor.split_first();
+                    if let Some(args) = type_args {
+                        for arg_pat in args.into_iter().rev() {
+                            let (new, arg_type) = 
+                                slf.define_kind(Kind::Type(()), arg_pat)?;
+                            slf = new;
+                            ret_type = Type::fun(arg_type.as_type(), ret_type);
+                        }
+                    }
+
+                    let (new, ()) = slf.insert_var(
+                        &Ident { body: ctor_name.clone(), pos: ctor_pos.clone() },
+                        Scheme::concrete(ret_type),
+                        false
+                    )?;
+                    slf = new;
                 }
                 println!("{:?}", &slf.ctxt);
+                slf.ctxt.types = prev_type_ctxt;
                 Ok((slf, Scheme::concrete(Type::unit())))
             }
         }
     }
-    
+
+    fn define_kind(mut self, mut target_kind: Kind<()>, p: &'a Pattern<'a>) -> Infer<'a, PartialKind<'a>> {
+        let (pos, fst, op_rst) = p.split_first();
+        let (mut slf, kind) = 
+            if let Some(k) = self.lookup_kind(fst) {
+                (self, k)
+            } else {
+                let t = if target_kind == Kind::Type(()) {
+                    if op_rst.is_none() {
+                        self.fresh()
+                    } else {
+                        return self.err(pos.clone(), TooManyArgs);
+                    }
+                } else {
+                    Type::Data(fst.clone(), Vec::new())
+                };
+                let sc = Scheme::concrete(t.clone());
+                let fst_ident = Ident { body: fst.clone(), pos: pos.clone() };
+                let (slf, ()) = self.insert_var(&fst_ident, sc, false)?;
+                return Ok((slf, PartialKind::Finished(t)));
+            };
+        let mut ks = Vec::new();
+        if let Some(rst) = op_rst {
+            let mut acc = if target_kind == Kind::Type(()) { None } else { Some(target_kind) };
+            for r in rst {
+                let (new, t) = match acc {
+                    None =>
+                        return slf.err(r.pos.clone(), TooManyArgs),
+                    Some(Kind::KFun(k, nxt)) => {
+                        acc = Some(*nxt);
+                        slf.define_kind(*k, r)?
+                    }
+                    Some(Kind::Type(())) => {
+                        acc = None;
+                        slf.define_kind(Kind::Type(()), r)?
+                    }
+                };
+                ks.push(t);
+                slf = new;
+            }
+            target_kind = acc.unwrap_or(Kind::Type(()));
+        }
+
+        if target_kind.matches(&kind) {
+            if target_kind == Kind::Type(()) {
+                if let Kind::Type(t) = kind {
+                    Ok((slf, PartialKind::Finished(t)))
+                } else {
+                    slf.err(pos.clone(), ExpectedTypeGotKind { kind })
+                }
+            } else {
+                Ok((slf, PartialKind::Partial(fst, ks, target_kind)))
+            }
+        } else {
+            slf.err(pos.clone(), KindMismatch { got: kind, expected: target_kind })
+        }
+    }
+
     fn infer_expr(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
         let (mut slf, (t, cs)) = self.constraints(e)?;
         match solve(cs) {
@@ -293,7 +357,7 @@ fn flatten_args<'a>(Pattern { pos, body }: Pattern<'a>) -> TypeResult<'a, Vec<Id
                     PatternBody::PSym(body) => 
                         args.push(Ident { body, pos }),
                     PatternBody::PSExp(_, _) => 
-                        return Err(TypeError::new(pos, TypeErrorBody::NotYetImplemented(format!("Data Pattern Matching")))),
+                        return Err(TypeError::new(pos, NotYetImplemented(format!("Data Pattern Matching")))),
                 }
             }
             Ok(args)

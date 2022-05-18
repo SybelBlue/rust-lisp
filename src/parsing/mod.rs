@@ -194,10 +194,10 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
     }))
 }
 
-fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
+fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind<()>> {
     match body {
         Keyword(Type) =>
-            Ok(Kind::Type),
+            Ok(Kind::Type(())),
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Literal(_) => 
