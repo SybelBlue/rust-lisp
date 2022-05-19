@@ -7,7 +7,7 @@ use crate::{
     stmts::Stmt,
     values::Value,
     parsing::lex::{Token, TokenBody::*, Keyword::*}, 
-    data::{Kind, Constructor, DataDecl, Pattern}
+    data::{Kind, Constructor, DataDecl, Data}
 };
 
 use self::sources::FilePos;
@@ -247,15 +247,15 @@ fn parse_lambda<'a>(head: Token<'a>, body_e: Expr<'a>) -> ParseResult<'a, Value<
         )
 }
 
-fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Pattern<'a>> {
-    use crate::data::PatternBody::*;
+fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Data<'a>> {
+    use crate::data::DataBody::*;
     match body {
         Literal(_) =>
             Err(ParseError::new(pos, MisplacedLiteral)),
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Word(w) =>
-            Ok(Pattern { pos, body: PSym(w) }),
+            Ok(Data { pos, body: PSym(w) }),
         SExp(ts) => {
             let mut ts = ts.into_iter();
             if let Some(fst) = ts.next() {
@@ -263,7 +263,7 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Pattern<
                     Literal(_) =>
                         Err(ParseError::new(fst.pos, MisplacedLiteral)),
                     Keyword(Arrow) => 
-                        Ok(Pattern { pos, body: PSExp(
+                        Ok(Data { pos, body: PSExp(
                             Ident { pos: fst.pos, body: format!("{}", Arrow) },
                             try_collect(ts.map(parse_pattern))?
                         ) }),
@@ -272,7 +272,7 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Pattern<
                     SExp(_) =>
                         Err(ParseError::new(fst.pos, MisplacedSExp)),
                     Word(body) =>
-                        Ok(Pattern { pos, body: PSExp(
+                        Ok(Data { pos, body: PSExp(
                             Ident { pos: fst.pos, body },
                             try_collect(ts.map(parse_pattern))?
                         ) })

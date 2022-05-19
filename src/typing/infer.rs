@@ -6,7 +6,7 @@ use crate::{
     values::Value, 
     parsing::sources::FilePos,
     stmts::Stmt,
-    data::{DataDecl, Kind, Pattern, PatternBody, PartialKind},
+    data::{DataDecl, Kind, Data, DataBody, PartialKind},
 };
 
 use super::{
@@ -255,17 +255,17 @@ impl<'a> InferContext<'a> {
     }
 }
 
-fn flatten_args<'a>(Pattern { pos, body }: Pattern<'a>) -> TypeResult<'a, Vec<Ident<'a>>> {
+fn flatten_args<'a>(Data { pos, body }: Data<'a>) -> TypeResult<'a, Vec<Ident<'a>>> {
     match body {
-        PatternBody::PSym(body) => 
+        DataBody::PSym(body) => 
             Ok(vec![Ident { pos, body }]),
-        PatternBody::PSExp(fst, rst) => {
+        DataBody::PSExp(fst, rst) => {
             let mut args = vec![fst];
-            for Pattern { pos, body } in rst {
+            for Data { pos, body } in rst {
                 match body {
-                    PatternBody::PSym(body) => 
+                    DataBody::PSym(body) => 
                         args.push(Ident { body, pos }),
-                    PatternBody::PSExp(_, _) => 
+                    DataBody::PSExp(_, _) => 
                         return Err(TypeError::new(pos, NotYetImplemented(format!("Data Pattern Matching")))),
                 }
             }

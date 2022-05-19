@@ -2,21 +2,21 @@ use std::{fmt::{Display, Formatter, Write, Debug}, collections::HashMap};
 
 use crate::{exprs::Ident, parsing::{sources::{Loc, FilePos}, try_collect}, typing::Type};
 
-pub type Pattern<'a> = Loc<'a, PatternBody<'a>>;
+pub type Data<'a> = Loc<'a, DataBody<'a>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PatternBody<'a> {
+pub enum DataBody<'a> {
     PSym(String),
-    PSExp(Ident<'a>, Vec<Pattern<'a>>),
+    PSExp(Ident<'a>, Vec<Data<'a>>),
 }
 
-impl<'a> Pattern<'a> {
+impl<'a> Data<'a> {
     pub(crate) fn dedup_idents(self) -> Result<Self, (String, FilePos<'a>, FilePos<'a>)> {
         self.dedup_(&mut HashMap::new())
     }
 
-    pub(crate) fn split_first(&'a self) -> (&'a FilePos<'a>, &'a String, Option<&'a Vec<Pattern<'a>>>) {
-        use PatternBody::*;
+    pub(crate) fn split_first(&'a self) -> (&'a FilePos<'a>, &'a String, Option<&'a Vec<Data<'a>>>) {
+        use DataBody::*;
         match &self.body {
             PSym(w) => 
                 (&self.pos, w, None),
@@ -27,20 +27,20 @@ impl<'a> Pattern<'a> {
 
     fn dedup_(self, used: &mut HashMap<String, FilePos<'a>>) -> Result<Self, (String, FilePos<'a>, FilePos<'a>)> {
         match self.body {
-            PatternBody::PSym(w) => {
+            DataBody::PSym(w) => {
                 if let Some(old) = used.insert(w.clone(), self.pos.clone()) {
                     Err((w, old.clone(), self.pos))
                 } else {
-                    Ok(Self{ pos: self.pos, body: PatternBody::PSym(w) })
+                    Ok(Self{ pos: self.pos, body: DataBody::PSym(w) })
                 }
             }
-            PatternBody::PSExp(fst, s) => {
+            DataBody::PSExp(fst, s) => {
                 if let Some(old) = used.get(&fst.body) {
                     Err((fst.body, old.clone(), self.pos))
                 } else {
                     Ok(Self {
                         pos: self.pos,
-                        body: PatternBody::PSExp(
+                        body: DataBody::PSExp(
                             fst,
                             try_collect(s.into_iter().map(|p| p.dedup_(used)))?
                         )
@@ -51,7 +51,7 @@ impl<'a> Pattern<'a> {
     }
 }
 
-impl<'a> Display for PatternBody<'a> {
+impl<'a> Display for DataBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::PSym(s) => 
@@ -67,7 +67,7 @@ impl<'a> Display for PatternBody<'a> {
     }
 }
 
-pub(crate) type Constructor<'a> = (Pattern<'a>, Pattern<'a>);
+pub(crate) type Constructor<'a> = (Data<'a>, Data<'a>);
 
 #[derive(Debug, Clone)]
 pub struct DataDecl<'a> {

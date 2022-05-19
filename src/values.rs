@@ -1,15 +1,15 @@
-use crate::{exprs::Expr, data::Pattern};
+use crate::{exprs::Expr, data::Data};
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
     Nat(usize),
     Sym(String),
     Char(char),
-    Lam(Pattern<'a>, Box<Expr<'a>>),
+    Lam(Data<'a>, Box<Expr<'a>>),
 }
 
 impl<'a> Value<'a> {
-    pub fn lam(p: Pattern<'a>, r: Expr<'a>) -> Self {
+    pub fn lam(p: Data<'a>, r: Expr<'a>) -> Self {
         Self::Lam(p, Box::new(r))
     }
 }
