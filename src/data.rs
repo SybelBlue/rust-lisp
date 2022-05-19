@@ -95,6 +95,29 @@ impl<T> Kind<T> {
                 Kind::kfun(p.reduce(), r.reduce()),
         }
     }
+
+    pub(crate) fn insert<R>(&self, r: R) -> Kind<R> {
+        match self {
+            Kind::Type(_) =>
+                Kind::Type(r),
+            Kind::KFun(p, r) =>
+                Kind::KFun(p.clone(), r.clone()),
+        }
+    }
+
+    pub(crate) fn nkfun(n: usize) -> Self {
+        if n < 2 {
+            Kind::kfun(Kind::Type(()), Kind::Type(()))
+        } else {
+            let mut n = n - 1;
+            let mut curr = Kind::kfun(Kind::Type(()), Kind::Type(()));
+            while n > 1 {
+                curr = Kind::kfun(Kind::Type(()), curr);
+                n -= 1;
+            }
+            Self::kfun(Kind::Type(()), curr)
+        }
+    }
 }
 
 impl Kind<()> {

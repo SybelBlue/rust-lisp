@@ -5,7 +5,7 @@ use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError}, 
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
-    values::{Value},
+    values::Value,
     parsing::lex::{Token, TokenBody::*, Keyword::*}, 
     data::{Kind, Constructor, DataDecl, Pattern}
 };
@@ -262,6 +262,11 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Pattern<
                 match fst.body {
                     Literal(_) =>
                         Err(ParseError::new(fst.pos, MisplacedLiteral)),
+                    Keyword(Arrow) => 
+                        Ok(Pattern { pos, body: PSExp(
+                            Ident { pos: fst.pos, body: format!("{}", Arrow) },
+                            try_collect(ts.map(parse_pattern))?
+                        ) }),
                     Keyword(kw) => 
                         Err(ParseError::new(fst.pos, MisplacedKeyword(kw))),
                     SExp(_) =>
