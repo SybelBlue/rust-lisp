@@ -87,7 +87,7 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
             match parse_stmt(Token { pos, body })? {
                 Stmt::Expr(e) => Ok(e),
                 Stmt::Bind(Ident { pos, body }, _) |
-                    Stmt::Data(DataDecl { name: Ident { pos, body }, .. })=>
+                    Stmt::Decl(DataDecl { name: Ident { pos, body }, .. })=>
                         Err(ParseError::new(pos, BadBinding(body)))
             }
         }
@@ -187,7 +187,7 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
 
     let ctors = try_collect(ts.map(parse_constructor))?;
 
-    Ok(Stmt::Data(DataDecl {
+    Ok(Stmt::Decl(DataDecl {
         name: Ident { pos: n_pos, body: name },
         kind,
         ctors,

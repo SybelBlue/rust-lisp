@@ -172,7 +172,7 @@ impl<'a> InferContext<'a> {
                 let (new, ()) = new.insert_var(ident.body.clone(), ident.pos.clone(), sc.clone(), false)?;
                 Ok((new, sc))
             }
-            Stmt::Data(DataDecl { name, kind, ctors }) => {
+            Stmt::Decl(DataDecl { name, kind, ctors }) => {
                 todo!()
             }
         }

@@ -6,7 +6,7 @@ use crate::{parsing::sources::FilePos, exprs::{Expr, Ident, ExprBody}, values::V
 pub enum Stmt<'a> {
     Expr(Expr<'a>),
     Bind(Ident<'a>, Expr<'a>),
-    Data(DataDecl<'a>),
+    Decl(DataDecl<'a>),
 }
 
 impl<'a> Stmt<'a> {
@@ -26,7 +26,7 @@ impl<'a> Display for Stmt<'a> {
                 e.body.fmt(f),
             Self::Bind(lstr, _) => 
                 f.write_str(&lstr.body),
-            Self::Data(decl) => 
+            Self::Decl(decl) => 
                 f.write_str(&decl.name.body),
         }
     }
