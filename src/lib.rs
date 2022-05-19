@@ -29,7 +29,7 @@ mod tests {
             let src = Source::Anon(s);
             let ref mut buf = String::new();
             let ts = src.lex(buf).unwrap();
-            let ss = crate::parsing::parse(ts).unwrap();
+            let ss = crate::parsing::parse(ts).map_err(|e| println!("{e}")).unwrap();
             let (ctxt, res) = infer(ctxt, &ss);
             match res {
                 Err(e) =>
@@ -229,6 +229,12 @@ mod tests {
         #[test]
         fn basic_datatypes() {
             let ctxt = Context::new();
+
+            let (ctxt, ts) =
+                type_test_all_with("(data Void Type)", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            assert_eq!(Some(&Kind::Type(Type::simple("Void"))), ctxt.get_type(&format!("Void")));
+
             let (ctxt, ts) =
                 type_test_all_with("
                 (data Bool Type 
@@ -255,6 +261,85 @@ mod tests {
             assert_eq!(Some(&Scheme::concrete(Type::fun(Type::unit(), prim()))), ctxt.get_var(&format!("PUnit")));
             assert_eq!(Some(&Scheme::concrete(Type::fun(Type::nat(), prim()))), ctxt.get_var(&format!("PNat")));
             assert_eq!(Some(&Scheme::concrete(Type::fun(Type::char(), prim()))), ctxt.get_var(&format!("PChar")));
+        }
+
+        #[test]
+        fn parapoly_datatypes() {
+            let ctxt = Context::new();
+            let (ctxt, ts) =
+                type_test_all_with("
+                (data Box (-> Type Type)
+                    ((B x) <- (Box x))
+                    )", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            let bx = || Type::Data(String::from("Box"), vec![Type::Var(0)]);
+            assert_eq!(
+                Some(&Kind::kfun(Kind::Type(()), Kind::Type(()))), 
+                ctxt.get_type(&format!("Box"))
+            );
+            assert_eq!(
+                Some(&Scheme { forall: vec![0], tipe: Type::fun(Type::Var(0), bx()) }), 
+                ctxt.get_var(&format!("B"))
+            );
+
+            let (ctxt, ts) =
+                type_test_all_with("
+                (data List (-> Type Type)
+                    (Nil <- (List a))
+                    ((Cons a (List a)) <- (List a))
+                    )", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            let list = || Type::Data(String::from("List"), vec![Type::Var(0)]);
+            assert_eq!(
+                Some(&Kind::kfun(Kind::Type(()), Kind::Type(()))), 
+                ctxt.get_type(&format!("List"))
+            );
+            assert_eq!(
+                Some(&Scheme { forall: vec![0], tipe: list() }), 
+                ctxt.get_var(&format!("Nil"))
+            );
+            assert_eq!(
+                Some(&Scheme { forall: vec![0], tipe: Type::fun(Type::Var(0), Type::fun(list(), list())) }), 
+                ctxt.get_var(&format!("Cons"))
+            );
+
+            let (ctxt, ts) =
+                type_test_all_with("
+                (data , (-> Type Type Type)
+                    ((, a b) <- (, a b))
+                    )", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            let tup = || Type::Data(String::from(","), vec![Type::Var(0), Type::Var(1)]);
+            assert_eq!(
+                Some(&Kind::kfun(Kind::Type(()), Kind::kfun(Kind::Type(()), Kind::Type(())))), 
+                ctxt.get_type(&format!(","))
+            );
+            let find = ctxt.get_var(&format!(",")).unwrap().clone();
+            assert_type_eq(
+                Type::fun(Type::Var(0), Type::fun(Type::Var(1), tup())), 
+                find.tipe
+            );
+            assert_eq!(find.forall.len(), 2);
+            
+
+            let (ctxt, ts) =
+                type_test_all_with("
+                (data StateT (-> (-> Type Type) Type Type Type)
+                    ((StateT (-> s (, s (m a))))
+                        <- (StateT m a s)))", ctxt, false);
+            assert_eq!(ts, vec![Type::unit()]);
+            let state_t = || Type::Data(
+                String::from("StateT"), 
+                vec![Type::fun(Type::Var(0), Type::Var(1)), Type::Var(2), Type::Var(3)]
+            );
+            assert_eq!(
+                Some(&Kind::kfun(Kind::Type(()), Kind::Type(()))), 
+                ctxt.get_type(&format!("StateT"))
+            );
+            assert_eq!(
+                Some(&Scheme { forall: vec![0], tipe: Type::fun(Type::Var(0), state_t()) }), 
+                ctxt.get_var(&format!("B"))
+            );
         }
     }
 
