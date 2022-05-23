@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{collections::{HashMap, HashSet, VecDeque}, slice::Iter};
 
 use crate::{
     exprs::{Expr, Ident, ExprBody}, 
@@ -6,7 +6,7 @@ use crate::{
     values::Value, 
     parsing::sources::FilePos,
     stmts::Stmt,
-    data::{DataDecl, Kind, Data, DataBody, PartialKind},
+    data::{Kind, Data, DataBody},
 };
 
 use super::{
@@ -94,7 +94,7 @@ impl<'a> InferContext<'a> {
         }
     }
 
-    fn lookup_kind(&'a self, k: &'a String) -> Option<Kind<Type>> {
+    fn lookup_kind(&'a self, k: &'a String) -> Option<Kind> {
         self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned()
     }
 
@@ -109,7 +109,7 @@ impl<'a> InferContext<'a> {
         Ok((self, ()))
     }
 
-    fn insert_kind(mut self, Ident { body: k, pos }: Ident<'a>, v: Kind<Type>) -> Infer<'a, ()> {
+    fn insert_kind(mut self, Ident { body: k, pos }: Ident<'a>, v: Kind) -> Infer<'a, ()> {
         if let Some(v) = self.type_env.insert(k.clone(), pos.clone()) {
             self.err(pos.clone(), DuplicateNameAt(k, Some(v)))
         } else {
@@ -172,8 +172,81 @@ impl<'a> InferContext<'a> {
                 let (new, ()) = new.insert_var(ident.body.clone(), ident.pos.clone(), sc.clone(), false)?;
                 Ok((new, sc))
             }
-            Stmt::Decl(DataDecl { name, kind, ctors }) => {
-                todo!()
+            Stmt::Decl(decl) => {
+                let (mut slf, ()) = self.insert_kind(decl.name.clone(), decl.kind.clone())?;
+                println!("{:?}", slf.ctxt.types);
+                for (cbody, cout) in &decl.ctors {
+                    let mut type_vars = HashMap::new();
+                    let (new, mut ret_type) = 
+                        slf.define_kind(cout, Kind::Type, &mut type_vars)?;
+                    slf = new;
+                    let (nm_pos, nm, op_rst) = cbody.split_first();
+                    if let Some(rst) = op_rst {
+                        for arg in rst.into_iter().rev() {
+                            let (new, arg_type) = 
+                                slf.define_kind(arg, Kind::Type, &mut type_vars)?;
+                            slf = new;
+                            ret_type = Type::fun(arg_type, ret_type);
+                            println!("\targs {type_vars:?}");
+                        }
+                    }
+                    let sc = slf.close_over(ret_type);
+                    let (new, ()) = slf.insert_var(nm.clone(), nm_pos.clone(), sc, false)?;
+                    slf = new;
+                    println!("{:?}", slf.ctxt.types);
+                }
+                println!("final {:?}", slf.ctxt.types);
+                Ok((slf, Scheme::concrete(Type::unit())))
+            }
+        }
+    }
+
+    fn define_kind(mut self, data: &'a Data<'a>, pat: Kind, type_vars: &mut HashMap<String, Type>) -> Infer<'a, Type> {
+        let (fst_pos, fst, op_rst) = data.split_first();
+        let (mut slf, mut kind, var_fst) = if let Some(k) = self.lookup_kind(fst) {
+            (self, k, type_vars.contains_key(fst))
+        } else if fst.as_bytes() == b"->" {
+            (self,
+                if let Some(rst) = &op_rst {
+                    rst.iter().fold(Kind::Type, |k, _| Kind::kfun(Kind::Type, k))
+                } else {
+                    Kind::kfun(Kind::Type, Kind::Type)
+                }
+                , false)
+        } else if op_rst.is_some() {
+            return self.err(fst_pos.clone(), UndefinedSymbol(fst));
+        } else {
+            let nm = Ident { pos: fst_pos.clone(), body: fst.clone() };
+            if pat == Kind::Type {
+                type_vars.entry(fst.clone())
+                    .or_insert_with(|| self.fresh());
+                (self, pat, true)
+            } else {
+                let (slf, ()) = self.insert_kind(nm, pat.clone())?;
+                (slf, pat, false)
+            }
+        };
+        
+        if let Some(rst) = op_rst {
+            let mut ts = Vec::new();
+            for data in rst {
+                match kind {
+                    Kind::Type =>
+                        return slf.err(fst_pos.clone(), TooManyArgs),
+                    Kind::KFun(pk, rk) => {
+                        let (new, t) = slf.define_kind(data, pk.as_ref().clone(), type_vars)?;
+                        slf = new;
+                        kind = *rk;
+                        ts.push(t);
+                    }
+                }
+            }
+            Ok((slf, Type::Data(fst.clone(), ts)))
+        } else {
+            if var_fst {
+                Ok((slf, type_vars.get(fst).cloned().unwrap()))
+            } else {
+                Ok((slf, Type::Data(fst.clone(), Vec::with_capacity(0))))
             }
         }
     }
@@ -186,7 +259,7 @@ impl<'a> InferContext<'a> {
                 Ok((slf, sc))
             }
             Err(x) =>
-                Err((slf.root, x))
+                slf.err(x.pos, x.body),
         }
     }
 
@@ -194,8 +267,14 @@ impl<'a> InferContext<'a> {
         match body {
             ExprBody::Val(v) => 
                 self.value_constraints(pos, v),
-            ExprBody::SExp(es) => 
-                self.sexp_constraints(es),
+            ExprBody::SExp(es) => {
+                let mut es = es.into_iter();
+                if let Some(fst) = es.next() {
+                    self.sexp_constraints(fst, es)
+                } else {
+                    Ok((self, null(Type::unit())))
+                }
+            }
         }
     }
 
@@ -224,24 +303,17 @@ impl<'a> InferContext<'a> {
         }
     }
     
-    fn sexp_constraints(self, es: &'a Vec<Expr<'a>>) -> Infer<'a, TContraints<'a>> {
-        let mut es = es.into_iter();
-        let fst = if let Some(fst) = es.next() {
-            fst
-        } else {
-            return Ok((self, null(Type::unit())));
-        };
-        
+    fn sexp_constraints(self, fst: &'a Expr<'a>, es: Iter<'a, Expr<'a>>) -> Infer<'a, TContraints<'a>> {
         let (mut slf, (mut last_t, mut cs)) = 
             self.constraints(fst)?;
 
         for e in es {
             let cnstr_pos = e.pos.clone();
 
-            let (new_slf, (arg_t, new_cs)) = 
+            let (new, (arg_t, new_cs)) = 
                 slf.constraints(e)?;
             
-            slf = new_slf;
+            slf = new;
             cs.extend(new_cs);
             
             let ret_type = slf.fresh();

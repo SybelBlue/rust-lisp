@@ -194,10 +194,10 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
     }))
 }
 
-fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind<()>> {
+fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
     match body {
         Keyword(Type) =>
-            Ok(Kind::Type(())),
+            Ok(Kind::Type),
         Keyword(kw) => 
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Literal(_) => 
@@ -257,6 +257,7 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Data<'a>
         Word(w) =>
             Ok(Data { pos, body: PSym(w) }),
         SExp(ts) => {
+            let n = ts.len();
             let mut ts = ts.into_iter();
             if let Some(fst) = ts.next() {
                 match fst.body {
@@ -271,11 +272,16 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Data<'a>
                         Err(ParseError::new(fst.pos, MisplacedKeyword(kw))),
                     SExp(_) =>
                         Err(ParseError::new(fst.pos, MisplacedSExp)),
-                    Word(body) =>
-                        Ok(Data { pos, body: PSExp(
-                            Ident { pos: fst.pos, body },
-                            try_collect(ts.map(parse_pattern))?
-                        ) })
+                    Word(body) => {
+                        if n > 1 {
+                            Ok(Data { pos, body: PSExp(
+                                Ident { pos: fst.pos, body },
+                                try_collect(ts.map(parse_pattern))?
+                            ) })
+                        } else {
+                            Ok(Data { pos, body: PSym(body) })
+                        }
+                    }
                 }
             } else {
                 Err(ParseError::new(pos, MisplacedLiteral))

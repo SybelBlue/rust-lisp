@@ -1,6 +1,6 @@
 use std::{fmt::{Display, Formatter, Write, Debug}, collections::HashMap};
 
-use crate::{exprs::Ident, parsing::{sources::{Loc, FilePos}, try_collect}, typing::Type};
+use crate::{exprs::Ident, parsing::{sources::{Loc, FilePos}, try_collect}};
 
 pub type Data<'a> = Loc<'a, DataBody<'a>>;
 
@@ -72,109 +72,29 @@ pub(crate) type Constructor<'a> = (Data<'a>, Data<'a>);
 #[derive(Debug, Clone)]
 pub struct DataDecl<'a> {
     pub(crate) name: Ident<'a>, 
-    pub(crate) kind: Kind<()>, 
+    pub(crate) kind: Kind, 
     pub(crate) ctors: Vec<Constructor<'a>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Kind<T> {
-    Type(T),
-    KFun(Box<Kind<()>>, Box<Kind<()>>),
+pub enum Kind {
+    Type,
+    KFun(Box<Kind>, Box<Kind>),
 }
 
-impl<T> Kind<T> {
-    pub fn kfun(p: Kind<()>, b: Kind<()>) -> Kind<T> {
+impl Kind {
+    pub fn kfun(p: Kind, b: Kind) -> Kind {
         Kind::KFun(Box::new(p), Box::new(b))
     }
-
-    pub fn reduce(self) -> Kind<()> {
-        match self {
-            Self::Type(_) =>
-                Kind::Type(()),
-            Self::KFun(p, r) =>
-                Kind::kfun(p.reduce(), r.reduce()),
-        }
-    }
-
-    pub(crate) fn insert<R>(&self, r: R) -> Kind<R> {
-        match self {
-            Kind::Type(_) =>
-                Kind::Type(r),
-            Kind::KFun(p, r) =>
-                Kind::KFun(p.clone(), r.clone()),
-        }
-    }
-
-    pub(crate) fn nkfun(n: usize) -> Self {
-        if n < 2 {
-            Kind::kfun(Kind::Type(()), Kind::Type(()))
-        } else {
-            let mut n = n - 1;
-            let mut curr = Kind::kfun(Kind::Type(()), Kind::Type(()));
-            while n > 1 {
-                curr = Kind::kfun(Kind::Type(()), curr);
-                n -= 1;
-            }
-            Self::kfun(Kind::Type(()), curr)
-        }
-    }
 }
 
-impl Kind<()> {
-    pub(crate) fn matches<T>(&self, other: &Kind<T>) -> bool {
-        use Kind::*;
-        match (self, other) {
-            (Type(_), Type(_)) |
-                (KFun(_, _), KFun(_, _)) =>
-                    true,
-            (Type(_), KFun(_, _)) |
-                (KFun(_, _), Type(_)) =>
-                    false,
-        }
-    }
-}
-
-impl Display for Kind<()> {
+impl Display for Kind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Kind::Type(()) => 
+            Kind::Type => 
                 f.write_str("Type"),
             Kind::KFun(p, r) => 
                 write!(f, "(-> {p} {r})"),
-        }
-    }
-}
-
-impl Display for Kind<Type> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Type(t) =>
-                Display::fmt(t, f),
-            Self::KFun(p, r) =>
-                write!(f, "(-> {p} {r})"),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub(crate) enum PartialKind<'a> {
-    Partial(
-        &'a String, 
-        Vec<PartialKind<'a>>, 
-        Kind<()>
-    ),
-    Finished(Type),
-}
-
-impl<'a> PartialKind<'a> {
-    pub fn as_type(self) -> Type {
-        match self {
-            Self::Finished(t) => 
-                t,
-            Self::Partial(nm, fin, _) => {
-                let ts = fin.into_iter().map(Self::as_type).collect();
-                Type::Data(nm.clone(), ts)
-            }
         }
     }
 }

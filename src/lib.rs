@@ -233,7 +233,7 @@ mod tests {
             let (ctxt, ts) =
                 type_test_all_with("(data Void Type)", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
-            assert_eq!(Some(&Kind::Type(Type::simple("Void"))), ctxt.get_type(&format!("Void")));
+            assert_eq!(Some(&Kind::Type), ctxt.get_type(&format!("Void")));
 
             let (ctxt, ts) =
                 type_test_all_with("
@@ -243,7 +243,7 @@ mod tests {
                     )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
             let bool = || Type::simple("Bool");
-            assert_eq!(Some(&Kind::Type(bool())), ctxt.get_type(&format!("Bool")));
+            assert_eq!(Some(&Kind::Type), ctxt.get_type(&format!("Bool")));
             assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&format!("T")));
             assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&format!("F")));
 
@@ -257,7 +257,7 @@ mod tests {
                 )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
             let prim = || Type::simple("Prim");
-            assert_eq!(Some(&Kind::Type(prim())), ctxt.get_type(&format!("Prim")));
+            assert_eq!(Some(&Kind::Type), ctxt.get_type(&format!("Prim")));
             assert_eq!(Some(&Scheme::concrete(Type::fun(Type::unit(), prim()))), ctxt.get_var(&format!("PUnit")));
             assert_eq!(Some(&Scheme::concrete(Type::fun(Type::nat(), prim()))), ctxt.get_var(&format!("PNat")));
             assert_eq!(Some(&Scheme::concrete(Type::fun(Type::char(), prim()))), ctxt.get_var(&format!("PChar")));
@@ -274,7 +274,7 @@ mod tests {
             assert_eq!(ts, vec![Type::unit()]);
             let bx = || Type::Data(String::from("Box"), vec![Type::Var(0)]);
             assert_eq!(
-                Some(&Kind::kfun(Kind::Type(()), Kind::Type(()))), 
+                Some(&Kind::kfun(Kind::Type, Kind::Type)), 
                 ctxt.get_type(&format!("Box"))
             );
             assert_eq!(
@@ -291,7 +291,7 @@ mod tests {
             assert_eq!(ts, vec![Type::unit()]);
             let list = || Type::Data(String::from("List"), vec![Type::Var(0)]);
             assert_eq!(
-                Some(&Kind::kfun(Kind::Type(()), Kind::Type(()))), 
+                Some(&Kind::kfun(Kind::Type, Kind::Type)), 
                 ctxt.get_type(&format!("List"))
             );
             assert_eq!(
@@ -311,7 +311,7 @@ mod tests {
             assert_eq!(ts, vec![Type::unit()]);
             let tup = || Type::Data(String::from(","), vec![Type::Var(0), Type::Var(1)]);
             assert_eq!(
-                Some(&Kind::kfun(Kind::Type(()), Kind::kfun(Kind::Type(()), Kind::Type(())))), 
+                Some(&Kind::kfun(Kind::Type, Kind::kfun(Kind::Type, Kind::Type))), 
                 ctxt.get_type(&format!(","))
             );
             let find = ctxt.get_var(&format!(",")).unwrap().clone();
@@ -333,12 +333,13 @@ mod tests {
                 vec![Type::fun(Type::Var(0), Type::Var(1)), Type::Var(2), Type::Var(3)]
             );
             assert_eq!(
-                Some(&Kind::kfun(Kind::Type(()), Kind::Type(()))), 
+                Some(&Kind::kfun(Kind::kfun(Kind::Type, Kind::Type), Kind::kfun(Kind::Type, Kind::kfun(Kind::Type, Kind::Type)))), 
                 ctxt.get_type(&format!("StateT"))
             );
             assert_eq!(
-                Some(&Scheme { forall: vec![0], tipe: Type::fun(Type::Var(0), state_t()) }), 
-                ctxt.get_var(&format!("B"))
+                Some(&Scheme { forall: vec![0], tipe: 
+                    Type::fun(Type::fun(Type::Var(0), Type::Data(format!(","), vec![Var(1), Var(2)])), state_t()) }), 
+                ctxt.get_var(&format!("StateT"))
             );
         }
     }
