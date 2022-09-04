@@ -216,14 +216,12 @@ impl<'a> InferContext<'a> {
         } else if op_rst.is_some() {
             return self.err(fst_pos.clone(), UndefinedSymbol(fst));
         } else {
-            let nm = Ident { pos: fst_pos.clone(), body: fst.clone() };
             if pat == Kind::Type {
                 type_vars.entry(fst.clone())
                     .or_insert_with(|| self.fresh());
                 (self, pat, true)
             } else {
-                let (slf, ()) = self.insert_kind(nm, pat.clone())?;
-                (slf, pat, false)
+                return self.err(fst_pos.clone(), NotYetImplemented(format!("Higher Kind variables")));
             }
         };
         
