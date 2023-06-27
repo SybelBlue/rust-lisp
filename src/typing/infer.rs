@@ -1,10 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use crate::{
-    exprs::{Expr, Ident, ExprBody}, 
-    errors::{TypeResult, TypeError, TypeErrorBody::*}, 
-    values::Value, 
-    parsing::sources::{FilePos, Loc}, 
+    exprs::{Expr, Ident, ExprBody},
+    errors::{TypeResult, TypeError, TypeErrorBody::*},
+    values::Value,
+    parsing::sources::{FilePos, Loc},
     stmts::Stmt
 };
 
@@ -40,16 +40,16 @@ type Infer<'a, R> = Result<(InferContext<'a>, R), (Context, TypeError<'a>)>;
 #[derive(Debug, Clone)]
 struct InferContext<'a> {
     ctxt: Context,
-    env: HashMap<String, Loc<'a, Scheme>>,
+    env: HashMap<Arc<str>, Loc<'a, Scheme>>,
     var_count: usize,
 }
 
 impl<'a> InferContext<'a> {
     fn new(ctxt: Context) -> Self {
-        Self { 
+        Self {
             ctxt,
-            env: HashMap::new(), 
-            var_count: 0 
+            env: HashMap::new(),
+            var_count: 0
         }
     }
 
@@ -62,11 +62,11 @@ impl<'a> InferContext<'a> {
     fn finish(self) -> (Context, TypeResult<'a, ()>) {
         let Self { mut ctxt, env, .. } = self;
         for (k, l) in env.iter() {
-            if ctxt.contains_key(k) {
+            if ctxt.contains_key(&k) {
                 return (ctxt, Err(TypeError::new(l.pos.clone(), DuplicateNameAt(k.clone(), None))));
             }
         }
-        
+
         env.into_iter().for_each(|(k, v)| {
             ctxt.insert(k, v.body);
         });
@@ -74,12 +74,12 @@ impl<'a> InferContext<'a> {
         (ctxt, Ok(()))
     }
 
-    fn lookup_env(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+    fn lookup_env(mut self, k: &'a Arc<str>, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
         if let Some(s) = self.env.get(k).map(|s| &s.body).or_else(|| self.ctxt.get(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
-            Err((self.ctxt, TypeError::new(pos.clone(), UndefinedSymbol(k))))
+            Err((self.ctxt, TypeError::new(pos.clone(), UndefinedSymbol(k.clone()))))
         }
     }
 
@@ -97,9 +97,9 @@ impl<'a> InferContext<'a> {
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
         self.env.values().for_each(|s| s.body.ftv(&mut defined));
-        Scheme { 
-            forall: used.difference(&defined).map(|x| *x).collect(), 
-            tipe 
+        Scheme {
+            forall: used.difference(&defined).map(|x| *x).collect(),
+            tipe
         }
     }
 
@@ -128,7 +128,7 @@ impl<'a> InferContext<'a> {
             }
         }
     }
-    
+
     fn infer_expr(self, e: &'a Expr<'a>) -> Infer<'a, Scheme> {
         let (mut slf, (t, cs)) = self.constraints(e)?;
         match solve(cs) {
@@ -143,9 +143,9 @@ impl<'a> InferContext<'a> {
 
     fn constraints(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, TContraints<'a>> {
         match body {
-            ExprBody::Val(v) => 
+            ExprBody::Val(v) =>
                 self.value_constraints(pos, v),
-            ExprBody::SExp(es) => 
+            ExprBody::SExp(es) =>
                 self.sexp_constraints(es),
         }
     }
@@ -155,16 +155,16 @@ impl<'a> InferContext<'a> {
         match v {
             Nat(_)  => Ok((self, null(Type::nat()))),
             Char(_) => Ok((self, null(Type::char()))),
-            Sym(k) => 
+            Sym(k) =>
                 self.lookup_env(k, pos)
                     .map(|(i, t)| (i, null(t))),
             Lam(x, e) => {
                 let tv = self.fresh();
                 let sc = Scheme { forall: vec![], tipe: tv.clone() };
-                let (slf, (t, cs)) = 
+                let (slf, (t, cs)) =
                     self.locally(x.clone(), sc,
                         |slf| {
-                            let (slf, (body_type, cs)) = 
+                            let (slf, (body_type, cs)) =
                                 slf.constraints(e)?;
                             Ok((slf, (Type::fun(tv, body_type), cs)))
                         }
@@ -173,7 +173,7 @@ impl<'a> InferContext<'a> {
             }
         }
     }
-    
+
     fn sexp_constraints(self, es: &'a Vec<Expr<'a>>) -> Infer<'a, TContraints<'a>> {
         let mut es = es.into_iter();
         let fst = if let Some(fst) = es.next() {
@@ -181,23 +181,23 @@ impl<'a> InferContext<'a> {
         } else {
             return Ok((self, null(Type::unit())));
         };
-        
-        let (mut slf, (mut last_t, mut cs)) = 
+
+        let (mut slf, (mut last_t, mut cs)) =
             self.constraints(fst)?;
 
         for e in es {
             let cnstr_pos = e.pos.clone();
 
-            let (new_slf, (arg_t, new_cs)) = 
+            let (new_slf, (arg_t, new_cs)) =
                 slf.constraints(e)?;
-            
+
             slf = new_slf;
             cs.extend(new_cs);
-            
+
             let ret_type = slf.fresh();
             let body = (Type::fun(arg_t, ret_type.clone()), last_t);
             cs.push(Constraint { pos: cnstr_pos, body });
-            
+
             last_t = ret_type;
         }
 

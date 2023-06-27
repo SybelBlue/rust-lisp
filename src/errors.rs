@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
+use std::{collections::HashSet, fmt::{Debug, Display, Formatter}, sync::Arc};
 
 use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, exprs::Expr, typing::Type};
 
@@ -32,8 +32,8 @@ pub enum ParseErrorBody<'a> {
     MisplacedLiteral,
     MisplacedSExp,
     MissingBindingIdentifier,
-    BadBinding(String),
-    DuplicateLambdaArg(String),
+    BadBinding(Arc<str>),
+    DuplicateLambdaArg(Arc<str>),
     InSExp(Box<ParseError<'a>>),
     NotYetImplemented(&'a str),
 }
@@ -60,19 +60,19 @@ pub enum TypeErrorBody<'a> {
     TooManyArgs(&'a Expr<'a>),
     TypeMismatch { got: Type, expected: Type },
     InfiniteType(Type, Type),
-    UndefinedSymbol(&'a String),
-    NotYetImplemented(String),
-    DuplicateNameAt(String, Option<FilePos<'a>>),
+    UndefinedSymbol(Arc<str>),
+    NotYetImplemented(Arc<str>),
+    DuplicateNameAt(Arc<str>, Option<FilePos<'a>>),
 }
 
 impl<'a> Display for TypeErrorBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::NotYetImplemented(msg) =>
-                f.write_str(msg.as_str()),
+                f.write_str(msg),
             Self::TooManyArgs(e) =>
                 write!(f, "Too Many Arguments: {}", e),
-            Self::TypeMismatch { got, expected } => 
+            Self::TypeMismatch { got, expected } =>
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
             Self::UndefinedSymbol(s) => write!(f, "Undefined Symbol: {}", s),
             Self::InfiniteType(s, t) => {

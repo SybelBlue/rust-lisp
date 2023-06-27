@@ -1,15 +1,15 @@
-use std::collections::{HashMap, hash_map::Keys};
+use std::{collections::{HashMap, hash_map::Keys}, sync::Arc};
 
 use super::{Type, scheme::Scheme};
 
-type Identifier = String;
-type QualifiedIdentifier = String;
+type Identifier = Arc<str>;
+type QualifiedIdentifier = Arc<str>;
 
 
 #[derive(Debug, Clone)]
 pub struct Context {
     /// Types are compressed, ie all Var(_n_) inside the type start a 0
-    bound: HashMap<QualifiedIdentifier, Scheme>, 
+    bound: HashMap<QualifiedIdentifier, Scheme>,
     aliased: HashMap<Identifier, QualifiedIdentifier>,
 }
 
@@ -21,9 +21,9 @@ impl Context {
     }
 
     fn add_prelude(&mut self, s: &str, sc: Scheme) {
-        let qualed = format!("Prelude.{s}");
+        let qualed: Arc<str> = Arc::from(format!("Prelude.{s}"));
         self.bound.insert(qualed.clone(), sc);
-        self.aliased.insert(String::from(s), qualed);
+        self.aliased.insert(Arc::from(s), qualed);
     }
 
     pub fn new() -> Self {
@@ -36,20 +36,20 @@ impl Context {
         out
     }
 
-    pub(crate) fn insert(&mut self, k: String, v: Scheme) {
+    pub(crate) fn insert(&mut self, k: QualifiedIdentifier, v: Scheme) {
         self.bound.insert(k, v);
     }
 
-    pub(crate) fn get(&self, k: &String) -> Option<&Scheme> {
+    pub(crate) fn get(&self, k: &Identifier) -> Option<&Scheme> {
         self.bound
             .get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
+    pub fn keys(&self) -> std::iter::Chain<Keys<Arc<str>, Arc<str>>, Keys<Arc<str>, Scheme>> {
         self.aliased.keys().chain(self.bound.keys())
     }
 
-    pub(crate) fn contains_key(&self, k: &String) -> bool {
+    pub(crate) fn contains_key(&self, k: &QualifiedIdentifier) -> bool {
         self.bound.contains_key(k)
     }
 }

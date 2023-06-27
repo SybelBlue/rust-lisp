@@ -1,9 +1,11 @@
+use std::sync::Arc;
+
 use crate::exprs::{Expr, Ident};
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
     Nat(usize),
-    Sym(String),
+    Sym(Arc<str>),
     Char(char),
     Lam(Ident<'a>, Box<Expr<'a>>),
 }
@@ -17,13 +19,13 @@ impl<'a> Value<'a> {
 impl<'a> std::fmt::Display for Value<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Value::Char(c) => 
+            Value::Char(c) =>
                 std::fmt::Debug::fmt(c, f),
-            Value::Nat(n) => 
+            Value::Nat(n) =>
                 n.fmt(f),
-            Value::Sym(s) => 
+            Value::Sym(s) =>
                 s.fmt(f),
-            Value::Lam(p, b) => 
+            Value::Lam(p, b) =>
                 write!(f, "{} -> {}", p.body, b.body),
         }
     }

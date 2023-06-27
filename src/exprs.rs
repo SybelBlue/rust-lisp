@@ -1,8 +1,8 @@
-use std::{fmt::{Display, Formatter, Result, Write}};
+use std::{fmt::{Display, Formatter, Result, Write}, sync::Arc};
 
 use crate::{parsing::sources::{Loc, FilePos}, values::Value};
 
-pub type Ident<'a> = Loc<'a, String>;
+pub type Ident<'a> = Loc<'a, Arc<str>>;
 
 pub type Expr<'a> = Loc<'a, ExprBody<'a>>;
 
