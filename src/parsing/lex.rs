@@ -1,4 +1,4 @@
-use std::str::Chars;
+use std::{str::Chars, sync::Arc};
 
 use crate::{errors::{LexError, LexResult, LexErrorBody}, parsing::sources::{FilePos, Loc}};
 
@@ -7,14 +7,14 @@ pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenBody<'a> {
     Keyword(Keyword),
-    Word(String),
+    Word(Arc<str>),
     Literal(char),
     SExp(Vec<Token<'a>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Keyword { 
-    Backarrow, 
+pub enum Keyword {
+    Backarrow,
     Arrow,
     Import,
     Data,
@@ -62,15 +62,15 @@ impl<'a> SourceIter<'a> {
 
         loop {
             let (skipped, next) = self.advance();
-            
+
             if skipped {
                 stack.try_push_word();
             }
-            
+
             match next {
                 None => break,
                 Some('(') => stack.open_sexp(self.pos.clone()),
-                Some(')') => 
+                Some(')') =>
                     match stack.close_sexp() {
                         Ok(st) => stack = st,
                         Err(body) => return Err(self.error(body))
@@ -168,7 +168,7 @@ impl<'a> LexStack<'a> {
             sexp_stack: Vec::with_capacity(8),      // 8 deep nested sexp
             finished: Vec::with_capacity(50),       // 50 tokens on top level
             curr_word: String::with_capacity(10),   // 10 char words
-            curr_word_start: start_pos,   
+            curr_word_start: start_pos,
         }
     }
 
@@ -199,15 +199,15 @@ impl<'a> LexStack<'a> {
     }
 
     fn dump_curr(&mut self) -> Token<'a> {
-        let body = match Keyword::from(self.curr_word.as_str()) {
+        let body = match Keyword::from(&self.curr_word) {
             Some(kw) => TokenBody::Keyword(kw),
-            None => TokenBody::Word(self.curr_word.clone()),
+            None => TokenBody::Word(Arc::from(self.curr_word.as_str())),
         };
         self.curr_word.clear();
         Token { pos: self.curr_word_start.clone(), body }
     }
 
-    fn push_char(&mut self, ch: char, curr_pos: &FilePos<'a>) { 
+    fn push_char(&mut self, ch: char, curr_pos: &FilePos<'a>) {
         if self.curr_word.is_empty() {
             self.curr_word_start = curr_pos.clone();
         }

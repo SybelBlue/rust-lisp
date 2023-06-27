@@ -1,4 +1,4 @@
-use std::{collections::HashSet, fmt::{Debug, Display, Formatter}};
+use std::{collections::HashSet, fmt::{Debug, Display, Formatter}, sync::Arc};
 
 use crate::{parsing::{sources::{FilePos, Loc}, lex::Keyword}, typing::Type, data::Kind};
 
@@ -32,8 +32,8 @@ pub enum ParseErrorBody<'a> {
     MisplacedLiteral,
     MisplacedSExp,
     MissingIdentifier,
-    BadBinding(String),
-    DuplicatePatternName(String, FilePos<'a>),
+    BadBinding(Arc<str>),
+    DuplicatePatternName(Arc<str>, FilePos<'a>),
     InSExp(Box<ParseError<'a>>),
     NotYetImplemented(&'a str),
 }
@@ -64,9 +64,9 @@ pub enum TypeErrorBody<'a> {
     ExpectedTypeGotKind { kind: Kind },
     DisparateConstructor(String),
     InfiniteType(Type, Type),
-    UndefinedSymbol(&'a String),
-    NotYetImplemented(String),
-    DuplicateNameAt(String, Option<FilePos<'a>>),
+    UndefinedSymbol(Arc<str>),
+    NotYetImplemented(Arc<str>),
+    DuplicateNameAt(Arc<str>, Option<FilePos<'a>>),
 }
 
 impl<'a> Display for TypeErrorBody<'a> {
@@ -75,14 +75,14 @@ impl<'a> Display for TypeErrorBody<'a> {
             Self::DataInConstructor =>
                 f.write_str("Data in Type Constructor Declaration"),
             Self::NotYetImplemented(msg) =>
-                write!(f, "Not Yet Implemented: '{}'", msg),
+                f.write_str(msg),
             Self::TooManyArgs =>
                 write!(f, "Too Many Arguments"),
-            Self::TypeMismatch { got, expected } => 
+            Self::TypeMismatch { got, expected } =>
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
-            Self::KindMismatch { got, expected } => 
+            Self::KindMismatch { got, expected } =>
                 write!(f, "Type Mismatch\n\tgot:      {}\n\texpected: {}", got, expected),
-            Self::UndefinedSymbol(s) => 
+            Self::UndefinedSymbol(s) =>
                 write!(f, "Undefined Symbol: {}", s),
             Self::InfiniteType(s, t) => {
                 write!(f, "Infinite Type: ")?;
@@ -105,7 +105,7 @@ impl<'a> Display for TypeErrorBody<'a> {
             }
             Self::DisparateConstructor(nm) =>
                 write!(f, "Constructor must return it's own datatype, not {nm}"),
-            Self::ExpectedTypeGotKind { kind } => 
+            Self::ExpectedTypeGotKind { kind } =>
                 write!(f, "Expected a Type, got {kind}"),
         }
     }

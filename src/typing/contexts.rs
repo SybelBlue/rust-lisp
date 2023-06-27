@@ -1,16 +1,17 @@
 use std::collections::{HashMap, hash_map::{Keys, Values}};
+use std::sync::Arc;
 
 use crate::data::Kind;
 
 use super::{Type, scheme::Scheme};
 
-type Identifier = String;
-type QualifiedIdentifier = String;
+type Identifier = Arc<str>;
+type QualifiedIdentifier = Arc<str>;
 
 
 #[derive(Debug, Clone)]
 pub(crate) struct SimpleContext<T> {
-    bound: HashMap<QualifiedIdentifier, T>, 
+    bound: HashMap<QualifiedIdentifier, T>,
     aliased: HashMap<Identifier, QualifiedIdentifier>,
 }
 
@@ -22,12 +23,12 @@ impl<T> SimpleContext<T> {
     }
 
     fn add_prelude(&mut self, s: &str, t: T) {
-        let qualed = format!("Prelude.{s}");
+        let qualed: Arc<str> = Arc::from(format!("Prelude.{s}"));
         self.bound.insert(qualed.clone(), t);
-        self.aliased.insert(String::from(s), qualed);
+        self.aliased.insert(Arc::from(s), qualed);
     }
 
-    pub(crate) fn insert(&mut self, k: String, v: T) {
+    pub(crate) fn insert(&mut self, k: QualifiedIdentifier, v: T) {
         self.bound.insert(k, v);
     }
 
@@ -36,20 +37,20 @@ impl<T> SimpleContext<T> {
         self.aliased.extend(other.aliased);
     }
 
-    pub(crate) fn get(&self, k: &String) -> Option<&T> {
+    pub(crate) fn get(&self, k: &Identifier) -> Option<&T> {
         self.bound
             .get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub fn keys(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, T>> {
+    pub fn keys(&self) -> std::iter::Chain<Keys<Identifier, QualifiedIdentifier>, Keys<QualifiedIdentifier, T>> {
         self.aliased.keys().chain(self.bound.keys())
     }
 
-    pub fn values(&self) -> Values<String, T> {
+    pub fn values(&self) -> Values<QualifiedIdentifier, T> {
         self.bound.values()
     }
 
-    pub(crate) fn contains_key(&self, k: &String) -> bool {
+    pub(crate) fn contains_key(&self, k: &QualifiedIdentifier) -> bool {
         self.bound.contains_key(k)
     }
 }
@@ -90,8 +91,8 @@ impl Context {
     }
 
     pub fn new() -> Self {
-        Self { 
-            vars: SimpleContext::new_scheme_ctxt(), 
+        Self {
+            vars: SimpleContext::new_scheme_ctxt(),
             types: SimpleContext::new_kind_ctxt(),
         }
     }
@@ -101,11 +102,11 @@ impl Context {
         self.types.extend(other.types);
     }
 
-    pub(crate) fn insert_type(&mut self, k: String, v: Kind) {
+    pub(crate) fn insert_type(&mut self, k: Identifier, v: Kind) {
         self.types.insert(k, v);
     }
 
-    pub(crate) fn get_type(&self, k: &String) -> Option<&Kind> {
+    pub(crate) fn get_type(&self, k: &Identifier) -> Option<&Kind> {
         self.types.get(k)
     }
 
@@ -121,23 +122,23 @@ impl Context {
     //     self.types.keys()
     // }
 
-    pub(crate) fn insert_var(&mut self, k: String, v: Scheme) {
+    pub(crate) fn insert_var(&mut self, k: Identifier, v: Scheme) {
         self.vars.insert(k, v);
     }
 
-    pub(crate) fn get_var(&self, k: &String) -> Option<&Scheme> {
+    pub(crate) fn get_var(&self, k: &Identifier) -> Option<&Scheme> {
         self.vars.get(k)
     }
 
-    pub fn get_varnames(&self) -> std::iter::Chain<Keys<String, String>, Keys<String, Scheme>> {
+    pub fn get_varnames(&self) -> std::iter::Chain<Keys<Identifier, QualifiedIdentifier>, Keys<QualifiedIdentifier, Scheme>> {
         self.vars.keys()
     }
 
-    pub(crate) fn get_vartypes(&self) -> Values<String, Scheme> {
+    pub(crate) fn get_vartypes(&self) -> Values<QualifiedIdentifier, Scheme> {
         self.vars.values()
     }
 
-    pub(crate) fn contains_var(&self, k: &String) -> bool {
+    pub(crate) fn contains_var(&self, k: &Identifier) -> bool {
         self.vars.contains_key(k)
     }
 }

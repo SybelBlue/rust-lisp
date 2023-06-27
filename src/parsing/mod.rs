@@ -1,12 +1,14 @@
 pub mod lex;
 pub mod sources;
 
+use std::sync::Arc;
+
 use crate::{
-    errors::{ParseResult, ParseErrorBody::*, ParseError}, 
+    errors::{ParseResult, ParseErrorBody::*, ParseError},
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
     values::Value,
-    parsing::lex::{Token, TokenBody::*, Keyword::*}, 
+    parsing::lex::{Token, TokenBody::*, Keyword::*},
     data::{Kind, Constructor, DataDecl, Data}
 };
 
@@ -27,13 +29,13 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
 
 fn parse_stmt<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     let ts = match body {
-        Keyword(kw) => 
+        Keyword(kw) =>
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Literal(c) => 
+        Literal(c) =>
             return Ok(Stmt::value(pos, Value::Char(c))),
-        Word(w) => 
+        Word(w) =>
             return Ok(Stmt::value(pos, parse_string(w))),
-        SExp(ts) => 
+        SExp(ts) =>
             ts,
     };
 
@@ -67,7 +69,7 @@ fn parse_stmt<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     match kw {
         Import | Data | Type =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Arrow => 
+        Arrow =>
             Ok(Stmt::value(arr_pos, parse_lambda(head, body)?)),
         Backarrow => {
             let (i, e) = parse_backarrow(head, arr_pos, body)?;
@@ -79,9 +81,9 @@ fn parse_stmt<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
 fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     let pos = t.pos;
     match t.body {
-        Keyword(kw) => 
+        Keyword(kw) =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Word(w) => 
+        Word(w) =>
             Ok(Expr { pos, body: ExprBody::Val(parse_string(w)) }),
         body => {
             match parse_stmt(Token { pos, body })? {
@@ -97,11 +99,11 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
 fn parse_backarrow<'a>(head: Token<'a>, arr_pos: FilePos<'a>, body: Expr<'a>) -> ParseResult<'a, (Ident<'a>, Expr<'a>)> {
     let head_pos = head.pos;
     match head.body {
-        Word(name) => 
+        Word(name) =>
             Ok((Ident { pos: arr_pos, body: name }, body)),
-        Keyword(kw) => 
+        Keyword(kw) =>
             Err(ParseError::new(arr_pos, MisplacedKeyword(kw))),
-        Literal(_) => 
+        Literal(_) =>
             return Err(ParseError::new(head_pos, MisplacedLiteral)),
         SExp(ts) => {
             if ts.is_empty() {
@@ -109,7 +111,7 @@ fn parse_backarrow<'a>(head: Token<'a>, arr_pos: FilePos<'a>, body: Expr<'a>) ->
             }
             let mut ts = ts;
             let name = match ts.remove(0) {
-                Token { body: Word(w), .. } => 
+                Token { body: Word(w), .. } =>
                     Ok(w),
                 Token { pos, body: Keyword(kw) } =>
                     Err(ParseError::new(pos, MisplacedKeyword(kw))),
@@ -118,12 +120,12 @@ fn parse_backarrow<'a>(head: Token<'a>, arr_pos: FilePos<'a>, body: Expr<'a>) ->
                 Token { pos, body: Literal(_) } =>
                     Err(ParseError::new(pos, MisplacedLiteral)),
             }?;
-            let head = Token { 
-                pos: arr_pos.clone(), 
-                body: SExp(ts) 
+            let head = Token {
+                pos: arr_pos.clone(),
+                body: SExp(ts)
             };
             Ok((
-                Ident { pos: head_pos, body: name }, 
+                Ident { pos: head_pos, body: name },
                 Expr { pos: arr_pos, body: ExprBody::Val(parse_lambda(head, body)?) }
             ))
         },
@@ -144,13 +146,13 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
         ) = (ts.next().unwrap(), ts.next().unwrap());
 
     let name = match name {
-        Keyword(kw) => 
+        Keyword(kw) =>
             return Err(ParseError::new(n_pos, MisplacedKeyword(kw))),
-        Word(w) => 
+        Word(w) =>
             w,
-        Literal(_) => 
+        Literal(_) =>
             return Err(ParseError::new(n_pos, MisplacedLiteral)),
-        SExp(_) => 
+        SExp(_) =>
             return Err(ParseError::new(n_pos, MissingIdentifier)),
     };
 
@@ -158,13 +160,13 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
 
     fn parse_constructor<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Constructor> {
         let ts = match body {
-            Keyword(kw) => 
+            Keyword(kw) =>
                 return Err(ParseError::new(pos, MisplacedKeyword(kw))),
-            Word(w) => 
+            Word(w) =>
                 return Err(ParseError::new(pos, BadBinding(w))),
-            Literal(_) => 
+            Literal(_) =>
                 return Err(ParseError::new(pos, MisplacedLiteral)),
-            SExp(ts) => 
+            SExp(ts) =>
                 ts,
         };
 
@@ -181,7 +183,7 @@ fn parse_data<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Stmt<'a>> {
         if arr_body != Keyword(Backarrow) {
             return Err(ParseError::new(pos, MisplacedSExp));
         }
-        
+
         Ok((parse_pattern(head)?, parse_pattern(body)?))
     }
 
@@ -198,16 +200,16 @@ fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
     match body {
         Keyword(Type) =>
             Ok(Kind::Type),
-        Keyword(kw) => 
+        Keyword(kw) =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Literal(_) => 
+        Literal(_) =>
             Err(ParseError::new(pos, MisplacedLiteral)),
-        Word(_) => 
+        Word(_) =>
             Err(ParseError::new(pos, NotYetImplemented("Custom Kinds"))),
         SExp(ts) => {
             let mut ts = ts.into_iter();
             let arr_pos = match ts.next() {
-                None => 
+                None =>
                     return Err(ParseError::new(pos, MisplacedLiteral)),
                 Some(Token { body: Keyword(Arrow), pos }) =>
                     pos,
@@ -228,8 +230,8 @@ fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
             let (b, a) = (args.next().unwrap(), args.next().unwrap());
 
             Ok(args.into_iter().fold(
-                Kind::KFun(Box::new(a), Box::new(b)), 
-                |acc, k| 
+                Kind::KFun(Box::new(a), Box::new(b)),
+                |acc, k|
                     Kind::KFun(Box::new(k), Box::new(acc)),
             ))
         },
@@ -239,7 +241,7 @@ fn parse_kind<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Kind> {
 fn parse_lambda<'a>(head: Token<'a>, body_e: Expr<'a>) -> ParseResult<'a, Value<'a>> {
     parse_pattern(head)?
         .dedup_idents()
-        .map_err(|(s, o, n)| 
+        .map_err(|(s, o, n)|
             ParseError::new(n, DuplicatePatternName(s, o))
         )
         .map(|p|
@@ -252,7 +254,7 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Data<'a>
     match body {
         Literal(_) =>
             Err(ParseError::new(pos, MisplacedLiteral)),
-        Keyword(kw) => 
+        Keyword(kw) =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Word(w) =>
             Ok(Data { pos, body: PSym(w) }),
@@ -263,12 +265,12 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Data<'a>
                 match fst.body {
                     Literal(_) =>
                         Err(ParseError::new(fst.pos, MisplacedLiteral)),
-                    Keyword(Arrow) => 
+                    Keyword(Arrow) =>
                         Ok(Data { pos, body: PSExp(
-                            Ident { pos: fst.pos, body: format!("{}", Arrow) },
+                            Ident { pos: fst.pos, body: Arc::from(format!("{}", Arrow)) },
                             try_collect(ts.map(parse_pattern))?
                         ) }),
-                    Keyword(kw) => 
+                    Keyword(kw) =>
                         Err(ParseError::new(fst.pos, MisplacedKeyword(kw))),
                     SExp(_) =>
                         Err(ParseError::new(fst.pos, MisplacedSExp)),
@@ -290,6 +292,6 @@ fn parse_pattern<'a>(Token { pos, body }: Token<'a>) -> ParseResult<'a, Data<'a>
     }
 }
 
-fn parse_string<'a>(w: String) -> Value<'a> {
+fn parse_string<'a>(w: Arc<str>) -> Value<'a> {
     w.parse::<usize>().map(Value::Nat).unwrap_or(Value::Sym(w))
 }

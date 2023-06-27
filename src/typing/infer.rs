@@ -1,18 +1,20 @@
-use std::{collections::{HashMap, HashSet, VecDeque}, slice::Iter};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::sync::Arc;
 
+use crate::errors::TypeErrorBody;
 use crate::{
-    exprs::{Expr, Ident, ExprBody}, 
-    errors::{TypeResult, TypeError, TypeErrorBody::{*, self}}, 
-    values::Value, 
+    exprs::{Expr, Ident, ExprBody},
+    errors::{TypeResult, TypeError, TypeErrorBody::*},
+    values::Value,
     parsing::sources::FilePos,
     stmts::Stmt,
     data::{Kind, Data, DataBody},
 };
 
 use super::{
-    Type, 
-    scheme::Scheme, 
-    subst::Substitutable, 
+    Type,
+    scheme::Scheme,
+    subst::Substitutable,
     contexts::Context,
     contraint::{Constraint, solve}
 };
@@ -48,19 +50,19 @@ type Infer<'a, R> = Result<(InferContext<'a>, R), (Context, TypeError<'a>)>;
 struct InferContext<'a> {
     root: Context,
     ctxt: Context,
-    var_env: HashMap<String, FilePos<'a>>,
-    type_env: HashMap<String, FilePos<'a>>,
+    var_env: HashMap<Arc<str>, FilePos<'a>>,
+    type_env: HashMap<Arc<str>, FilePos<'a>>,
     var_count: usize,
 }
 
 impl<'a> InferContext<'a> {
     fn new(ctxt: Context) -> Self {
-        Self { 
+        Self {
             root: ctxt,
             ctxt: Context::blank(),
-            var_env: HashMap::new(), 
+            var_env: HashMap::new(),
             type_env: HashMap::new(),
-            var_count: 0 
+            var_count: 0
         }
     }
 
@@ -77,31 +79,32 @@ impl<'a> InferContext<'a> {
     fn finish(self) -> (Context, TypeResult<'a, ()>) {
         let Self { root: mut ctxt, ctxt: temp, var_env: env, .. } = self;
         for (k, l) in env {
-            if ctxt.contains_var(&k) {
+            if ctxt.contains_var(&&k) {
                 return (ctxt, Err(TypeError::new(l, DuplicateNameAt(k.clone(), None))));
             }
         }
         ctxt.extend(temp);
+
         (ctxt, Ok(()))
     }
 
-    fn lookup_var(mut self, k: &'a String, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+    fn lookup_var(mut self, k: &'a Arc<str>, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
         if let Some(s) = self.ctxt.get_var(k).or_else(|| self.root.get_var(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))
         } else {
-            self.err(pos.clone(), UndefinedSymbol(k))
+            self.err(pos.clone(), UndefinedSymbol(k.clone()))
         }
     }
 
-    fn lookup_kind(&'a self, k: &'a String) -> Option<Kind> {
+    fn lookup_kind(&'a self, k: &'a Arc<str>) -> Option<Kind> {
         self.ctxt.get_type(k).or_else(|| self.root.get_type(k)).cloned()
     }
 
-    fn insert_var(mut self, k: String, pos: FilePos<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
+    fn insert_var(mut self, k: Arc<str>, pos: FilePos<'a>, sc: Scheme, rewrite_ok: bool) -> Infer<'a, ()> {
         if let Some(v) = self.var_env.insert(k.clone(), pos.clone()) {
             if !rewrite_ok {
-                return self.err(pos, 
+                return self.err(pos,
                         DuplicateNameAt(k, Some(v)));
             }
         }
@@ -123,9 +126,9 @@ impl<'a> InferContext<'a> {
         tipe.ftv(&mut used);
         let mut defined = HashSet::new();
         self.ctxt.get_vartypes().for_each(|s| s.ftv(&mut defined));
-        Scheme { 
-            forall: used.difference(&defined).map(|x| *x).collect(), 
-            tipe 
+        Scheme {
+            forall: used.difference(&defined).map(|x| *x).collect(),
+            tipe
         }
     }
 
@@ -133,8 +136,8 @@ impl<'a> InferContext<'a> {
         self.generalize(t).normalize()
     }
 
-    fn locally_with<T, F, C>(mut self, mut idents: VecDeque<Ident<'a>>, f: F, c: &C) -> Infer<'a, T> 
-            where 
+    fn locally_with<T, F, C>(mut self, mut idents: VecDeque<Ident<'a>>, f: F, c: &C) -> Infer<'a, T>
+            where
                 F: FnOnce(Self) -> Infer<'a, T>,
                 C: Fn(Type, T) -> T {
         if idents.is_empty() {
@@ -143,9 +146,9 @@ impl<'a> InferContext<'a> {
             let tv = self.fresh();
             let sc = Scheme::concrete(tv.clone());
             let ident = idents.pop_front().unwrap();
-            let (new, prev) = 
+            let (new, prev) =
                 self.locally(
-                    ident, 
+                    ident,
                     sc,
                     |slf| slf.locally_with(idents, f, c)
                 )?;
@@ -177,13 +180,13 @@ impl<'a> InferContext<'a> {
                 println!("{:?}", slf.ctxt.types);
                 for (cbody, cout) in &decl.ctors {
                     let mut type_vars = HashMap::new();
-                    let (new, mut ret_type) = 
+                    let (new, mut ret_type) =
                         slf.define_kind(cout, Kind::Type, &mut type_vars)?;
                     slf = new;
                     let (nm_pos, nm, op_rst) = cbody.split_first();
                     if let Some(rst) = op_rst {
                         for arg in rst.into_iter().rev() {
-                            let (new, arg_type) = 
+                            let (new, arg_type) =
                                 slf.define_kind(arg, Kind::Type, &mut type_vars)?;
                             slf = new;
                             ret_type = Type::fun(arg_type, ret_type);
@@ -201,7 +204,7 @@ impl<'a> InferContext<'a> {
         }
     }
 
-    fn define_kind(mut self, data: &'a Data<'a>, pat: Kind, type_vars: &mut HashMap<String, Type>) -> Infer<'a, Type> {
+    fn define_kind(mut self, data: &'a Data<'a>, pat: Kind, type_vars: &mut HashMap<Arc<str>, Type>) -> Infer<'a, Type> {
         let (fst_pos, fst, op_rst) = data.split_first();
         let (mut slf, mut kind, var_fst) = if let Some(k) = self.lookup_kind(fst) {
             (self, k, type_vars.contains_key(fst))
@@ -214,17 +217,17 @@ impl<'a> InferContext<'a> {
                 }
                 , false)
         } else if op_rst.is_some() {
-            return self.err(fst_pos.clone(), UndefinedSymbol(fst));
+            return self.err(fst_pos.clone(), UndefinedSymbol(fst.clone()));
         } else {
             if pat == Kind::Type {
                 type_vars.entry(fst.clone())
                     .or_insert_with(|| self.fresh());
                 (self, pat, true)
             } else {
-                return self.err(fst_pos.clone(), NotYetImplemented(format!("Higher Kind variables")));
+                return self.err(fst_pos.clone(), NotYetImplemented(Arc::from("Higher Kind variables")));
             }
         };
-        
+
         if let Some(rst) = op_rst {
             let mut ts = Vec::new();
             for data in rst {
@@ -263,16 +266,10 @@ impl<'a> InferContext<'a> {
 
     fn constraints(self, Expr { pos, body }: &'a Expr<'a>) -> Infer<'a, TContraints<'a>> {
         match body {
-            ExprBody::Val(v) => 
+            ExprBody::Val(v) =>
                 self.value_constraints(pos, v),
-            ExprBody::SExp(es) => {
-                let mut es = es.into_iter();
-                if let Some(fst) = es.next() {
-                    self.sexp_constraints(fst, es)
-                } else {
-                    Ok((self, null(Type::unit())))
-                }
-            }
+            ExprBody::SExp(es) =>
+                self.sexp_constraints(es),
         }
     }
 
@@ -281,15 +278,15 @@ impl<'a> InferContext<'a> {
         match v {
             Nat(_)  => Ok((self, null(Type::nat()))),
             Char(_) => Ok((self, null(Type::char()))),
-            Sym(k) => 
+            Sym(k) =>
                 self.lookup_var(k, pos)
                     .map(|(i, t)| (i, null(t))),
             Lam(x, e) => {
                 match flatten_args(x.clone()) {
-                    Ok(args) => 
+                    Ok(args) =>
                         self.locally_with(
                             VecDeque::from(args),
-                            |slf| 
+                            |slf|
                                 slf.constraints(e),
                             &|tv, (t, cs)|
                                 (Type::fun(tv, t), cs),
@@ -300,24 +297,31 @@ impl<'a> InferContext<'a> {
             }
         }
     }
-    
-    fn sexp_constraints(self, fst: &'a Expr<'a>, es: Iter<'a, Expr<'a>>) -> Infer<'a, TContraints<'a>> {
-        let (mut slf, (mut last_t, mut cs)) = 
+
+    fn sexp_constraints(self, es: &'a Vec<Expr<'a>>) -> Infer<'a, TContraints<'a>> {
+        let mut es = es.into_iter();
+        let fst = if let Some(fst) = es.next() {
+            fst
+        } else {
+            return Ok((self, null(Type::unit())));
+        };
+
+        let (mut slf, (mut last_t, mut cs)) =
             self.constraints(fst)?;
 
         for e in es {
             let cnstr_pos = e.pos.clone();
 
-            let (new, (arg_t, new_cs)) = 
+            let (new_slf, (arg_t, new_cs)) =
                 slf.constraints(e)?;
-            
-            slf = new;
+
+            slf = new_slf;
             cs.extend(new_cs);
-            
+
             let ret_type = slf.fresh();
             let body = (Type::fun(arg_t, ret_type.clone()), last_t);
             cs.push(Constraint { pos: cnstr_pos, body });
-            
+
             last_t = ret_type;
         }
 
@@ -327,16 +331,16 @@ impl<'a> InferContext<'a> {
 
 fn flatten_args<'a>(Data { pos, body }: Data<'a>) -> TypeResult<'a, Vec<Ident<'a>>> {
     match body {
-        DataBody::PSym(body) => 
+        DataBody::PSym(body) =>
             Ok(vec![Ident { pos, body }]),
         DataBody::PSExp(fst, rst) => {
             let mut args = vec![fst];
             for Data { pos, body } in rst {
                 match body {
-                    DataBody::PSym(body) => 
+                    DataBody::PSym(body) =>
                         args.push(Ident { body, pos }),
-                    DataBody::PSExp(_, _) => 
-                        return Err(TypeError::new(pos, NotYetImplemented(format!("Data Pattern Matching")))),
+                    DataBody::PSExp(_, _) =>
+                        return Err(TypeError::new(pos, NotYetImplemented(Arc::from("Data Pattern Matching")))),
                 }
             }
             Ok(args)

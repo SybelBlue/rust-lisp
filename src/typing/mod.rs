@@ -4,13 +4,13 @@ pub mod scheme;
 pub mod contraint;
 pub mod contexts;
 
-use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}};
+use std::{collections::{HashSet, HashMap}, fmt::{Write, Debug, Display, Formatter}, sync::Arc};
 
 use self::subst::{Substitutable, Subst};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Type {
-    Data(String, Vec<Type>), // eg Data("Either", [a, Data("List", [Nat])])
+    Data(Arc<str>, Vec<Type>), // eg Data("Either", [a, Data("List", [Nat])])
     Var(usize),
     Fun(Box<Type>, Box<Type>),
 }
@@ -21,7 +21,7 @@ impl Type {
     }
 
     pub(crate) fn simple(s: &str) -> Self {
-        Self::Data(String::from(s), Vec::with_capacity(0)) 
+        Self::Data(Arc::from(s), Vec::with_capacity(0))
     }
 
     pub(crate) fn unit() -> Self { Self::simple("Unit") }
@@ -30,13 +30,13 @@ impl Type {
 
     pub(crate) fn normalize(&self, map: &mut HashMap<usize, usize>) -> Self {
         match self {
-            Type::Data(d, ts) => 
+            Type::Data(d, ts) =>
                 Type::Data(d.clone(), ts.into_iter().map(|t| t.normalize(map)).collect()),
             Type::Var(k) => {
                 let n = map.len();
                 Type::Var(*map.entry(*k).or_insert(n))
             }
-            Type::Fun(p, b) => 
+            Type::Fun(p, b) =>
                 Type::fun(p.normalize(map), b.normalize(map))
         }
     }
@@ -48,7 +48,7 @@ impl Type {
                 p.variable_values(out);
                 r.variable_values(out);
             }
-            Self::Data(_, ts) => 
+            Self::Data(_, ts) =>
                 ts.iter().for_each(|t| t.variable_values(out)),
         }
     }
@@ -92,11 +92,11 @@ impl Display for Type {
             Self::Data(s, ts) => {
                 if !ts.is_empty() { f.write_char('(')?; }
                 f.write_str(s)?;
-                if !ts.is_empty() { 
+                if !ts.is_empty() {
                     let mut vals = HashSet::new();
                     self.variable_values(&mut vals);
                     self.display_with(f, &Self::var_to_char_map(vals.into_iter().collect()), true)?;
-                    f.write_char(')')?; 
+                    f.write_char(')')?;
                 }
                 Ok(())
             }
@@ -131,18 +131,18 @@ impl Debug for Type {
 impl Substitutable for Type {
     fn apply(&self, sub: &Subst) -> Self {
         match self {
-            data@Type::Data(_, _) => 
+            data@Type::Data(_, _) =>
                 data.clone(),
-            default@Type::Var(k) => 
+            default@Type::Var(k) =>
                 sub.get_default(k, default).clone(),
-            Type::Fun(p, r) => 
+            Type::Fun(p, r) =>
                 Type::fun(p.apply(sub), r.apply(sub)),
         }
     }
 
     fn ftv(&self, used: &mut HashSet<usize>) {
         match self {
-            Type::Data(_, ts) => 
+            Type::Data(_, ts) =>
                 ts.iter().for_each(|t| t.ftv(used)),
             Type::Var(x) => {
                 used.insert(*x);

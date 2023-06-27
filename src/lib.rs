@@ -10,6 +10,8 @@ pub mod repl;
 #[cfg(test)]
 mod tests {
     mod types {
+        use std::sync::Arc;
+
         use crate::data::Kind;
         use crate::typing::contexts::Context;
         use crate::{typing::*, parsing::sources::Source};
@@ -233,7 +235,7 @@ mod tests {
             let (ctxt, ts) =
                 type_test_all_with("(data Void Type)", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
-            assert_eq!(Some(&Kind::Type), ctxt.get_type(&format!("Void")));
+            assert_eq!(Some(&Kind::Type), ctxt.get_type(&Arc::from("Void")));
 
             let (ctxt, ts) =
                 type_test_all_with("
@@ -243,9 +245,9 @@ mod tests {
                     )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
             let bool = || Type::simple("Bool");
-            assert_eq!(Some(&Kind::Type), ctxt.get_type(&format!("Bool")));
-            assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&format!("T")));
-            assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&format!("F")));
+            assert_eq!(Some(&Kind::Type), ctxt.get_type(&Arc::from("Bool")));
+            assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&Arc::from("T")));
+            assert_eq!(Some(&Scheme::concrete(bool())), ctxt.get_var(&Arc::from("F")));
 
             let ctxt = Context::new();
             let (ctxt, ts) =
@@ -257,10 +259,10 @@ mod tests {
                 )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
             let prim = || Type::simple("Prim");
-            assert_eq!(Some(&Kind::Type), ctxt.get_type(&format!("Prim")));
-            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::unit(), prim()))), ctxt.get_var(&format!("PUnit")));
-            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::nat(), prim()))), ctxt.get_var(&format!("PNat")));
-            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::char(), prim()))), ctxt.get_var(&format!("PChar")));
+            assert_eq!(Some(&Kind::Type), ctxt.get_type(&Arc::from("Prim")));
+            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::unit(), prim()))), ctxt.get_var(&Arc::from("PUnit")));
+            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::nat(), prim()))), ctxt.get_var(&Arc::from("PNat")));
+            assert_eq!(Some(&Scheme::concrete(Type::fun(Type::char(), prim()))), ctxt.get_var(&Arc::from("PChar")));
         }
 
         #[test]
@@ -272,14 +274,14 @@ mod tests {
                     ((B x) <- (Box x))
                     )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
-            let bx = || Type::Data(String::from("Box"), vec![Type::Var(0)]);
+            let bx = || Type::Data(Arc::from("Box"), vec![Type::Var(0)]);
             assert_eq!(
                 Some(&Kind::kfun(Kind::Type, Kind::Type)),
-                ctxt.get_type(&format!("Box"))
+                ctxt.get_type(&Arc::from("Box"))
             );
             assert_eq!(
                 Some(&Scheme { forall: vec![0], tipe: Type::fun(Type::Var(0), bx()) }),
-                ctxt.get_var(&format!("B"))
+                ctxt.get_var(&Arc::from("B"))
             );
 
             let (ctxt, ts) =
@@ -289,18 +291,18 @@ mod tests {
                     ((Cons a (List a)) <- (List a))
                     )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
-            let list = || Type::Data(String::from("List"), vec![Type::Var(0)]);
+            let list = || Type::Data(Arc::from("List"), vec![Type::Var(0)]);
             assert_eq!(
                 Some(&Kind::kfun(Kind::Type, Kind::Type)),
-                ctxt.get_type(&format!("List"))
+                ctxt.get_type(&Arc::from("List"))
             );
             assert_eq!(
                 Some(&Scheme { forall: vec![0], tipe: list() }),
-                ctxt.get_var(&format!("Nil"))
+                ctxt.get_var(&Arc::from("Nil"))
             );
             assert_eq!(
                 Some(&Scheme { forall: vec![0], tipe: Type::fun(Type::Var(0), Type::fun(list(), list())) }),
-                ctxt.get_var(&format!("Cons"))
+                ctxt.get_var(&Arc::from("Cons"))
             );
 
             let (ctxt, ts) =
@@ -309,12 +311,12 @@ mod tests {
                     ((, a b) <- (, a b))
                     )", ctxt, false);
             assert_eq!(ts, vec![Type::unit()]);
-            let tup = || Type::Data(String::from(","), vec![Type::Var(0), Type::Var(1)]);
+            let tup = || Type::Data(Arc::from(","), vec![Type::Var(0), Type::Var(1)]);
             assert_eq!(
                 Some(&Kind::kfun(Kind::Type, Kind::kfun(Kind::Type, Kind::Type))),
-                ctxt.get_type(&format!(","))
+                ctxt.get_type(&Arc::from(","))
             );
-            let find = ctxt.get_var(&format!(",")).unwrap().clone();
+            let find = ctxt.get_var(&Arc::from(",")).unwrap().clone();
             assert_type_eq(
                 Type::fun(Type::Var(0), Type::fun(Type::Var(1), tup())),
                 find.tipe
@@ -363,7 +365,7 @@ mod tests {
             impl<'a> From<&'a Token<'a>> for QSW<'a> {
                 fn from(t: &'a Token<'a>) -> Self {
                     match &t.body {
-                        TokenBody::Word(s) => W(s.as_str()),
+                        TokenBody::Word(s) => W(&s),
                         TokenBody::SExp(body) => S(body.iter().map(QSW::from).collect()),
                         TokenBody::Keyword(kw) => K(*kw),
                         TokenBody::Literal(c) => L(*c),

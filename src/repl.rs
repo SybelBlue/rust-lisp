@@ -9,7 +9,7 @@ impl<Term: Terminal> Completer<Term> for Context {
         for k in self.get_varnames() {
             if k.starts_with(word) {
                 out.push(
-                    Completion::simple(k.clone())
+                    Completion::simple(k.to_string())
                 );
             }
         }

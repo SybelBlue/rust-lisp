@@ -1,31 +1,33 @@
-use std::{fmt::{Display, Formatter, Write, Debug}, collections::HashMap};
+use std::{fmt::{Display, Formatter, Write, Debug}, collections::HashMap, sync::Arc};
 
 use crate::{exprs::Ident, parsing::{sources::{Loc, FilePos}, try_collect}};
 
 pub type Data<'a> = Loc<'a, DataBody<'a>>;
 
+type PSymType = Arc<str>;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DataBody<'a> {
-    PSym(String),
+    PSym(PSymType),
     PSExp(Ident<'a>, Vec<Data<'a>>),
 }
 
 impl<'a> Data<'a> {
-    pub(crate) fn dedup_idents(self) -> Result<Self, (String, FilePos<'a>, FilePos<'a>)> {
+    pub(crate) fn dedup_idents(self) -> Result<Self, (PSymType, FilePos<'a>, FilePos<'a>)> {
         self.dedup_(&mut HashMap::new())
     }
 
-    pub(crate) fn split_first(&'a self) -> (&'a FilePos<'a>, &'a String, Option<&'a Vec<Data<'a>>>) {
+    pub(crate) fn split_first(&'a self) -> (&'a FilePos<'a>, &'a PSymType, Option<&'a Vec<Data<'a>>>) {
         use DataBody::*;
         match &self.body {
-            PSym(w) => 
+            PSym(w) =>
                 (&self.pos, w, None),
             PSExp(fst, rst) =>
                 (&fst.pos, &fst.body, Some(rst)),
         }
     }
 
-    fn dedup_(self, used: &mut HashMap<String, FilePos<'a>>) -> Result<Self, (String, FilePos<'a>, FilePos<'a>)> {
+    fn dedup_(self, used: &mut HashMap<PSymType, FilePos<'a>>) -> Result<Self, (PSymType, FilePos<'a>, FilePos<'a>)> {
         match self.body {
             DataBody::PSym(w) => {
                 if let Some(old) = used.insert(w.clone(), self.pos.clone()) {
@@ -54,7 +56,7 @@ impl<'a> Data<'a> {
 impl<'a> Display for DataBody<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::PSym(s) => 
+            Self::PSym(s) =>
                 f.write_str(s),
             Self::PSExp(fst, ps) => {
                 write!(f, "({fst}")?;
@@ -71,8 +73,8 @@ pub(crate) type Constructor<'a> = (Data<'a>, Data<'a>);
 
 #[derive(Debug, Clone)]
 pub struct DataDecl<'a> {
-    pub(crate) name: Ident<'a>, 
-    pub(crate) kind: Kind, 
+    pub(crate) name: Ident<'a>,
+    pub(crate) kind: Kind,
     pub(crate) ctors: Vec<Constructor<'a>>,
 }
 
@@ -91,9 +93,9 @@ impl Kind {
 impl Display for Kind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Kind::Type => 
+            Kind::Type =>
                 f.write_str("Type"),
-            Kind::KFun(p, r) => 
+            Kind::KFun(p, r) =>
                 write!(f, "(-> {p} {r})"),
         }
     }
