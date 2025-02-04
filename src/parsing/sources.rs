@@ -1,7 +1,15 @@
-use std::{fs::File, io::{Read, BufRead}, fmt::{Display, Formatter}, hash::{Hash, Hasher}};
+use std::{
+    fmt::{Display, Formatter},
+    fs::File,
+    hash::{Hash, Hasher},
+    io::{BufRead, Read},
+    sync::Arc,
+};
 
-use crate::{errors::LexResult, parsing::lex::{SourceIter, Token}};
-
+use crate::{
+    errors::LexResult,
+    parsing::lex::{SourceIter, Token},
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Loc<'a, T> {
@@ -42,16 +50,20 @@ pub struct FilePos<'a> {
 
 impl<'a> FilePos<'a> {
     pub(crate) fn new(src: &'a Source<'a>) -> Self {
-        Self { src, row: 1, col: 1 }
+        Self {
+            src,
+            row: 1,
+            col: 1,
+        }
     }
 
     pub(crate) fn advance(&mut self, och: &Option<char>) {
         match och {
-            None => {},
+            None => {}
             Some('\n') => {
                 self.row += 1;
                 self.col = 1;
-            },
+            }
             _ => self.col += 1,
         }
     }
@@ -76,20 +88,23 @@ impl<'a> FilePos<'a> {
 
 impl<'a> Display for FilePos<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}", 
+        write!(
+            f,
+            "{}:{}:{}",
             match self.src {
                 Source::Anon(_) => "anon",
-                Source::File(s) => s.as_str(),
-            }, 
+                Source::File(s) => &s,
+            },
             self.row,
-            self.col)
+            self.col
+        )
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Source<'a> {
     Anon(&'a str),
-    File(String),
+    File(Arc<str>),
 }
 
 impl<'a> Source<'a> {
@@ -99,31 +114,23 @@ impl<'a> Source<'a> {
             txt: match self {
                 Source::Anon(s) => s.chars(),
                 Source::File(p) => {
-                    let mut file = File::open(p).unwrap();
+                    let mut file = File::open(p.as_ref()).unwrap();
                     file.read_to_string(file_buf).unwrap();
                     file_buf.chars()
-                },
+                }
             },
         }
         .lex()
     }
 
-    pub(crate) fn get_line(&self, row: usize) -> Option<String> {
+    pub(crate) fn get_line(&self, row: usize) -> Option<Arc<str>> {
         match self {
-            Source::Anon(src) => {
-                src.lines().nth(row - 1).map(String::from)
-            },
-            Source::File(p) => {
-                File::open(p)
-                    .ok()
-                    .map(std::io::BufReader::new)
-                    .and_then(|file| {
-                        file.lines()
-                            .nth(row - 1)
-                            .and_then(Result::ok)
-                    })
-            },
+            Source::Anon(src) => src.lines().nth(row - 1).map(Arc::from),
+            Source::File(p) => File::open(p.as_ref())
+                .ok()
+                .map(std::io::BufReader::new)
+                .and_then(|file| file.lines().nth(row - 1).and_then(Result::ok))
+                .map(Arc::from),
         }
     }
 }
-

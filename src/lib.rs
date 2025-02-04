@@ -48,12 +48,12 @@ mod tests {
         fn agg(t: Type) -> Type {
             Type::fun(t.clone(), Type::fun(t.clone(), t))
         }
-        
+
         fn assert_type_eq(a: Type, b: Type) {
             let a = Scheme::concrete(a);
             let b = Scheme::concrete(b);
             assert_eq!(
-                a.normalize().tipe, 
+                a.normalize().tipe,
                 b.normalize().tipe,
                 "{} !~ {}",
                 &a.tipe,
@@ -70,7 +70,7 @@ mod tests {
             assert_eq!(Type::nat(), type_test("3"));
             assert_eq!(Type::nat(), type_test("(3)"));
             assert_eq!(Type::nat(), type_test("((3))"));
-            
+
             assert_eq!(agg(Type::nat()), type_test(r"+"));
             assert_eq!(agg(Type::nat()), type_test(r"(+)"));
         }
@@ -78,7 +78,7 @@ mod tests {
         #[test]
         fn lambdas() {
             let fun = crate::typing::Type::fun;
-            
+
             assert_eq!(agg(Type::nat()), type_test("(x -> (+ x))"));
 
             assert_type_eq(fun(Var(1), Var(1)), type_test("(x -> x)"));
@@ -105,35 +105,35 @@ mod tests {
 
             // kestrel (const)
             assert_type_eq(fun(Var(2), fun(Var(1), Var(2))), type_test("(x -> (_ -> x))"));
-            
+
             // psi (on)
             assert_type_eq(
-                fun(fun(Var(2), fun(Var(2), Var(3))), 
-                    fun(fun(Var(1), Var(2)), 
-                    fun(Var(1), 
+                fun(fun(Var(2), fun(Var(2), Var(3))),
+                    fun(fun(Var(1), Var(2)),
+                    fun(Var(1),
                     fun(Var(1)
                     , Var(3))))), type_test("((f g x y) -> (f (g x) (g y)))"));
-            
+
             // bluebird (.)
             assert_type_eq(
                 fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((g f x) -> (g (f x)))"));
-            
+
             // cardinal (flip)
             assert_type_eq(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
                 type_test("((f b a) -> (f a b))"));
-            
+
             // applicator ($)
             assert_type_eq(
                 fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
                 type_test("((f a) -> (f a))"));
-            
+
             // starling (<*> over (->))
             assert_type_eq(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((fabc gab a) -> (fabc a (gab a)))"));
-            
+
             // pheonix/starling' (liftA2/liftM2 over (->))
             assert_type_eq(
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
@@ -146,30 +146,30 @@ mod tests {
             let fun = crate::typing::Type::fun;
 
             assert_type_eq(fun(Var(2), fun(Var(1), Var(2))), type_test("((kestrel x) <- (_ -> x))"));
-            
+
             assert_type_eq(
-                fun(fun(Var(2), fun(Var(2), Var(3))), 
-                    fun(fun(Var(1), Var(2)), 
-                    fun(Var(1), 
+                fun(fun(Var(2), fun(Var(2), Var(3))),
+                    fun(fun(Var(1), Var(2)),
+                    fun(Var(1),
                     fun(Var(1)
                     , Var(3))))), type_test("((on f g x y) <- (f (g x) (g y)))"));
-            
+
             assert_type_eq(
                 fun(fun(Var(2), Var(3)), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((bluebird g f x) <- (g (f x)))"));
-            
+
             assert_type_eq(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(Var(2), fun(Var(1), Var(3)))),
                 type_test("((cardinal f b a) <- (f a b))"));
-            
+
             assert_type_eq(
                 fun(fun(Var(1), Var(2)), fun(Var(1), Var(2))),
                 type_test("(($ f a) <- (f a))"));
-            
+
             assert_type_eq(
                 fun(fun(Var(1), fun(Var(2), Var(3))), fun(fun(Var(1), Var(2)), fun(Var(1), Var(3)))),
                 type_test("((starling fabc gab a) <- (fabc a (gab a)))"));
-            
+
             assert_type_eq(
                 fun(fun(Var(2), fun(Var(3), Var(4))), fun(fun(Var(1), Var(2)), fun(fun(Var(1), Var(3)), fun(Var(1), Var(4))))),
                 type_test("((phoenix fbcd gab hac a) <- (fbcd (gab a) (hac a)))"));
@@ -178,12 +178,12 @@ mod tests {
         #[test]
         fn recursive() {
             assert_type_eq(
-                Type::fun(Type::nat(), Type::nat()), 
+                Type::fun(Type::nat(), Type::nat()),
                 type_test("((succ-inf n) <- (+ 1 (succ-inf (+ n 1))))"));
         }
 
         #[test]
-        fn mod_parapoly() {            
+        fn mod_parapoly() {
             let types = type_test_all("\
             ((id x) <- x)
             ((bux z) <- 5)
@@ -203,22 +203,22 @@ mod tests {
         fn context_edits() {
             let ctxt = Context::new();
             let n = ctxt.keys().count();
-            let (ctxt, ts) = 
+            let (ctxt, ts) =
                 type_test_all_with("(dont_bind_bc_type_err <- 3) (ord dont_bind_bc_type_err)", ctxt, true);
             assert_eq!(ts, Vec::new());
             assert_eq!(ctxt.keys().count(), n);
 
-            let (ctxt, ts) = 
+            let (ctxt, ts) =
                 type_test_all_with("(z <- 3)", ctxt, false);
             assert_eq!(ts, vec![Type::nat()]);
             assert_eq!(ctxt.keys().count(), n + 1);
 
-            let (ctxt, ts) = 
+            let (ctxt, ts) =
                 type_test_all_with("((test_argname_mask z) <- (ord z))", ctxt, false);
             assert_eq!(ts, vec![Type::fun(Type::char(), Type::nat())]);
             assert_eq!(ctxt.keys().count(), n + 2);
 
-            let (ctxt, ts) = 
+            let (ctxt, ts) =
                 type_test_all_with("(test_argname_mask z)", ctxt, true);
             assert_eq!(ts, vec![]);
             assert_eq!(ctxt.keys().count(), n + 2);
@@ -231,7 +231,7 @@ mod tests {
         #[test]
         fn basic() {
             use crate::parsing::lex::{Token, TokenBody};
-            
+
             #[derive(Debug, PartialEq, Eq)]
             enum QSW<'a> {
                 K(Keyword),
@@ -244,19 +244,19 @@ mod tests {
             impl<'a> From<&'a Token<'a>> for QSW<'a> {
                 fn from(t: &'a Token<'a>) -> Self {
                     match &t.body {
-                        TokenBody::Word(s) => W(s.as_str()),
+                        TokenBody::Word(s) => W(&s),
                         TokenBody::SExp(body) => S(body.iter().map(QSW::from).collect()),
                         TokenBody::Keyword(kw) => K(*kw),
                         TokenBody::Literal(c) => L(*c),
                     }
                 }
             }
-    
-            let src = Source::Anon("()\nhello\n(+ 12 34 53) (  ->    
-                test\n\t\n\n (2 hi)  ) (x <- 4) 
-                (<- bad) 
+
+            let src = Source::Anon("()\nhello\n(+ 12 34 53) (  ->
+                test\n\t\n\n (2 hi)  ) (x <- 4)
+                (<- bad)
                 ('h' '\\n' 'ok hi't'here ' '')
-                (test0(test1)test-2(test3 -> test4)) 
+                (test0(test1)test-2(test3 -> test4))
                 (0 (1 (2 (3)) ((4) 5)) 6)");
             let test = vec!
                 [ S(vec![])
@@ -275,15 +275,15 @@ mod tests {
                             , W("5")])
                         ])
                     , W("6")])];
-            
-            
+
+
             let ref mut buf = String::new();
             let ts = src.lex(buf)
                 .map_err(|e| println!("lexing failed with Error {}", e))
                 .unwrap();
-    
+
             assert_eq!(test.len(), ts.len(), "lex returned wrong number of tokens {} (not {})", ts.len(), test.len());
-    
+
             for (s, t) in ts.iter().map(QSW::from).zip(test) {
                 assert_eq!(s, t);
             }

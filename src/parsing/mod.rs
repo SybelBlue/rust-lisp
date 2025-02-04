@@ -1,11 +1,13 @@
 pub mod lex;
 pub mod sources;
 
+use std::sync::Arc;
+
 use crate::{
-    errors::{ParseResult, ParseErrorBody::*, ParseError}, 
+    errors::{ParseResult, ParseErrorBody::*, ParseError},
     exprs::{Expr, Ident, ExprBody},
     stmts::Stmt,
-    values::{Value},
+    values::Value,
     parsing::lex::{Token, TokenBody::*, Keyword::*}
 };
 
@@ -25,11 +27,11 @@ pub fn parse<'a>(ts: Vec<Token<'a>>) -> ParseResult<'a, Vec<Stmt<'a>>> {
 fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     let pos = t.pos;
     let ts = match t.body {
-        Keyword(kw) => 
+        Keyword(kw) =>
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Literal(c) => 
+        Literal(c) =>
             return Ok(Stmt::value(pos, Value::Char(c))),
-        Word(w) => 
+        Word(w) =>
             return Ok(Stmt::value(pos, parse_string(w))),
         SExp(ts) => ts,
     };
@@ -53,16 +55,16 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
     match kw {
         Import =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Arrow => 
+        Arrow =>
             Ok(Stmt::value(arr_pos, parse_lambda(head, body)?)),
         Backarrow => {
             let head_pos = head.pos;
             match head.body {
-                Word(name) => 
+                Word(name) =>
                     Ok(Stmt::Bind(Ident { pos: arr_pos, body: name }, parse_expr(body)?)),
-                Keyword(kw) => 
+                Keyword(kw) =>
                     Err(ParseError::new(arr_pos, MisplacedKeyword(kw))),
-                Literal(_) => 
+                Literal(_) =>
                     return Err(ParseError::new(pos, MisplacedLiteral)),
                 SExp(ts) => {
                     if ts.is_empty() {
@@ -70,7 +72,7 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                     }
                     let mut ts = ts;
                     let name = match ts.remove(0) {
-                        Token { body: Word(w), .. } => 
+                        Token { body: Word(w), .. } =>
                             Ok(w),
                         Token { pos, body: Keyword(kw) } =>
                             Err(ParseError::new(pos, MisplacedKeyword(kw))),
@@ -79,12 +81,12 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
                         Token { pos, body: Literal(_) } =>
                             Err(ParseError::new(pos, MisplacedLiteral)),
                     }?;
-                    let head = Token { 
-                        pos: arr_pos.clone(), 
-                        body: SExp(ts) 
+                    let head = Token {
+                        pos: arr_pos.clone(),
+                        body: SExp(ts)
                     };
                     Ok(Stmt::Bind(
-                        Ident { pos: head_pos, body: name }, 
+                        Ident { pos: head_pos, body: name },
                         Expr { pos: arr_pos, body: ExprBody::Val(parse_lambda(head, body)?) }
                     ))
                 },
@@ -96,9 +98,9 @@ fn parse_stmt<'a>(t: Token<'a>) -> ParseResult<'a, Stmt<'a>> {
 fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
     let pos = t.pos;
     match t.body {
-        Keyword(kw) => 
+        Keyword(kw) =>
             Err(ParseError::new(pos, MisplacedKeyword(kw))),
-        Word(w) => 
+        Word(w) =>
             Ok(Expr { pos, body: ExprBody::Val(parse_string(w)) }),
         body => {
             let t = Token { pos, body };
@@ -114,9 +116,9 @@ fn parse_expr<'a>(t: Token<'a>) -> ParseResult<'a, Expr<'a>> {
 fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> ParseResult<'a, Value<'a>> {
     let mut found: Vec<Ident<'a>> = Vec::new();
     match body {
-        Literal(_) => 
+        Literal(_) =>
             return Err(ParseError::new(pos, MisplacedLiteral)),
-        Keyword(kw) => 
+        Keyword(kw) =>
             return Err(ParseError::new(pos, MisplacedKeyword(kw))),
         Word(w) => {
             if found.iter().any(|i| i.body == w) {
@@ -128,9 +130,9 @@ fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> Pars
         SExp(ts) => {
             for Token { pos, body } in ts {
                 match body {
-                    Literal(_) => 
+                    Literal(_) =>
                         return Err(ParseError::new(pos, MisplacedLiteral)),
-                    Keyword(kw) => 
+                    Keyword(kw) =>
                         return Err(ParseError::new(pos, MisplacedKeyword(kw))),
                     Word(w) => {
                         if found.iter().any(|i| i.body == w) {
@@ -150,7 +152,7 @@ fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> Pars
     if let Some(lst) = found.pop() {
         Ok(
             found.into_iter().rev().fold(
-                Value::lam(lst, parse_expr(body_tkn)?), 
+                Value::lam(lst, parse_expr(body_tkn)?),
                 |acc, next| {
                     Value::lam(next, Expr::val(pos.clone(), acc))
                 })
@@ -160,6 +162,6 @@ fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> Pars
     }
 }
 
-fn parse_string<'a>(w: String) -> Value<'a> {
+fn parse_string<'a>(w: Arc<str>) -> Value<'a> {
     w.parse::<usize>().map(Value::Nat).unwrap_or(Value::Sym(w))
 }
