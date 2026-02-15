@@ -47,7 +47,7 @@ impl Context {
             .get(self.aliased.get(k).unwrap_or(k))
     }
 
-    pub fn keys(&self) -> std::iter::Chain<Keys<Identifier, QualifiedIdentifier>, Keys<QualifiedIdentifier, Scheme>> {
+    pub fn keys(&self) -> std::iter::Chain<Keys<'_, Identifier, QualifiedIdentifier>, Keys<'_, QualifiedIdentifier, Scheme>> {
         self.aliased.keys().chain(self.bound.keys())
     }
 
