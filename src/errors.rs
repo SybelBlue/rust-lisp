@@ -1,14 +1,12 @@
 use std::{
     collections::HashSet,
     fmt::{Debug, Display, Formatter},
-    sync::Arc,
 };
 
 use crate::{
     exprs::Expr,
     parsing::{
-        lex::Keyword,
-        sources::{FilePos, Loc},
+        lex::Keyword, sources::{FilePos, Loc}, ArcStr,
     },
     typing::Type,
 };
@@ -42,8 +40,8 @@ pub enum ParseErrorBody<'a> {
     MisplacedLiteral,
     MisplacedSExp,
     MissingBindingIdentifier,
-    BadBinding(Arc<str>),
-    DuplicateLambdaArg(Arc<str>),
+    BadBinding(ArcStr),
+    DuplicateLambdaArg(ArcStr),
     InSExp(Box<ParseError<'a>>),
     NotYetImplemented(&'a str),
 }

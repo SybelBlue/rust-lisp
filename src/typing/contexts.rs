@@ -1,9 +1,11 @@
 use std::{collections::{hash_map::Keys, HashMap}, sync::Arc};
 
+use crate::parsing::ArcStr;
+
 use super::{Type, scheme::Scheme};
 
-pub type Identifier = Arc<str>;
-pub type QualifiedIdentifier = Arc<str>;
+pub type Identifier = ArcStr;
+pub type QualifiedIdentifier = ArcStr;
 
 
 #[derive(Debug, Clone)]
@@ -21,7 +23,7 @@ impl Context {
     }
 
     fn add_prelude(&mut self, s: &str, sc: Scheme) {
-        let qualed: Arc<str> = format!("Prelude.{s}").into();
+        let qualed: ArcStr = format!("Prelude.{s}").into();
         self.bound.insert(qualed.clone(), sc);
         self.aliased.insert(Arc::from(s), qualed);
     }

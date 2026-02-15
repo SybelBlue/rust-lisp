@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
-use crate::exprs::{Expr, Ident};
+use crate::{exprs::{Expr, Ident}, parsing::ArcStr};
 
 #[derive(Debug, Clone)]
 pub enum Value<'a> {
     Nat(usize),
-    Sym(Arc<str>),
+    Sym(ArcStr),
     Char(char),
     Lam(Ident<'a>, Box<Expr<'a>>),
 }

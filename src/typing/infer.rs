@@ -1,10 +1,10 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc};
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     exprs::{Expr, Ident, ExprBody},
     errors::{TypeResult, TypeError, TypeErrorBody::*},
     values::Value,
-    parsing::sources::{FilePos, Loc},
+    parsing::{sources::{FilePos, Loc}, ArcStr},
     stmts::Stmt
 };
 
@@ -40,7 +40,7 @@ type Infer<'a, R> = Result<(InferContext<'a>, R), (Context, TypeError<'a>)>;
 #[derive(Debug, Clone)]
 struct InferContext<'a> {
     ctxt: Context,
-    env: HashMap<Arc<str>, Loc<'a, Scheme>>,
+    env: HashMap<ArcStr, Loc<'a, Scheme>>,
     var_count: usize,
 }
 
@@ -74,7 +74,7 @@ impl<'a> InferContext<'a> {
         (ctxt, Ok(()))
     }
 
-    fn lookup_env(mut self, k: &'a Arc<str>, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
+    fn lookup_env(mut self, k: &'a ArcStr, pos: &'a FilePos<'a>) -> Infer<'a, Type> {
         if let Some(s) = self.env.get(k).map(|s| &s.body).or_else(|| self.ctxt.get(k)).cloned() {
             let t = s.instantiate(&mut || self.fresh());
             Ok((self, t))

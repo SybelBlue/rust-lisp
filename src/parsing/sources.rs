@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     errors::LexResult,
-    parsing::lex::{SourceIter, Token},
+    parsing::lex::{SourceIter, ArcStr, Token},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,7 +104,7 @@ impl<'a> Display for FilePos<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Source<'a> {
     Anon(&'a str),
-    File(Arc<str>),
+    File(ArcStr),
 }
 
 impl<'a> Source<'a> {
@@ -123,7 +123,7 @@ impl<'a> Source<'a> {
         .lex()
     }
 
-    pub(crate) fn get_line(&self, row: usize) -> Option<Arc<str>> {
+    pub(crate) fn get_line(&self, row: usize) -> Option<ArcStr> {
         match self {
             Source::Anon(src) => src.lines().nth(row - 1).map(Arc::from),
             Source::File(p) => File::open(p.as_ref())

@@ -2,12 +2,14 @@ use std::{sync::Arc, str::Chars};
 
 use crate::{errors::{LexError, LexResult, LexErrorBody}, parsing::sources::{FilePos, Loc}};
 
+pub type ArcStr = Arc<str>;
+
 pub type Token<'a> = Loc<'a, TokenBody<'a>>;
 
 #[derive(Debug, Clone)]
 pub enum TokenBody<'a> {
     Keyword(Keyword),
-    Word(Arc<str>),
+    Word(ArcStr),
     Literal(char),
     SExp(Vec<Token<'a>>),
 }

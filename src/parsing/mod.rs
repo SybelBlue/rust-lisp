@@ -1,7 +1,6 @@
 pub mod lex;
 pub mod sources;
 
-use std::sync::Arc;
 
 use crate::{
     errors::{ParseResult, ParseErrorBody::*, ParseError},
@@ -10,6 +9,8 @@ use crate::{
     values::Value,
     parsing::lex::{Token, TokenBody::*, Keyword::*}
 };
+
+pub use lex::ArcStr;
 
 fn try_collect<T, E, I: Iterator<Item=Result<T, E>>>(itr: I) -> Result<Vec<T>, E> {
     let mut out = Vec::new();
@@ -162,6 +163,6 @@ fn parse_lambda<'a>(Token { pos, body }: Token<'a>, body_tkn: Token<'a>) -> Pars
     }
 }
 
-fn parse_string<'a>(w: Arc<str>) -> Value<'a> {
+fn parse_string<'a>(w: ArcStr) -> Value<'a> {
     w.parse::<usize>().map(Value::Nat).unwrap_or(Value::Sym(w))
 }
